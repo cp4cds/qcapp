@@ -1,2 +1,2 @@
 /usr/local/cp4cds-app/qcproj/qcproj/settings_local.py
-/usr/local/cp4cds-app/qcproj/qcproj/settings_local.pyc
+*.pyc
