@@ -5,6 +5,20 @@ django.setup()
 import datetime
 import os
 from qcapp.models import *
+from django.db.models import Count, Max, Min, Sum, Avg
+
+def temporal_aggregation(dataset):
+    """
+    Aggregate datafiles timestamps to update dataset file stamp
+    :input:
+    dataset: a dataset to aggregate time over
+
+    :return:
+    """
+    datafiles = dataset.datafile_set.all()
+    dataset.start_time = datafiles.aggregate(Min('start_time'))
+    dataset.end_time = datafiles.aggregate(Max('end_time'))
+
 
 
 def aggregate():
@@ -49,30 +63,30 @@ def create():
                 index_node = line[15].strip()
                 replica = line[16].strip()
 
+
+
+                product, institute, model, experiment, frequency, realm, table, ensemble, \
+                filen, start_time, end_time = filename_parse(filename)
+
+                """
+                print 'Product: ', product
+                print ("filename: %s \n dataset_id: %s \n version: %s \n download url: %s \n variable %s \n "
+                       "variable cf name %s \n variable long name: %s \n variable units: %s \n experiment family: %s \n "
+                       "product: %s \n filesize: %s \n forcings: %s \n checksum type: %s \n checksum: %s \n"
+                       "tracking id: %s \n index node: %s \n replica: %s, institute: %s \n model: %s \n "
+                       "experiment: %s \n frequency: %s \n realm: %s \n table: %s \n ensemble: %s \n filen: %s \n "
+                       "start time: %s \n end time: %s \n ") % \
+                      (filename, dataset_id, version, download_url, variable, variable_cf_name, variable_long_name,
+                       variable_units, experiment_family, product, filesize, forcings, checksum_type, checksum,
+                       tracking_id, index_node, replica, institute, model, experiment, frequency, realm, table, ensemble,
+                       filen, start_time, end_time)
+                """
+
+                create_records(product, institute, model, experiment, frequency, realm, table, ensemble, version,
+                               experiment_family, forcings, filename, filesize, checksum, download_url, index_node,
+                               variable, variable_cf_name, variable_long_name, variable_units, tracking_id,
+                               start_time, end_time)
             reader.close()
-
-            product, institute, model, experiment, frequency, realm, table, ensemble, \
-            filen, start_time, end_time = filename_parse(filename)
-
-            """
-            print 'Product: ', product
-            print ("filename: %s \n dataset_id: %s \n version: %s \n download url: %s \n variable %s \n "
-                   "variable cf name %s \n variable long name: %s \n variable units: %s \n experiment family: %s \n "
-                   "product: %s \n filesize: %s \n forcings: %s \n checksum type: %s \n checksum: %s \n"
-                   "tracking id: %s \n index node: %s \n replica: %s, institute: %s \n model: %s \n "
-                   "experiment: %s \n frequency: %s \n realm: %s \n table: %s \n ensemble: %s \n filen: %s \n "
-                   "start time: %s \n end time: %s \n ") % \
-                  (filename, dataset_id, version, download_url, variable, variable_cf_name, variable_long_name,
-                   variable_units, experiment_family, product, filesize, forcings, checksum_type, checksum,
-                   tracking_id, index_node, replica, institute, model, experiment, frequency, realm, table, ensemble,
-                   filen, start_time, end_time)
-            """
-
-            create_records(product, institute, model, experiment, frequency, realm, table, ensemble, version,
-                           experiment_family, forcings, filename, filesize, checksum, download_url, index_node,
-                           variable, variable_cf_name, variable_long_name, variable_units, tracking_id,
-                           start_time, end_time)
-
 
 def create_records(product, institute, model, experiment, frequency, realm, table, ensemble, version, experiment_family,
                    forcings, filename, filesize, checksum, download_url, index_node, variable, variable_cf_name,
@@ -227,5 +241,7 @@ print "Number of files...", DataFile.objects.count()
 
 
 if __name__ == '__main__':
-#    create()
-    aggregate()
+    #create()
+    datasets = Dataset.objects.all()
+    for dataset in datasets:
+        temporal_aggregation(dataset)
