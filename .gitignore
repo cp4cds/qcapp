@@ -1,2 +1,3 @@
-/usr/local/cp4cds-app/qcproj/qcproj/settings_local.py
-/usr/local/cp4cds-app/qcproj/qcproj/settings_local.pyc
+/usr/local/cp4cds-app/qcapp/qcproj/settings_local.py
+*.pyc
+db.sqlite*
