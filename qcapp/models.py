@@ -57,3 +57,16 @@ class DataFile(models.Model):
     end_time = models.DateField()
 
 
+class DataRequest(models.Model):
+
+    request_name = models.CharField(max_length=80)
+    variable = models.CharField(max_length=20)
+    variable_long_name = models.CharField(max_length=80)
+    cmor_table = models.CharField(max_length=20)
+    frequency = models.CharField(max_length=20)
+    priority = models.CharField(max_length=20, default='normal')
+    number_experiments = models.PositiveSmallIntegerField(null=True)
+    number_ensemble_members = models.PositiveSmallIntegerField(null=True)
+    number_of_models = models.PositiveSmallIntegerField()
+    volume_of_data = models.DecimalField(max_digits=20, decimal_places=8, null=True)
+

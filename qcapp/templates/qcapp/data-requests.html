@@ -1,0 +1,6 @@
+{% for dr in dataRequests.all %}
+
+{{ dr.variable}} {{ dr.variable_long_name }} {{ dr.cmor_table }} {{ dr.frequency }} {{ dr.priority }}
+{{ dr.number_experiments }} {{ dr.number_ensemble_members }} {{ dr.number_of_models }} {{ dr.volume_of_data }}
+<BR>
+{% endfor %}
