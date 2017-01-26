@@ -1,3 +1,9 @@
 qcproj/settings_local.py
 *.pyc
 db.sqlite*
+cf-checker
+cccc*
+Rec.json
+Rec.txt
+*.zip
+static/
