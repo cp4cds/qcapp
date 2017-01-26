@@ -22,5 +22,6 @@ urlpatterns = [
     url(r'^happy/(.+)/', qcapp.views.happy),
     url(r'^admin/', admin.site.urls),
     url(r'^test/', qcapp.views.test),
-    url(r'^data-requests/', qcapp.views.data_requests),
+    url(r'^data-requests/', qcapp.views.data_requests, name="data-requests"),
+    url(r'^ag-test/', qcapp.views.ag_test),
 ]

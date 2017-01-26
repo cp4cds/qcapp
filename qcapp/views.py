@@ -19,3 +19,9 @@ def data_requests(request):
     dataRequests = DataRequest.objects.all()
 
     return render(request, 'qcapp/data-requests.html', {'dataRequests': dataRequests})
+
+def ag_test(request):
+    dataRequests = DataRequest.objects.all()
+    return render(request, 'qcapp/ag-test.html', {'dataRequests': dataRequests,
+                                                  'page_title': 'My great page!!!'})
+

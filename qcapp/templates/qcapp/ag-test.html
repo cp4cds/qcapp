@@ -1,0 +1,25 @@
+{% extends 'qcapp/base.html' %}
+
+{% block contents %}
+
+
+<h3>A table... </h3>
+
+
+<table class="table table-hover"> 
+
+<thead> <tr> <th>#</th> <th>First Name</th> <th>Last Name</th> <th>Username</th> </tr> </thead> 
+<tbody> 
+
+    {% for dr in dataRequests %}
+
+    <tr> <th scope=row>{{ dr.request_name }}</th> <td>{{ dr.variable }}</td> <td>Otto</td> <td>@mdo</td> </tr>
+
+    {% endfor %}
+
+</tbody> 
+
+</table>
+
+{% endblock %}
+
