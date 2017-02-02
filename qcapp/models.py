@@ -2,9 +2,36 @@ from __future__ import unicode_literals
 
 from django.db import models
 
-
 # Create your models here.
+
+class DataSpecification(models.Model):
+
+    requester = models.CharField(max_length=20)
+    variable = models.CharField(max_length=20)
+    variable_long_name = models.CharField(max_length=80)
+    cmor_table = models.CharField(max_length=20)
+    frequency = models.CharField(max_length=20)
+    priority = models.CharField(max_length=20, default='normal')
+
+# TODO Dynamic functions
+#    number_experiments = models.PositiveSmallIntegerField(null=True)
+#    number_ensemble_members = models.PositiveSmallIntegerField(null=True)
+#    number_of_models = models.PositiveSmallIntegerField()
+#    volume_of_data = models.DecimalField(max_digits=20, decimal_places=8, null=True)
+
+#    file_qc = models.ForeignKey('FileQC', null=True)
+#    dataset_qc = models.ForeignKey('DatasetQC', null=True)
+
+# TODO
+#class Requester(models.Model):
+#    data_requester = models.ForeignKey(DataSpecification)
+#    requested_by = models.CharField(max_length=20)
+
+
+
 class Dataset(models.Model):
+
+    data_spec = models.ManyToManyField(DataSpecification, blank=True)
 
     project = models.CharField(max_length=30, default="cmip5")
     product = models.CharField(max_length=20)
@@ -41,7 +68,7 @@ class DataFile(models.Model):
 
     dataset = models.ForeignKey(Dataset)
 
-    filename = models.CharField(max_length=300, unique=True)
+    filepath = models.CharField(max_length=300, unique=True)
     size = models.BigIntegerField()
     checksum = models.CharField(max_length=80)
     tracking_id = models.CharField(max_length=80)
@@ -56,17 +83,99 @@ class DataFile(models.Model):
     start_time = models.DateField()
     end_time = models.DateField()
 
+class QCcheck(models.Model):
 
-class DataRequest(models.Model):
+    qc_check_type = models.CharField(max_length=300)
+    qc_check_file = models.BooleanField(default=False)
+    qc_check_dataset = models.BooleanField(default=False)
+    qc_score = models.PositiveSmallIntegerField()
+    qc_details = models.TextField()
+    # TODO interactive comments field
+#    qc_comments =
 
-    request_name = models.CharField(max_length=80)
-    variable = models.CharField(max_length=20)
-    variable_long_name = models.CharField(max_length=80)
-    cmor_table = models.CharField(max_length=20)
+
+class FileQC(models.Model):
+
+    check_file = models.ForeignKey(DataFile)
+    # FOR CF AND CEDA-CC RESULTS
+    qc_check = models.ManyToManyField(QCcheck, blank=True)
+
+    qc_check_type = QCcheck.qc_check_type
+
+    cf_compliance_score = models.PositiveSmallIntegerField()
+    ceda_cc_score = models.PositiveSmallIntegerField()
+
+    file_qc_score = models.PositiveSmallIntegerField(default=0)
+
+
+    # TODO
+    #cf_compliance_details = models.CharField(max_length=500)
+    #global_attributes_score = models.SmallIntegerField()
+    #global_attributes_details = models.CharField(max_length=500)
+    #variable_attributes_score = models.SmallIntegerField()
+    #variable_attributes_details = models.CharField(max_length=500)
+
+class DatasetQC(models.Model):
+
+    check_dataset = models.ForeignKey(Dataset)
+    # FOR TIME AXIS CHECK, CONTINUTIY AND COMPLETENESS
+    qc_check = models.ManyToManyField(QCcheck, blank=True)
+
+    aggregate_score_of_ds_files = models.SmallIntegerField()
+
+class QCpercentiles(models.Model):
+
+    dataset = models.ForeignKey(Dataset)
+    qc_plot = models.ForeignKey('QCplot', null=True)
+
+    project = models.CharField(max_length=30, default="cmip5")
+    product = models.CharField(max_length=20)
+    experiment = models.CharField(max_length=20)
     frequency = models.CharField(max_length=20)
-    priority = models.CharField(max_length=20, default='normal')
-    number_experiments = models.PositiveSmallIntegerField(null=True)
-    number_ensemble_members = models.PositiveSmallIntegerField(null=True)
-    number_of_models = models.PositiveSmallIntegerField()
-    volume_of_data = models.DecimalField(max_digits=20, decimal_places=8, null=True)
+    realm = models.CharField(max_length=20)
+    cmor_table = models.CharField(max_length=20)
+    model = models.CharField(max_length=20)
+    ensemble = models.CharField(max_length=10)
+    variable = models.CharField(max_length=20)
 
+    max_value = models.DecimalField(decimal_places=1, max_digits=8)
+    p999_value = models.DecimalField(decimal_places=1, max_digits=8)
+    p990_value = models.DecimalField(decimal_places=1, max_digits=8)
+    p950_value = models.DecimalField(decimal_places=1, max_digits=8)
+    p750_value = models.DecimalField(decimal_places=1, max_digits=8)
+    p500_value = models.DecimalField(decimal_places=1, max_digits=8)
+    p250_value = models.DecimalField(decimal_places=1, max_digits=8)
+    p050_value = models.DecimalField(decimal_places=1, max_digits=8)
+    p010_value = models.DecimalField(decimal_places=1, max_digits=8)
+    p001_value = models.DecimalField(decimal_places=1, max_digits=8)
+    min_value = models.DecimalField(decimal_places=1, max_digits=8)
+    ma_max_value = models.DecimalField(decimal_places=1, max_digits=8)
+    ma_min_value = models.DecimalField(decimal_places=1, max_digits=8)
+
+
+class QCplot(models.Model):
+
+    dataset = models.ForeignKey(Dataset)
+    qc_percentiles = models.ForeignKey(QCpercentiles)
+
+    path = models.CharField(max_length=300, unique=True)
+    project = models.CharField(max_length=30, default="cmip5")
+    product = models.CharField(max_length=20)
+    experiment = models.CharField(max_length=20)
+    frequency = models.CharField(max_length=20)
+    realm = models.CharField(max_length=20)
+    cmor_table = models.CharField(max_length=20)
+    ensemble = models.CharField(max_length=10)
+    start_time = models.DateField(blank=True)
+    end_time = models.DateField(blank=True)
+    variable = models.CharField(max_length=20)
+
+
+class QCresults(models.Model):
+    dataset_qc = models.ForeignKey(DatasetQC)
+    file_qc = models.ManyToManyField(FileQC)
+    dataset_qc_score = DatasetQC.aggregate_score_of_ds_files
+    file_qc_score = FileQC.file_qc_score
+#   dataset_qc_link =
+#   Many of these
+#   Link to plot?

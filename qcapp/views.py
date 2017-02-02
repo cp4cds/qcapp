@@ -2,7 +2,7 @@ from django.shortcuts import render
 from django.http import HttpResponse
 
 from qcapp.models import *
-from .models import DataRequest
+from .models import DataSpecification
 
 # Create your views here.
 def happy(request, expt):
@@ -14,14 +14,14 @@ def test(request):
     requestName = Request.objects.first().request_name
     return HttpResponse("I am a test." + requestName )
 
-def data_requests(request):
+def data_spec(request):
 
-    dataRequests = DataRequest.objects.all()
+    dataSpec= DataSpecification.objects.all()
 
-    return render(request, 'qcapp/data-requests.html', {'dataRequests': dataRequests})
+    return render(request, 'qcapp/data-spec.html', {'dataSpec': dataSpec})
 
 def ag_test(request):
-    dataRequests = DataRequest.objects.all()
-    return render(request, 'qcapp/ag-test.html', {'dataRequests': dataRequests,
+    dataSpec = DataSpecification.objects.all()
+    return render(request, 'qcapp/ag-test.html', {'dataSpec': dataSpec,
                                                   'page_title': 'My great page!!!'})
 

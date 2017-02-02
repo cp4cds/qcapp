@@ -43,16 +43,16 @@ def create_request_record(request_name, variable, cmor_table, frequency, variabl
     Create a Request record
     """
   #  pdb.set_trace()
-    req, result = DataRequest.objects.get_or_create(request_name=request_name,
-                                                    variable=variable,
-                                                    cmor_table=cmor_table,
-                                                    frequency=frequency,
-                                                    variable_long_name=variable_long_name,
-                                                    number_experiments=number_experiments,
-                                                    number_of_models=number_of_models,
-                                                    volume_of_data=volume_of_data,
-                                                    number_ensemble_members=no_ens_membs
-                                                    )
+    req, result = DataSpecification.objects.get_or_create(requester=request_name,
+                                                          variable=variable,
+                                                          cmor_table=cmor_table,
+                                                          frequency=frequency,
+                                                          variable_long_name=variable_long_name,
+                                                          number_experiments=number_experiments,
+                                                          number_of_models=number_of_models,
+                                                          volume_of_data=volume_of_data,
+                                                          number_ensemble_members=no_ens_membs
+                                                         )
     req.save()
 
 
