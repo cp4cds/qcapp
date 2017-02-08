@@ -59,6 +59,9 @@ def get_spec_info(project, variable, table, frequency, distrib, latest):
 
                     """
                     MAKE A DATASET RECORD WITH THIS INFORMATION
+
+                    Initially set exists to False, which is the default - so not needed?
+                    Does get or create take time if it does already exist - check
                     """
                     create_dataset_record(project, product, institute, model, experiment, frequency, realm, table,
                                           ensemble, version, experiment_family, forcings)
@@ -89,6 +92,11 @@ def get_spec_info(project, variable, table, frequency, distrib, latest):
                             create_datafile_record(filename, size, checksum, download_url, data_node, tracking_id,
                                                    variable, variable_cf_name, variable_long_name)
 
+                    """
+                    When all datafiles have populated for a given dataset,
+                    1, set the dataset startime and end time as aggregates of the files
+                    2, set the dataset exists to true
+                    """
 
 def create_dataset_record(project, product, institute, model, experiment, frequency, realm, table,
                           ensemble, version, experiment_family, forcings):
