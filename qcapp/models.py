@@ -32,7 +32,7 @@ class DataSpecification(models.Model):
 class Dataset(models.Model):
 
     data_spec = models.ManyToManyField(DataSpecification, blank=True)
-
+    exists = models.BooleanField(default=False)
     project = models.CharField(max_length=30, default="cmip5")
     product = models.CharField(max_length=20)
     institute = models.CharField(max_length=30)
@@ -68,10 +68,10 @@ class DataFile(models.Model):
 
     dataset = models.ForeignKey(Dataset)
 
-    filepath = models.CharField(max_length=300, unique=True)
+    filename = models.CharField(max_length=300, unique=True)
     size = models.BigIntegerField()
     checksum = models.CharField(max_length=80)
-    tracking_id = models.CharField(max_length=80)
+    tracking_id = models.CharField(max_length=80, blank=True)
     download_url = models.CharField(max_length=300)
 
     variable = models.CharField(max_length=20)
