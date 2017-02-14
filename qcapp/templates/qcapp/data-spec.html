@@ -3,17 +3,17 @@
 {% block contents %}
 
 
-<h3> {{dataSpec.first.request_name}} </h3>
+<h3> {{dataSpec.first.requester}} </h3>
 
 
 <table class="table table-hover">
-<thead> <tr> <th>Variable</th> <th>Long Name</th> <th>CMOR table</th> <th>Frequency</th> <th>No. Models</th>  <th>Data Volume (GB)</th> </thead>
+<thead> <tr> <th>Variable</th> <th>Long Name</th> <th>CMOR table</th> <th>Frequency</th> <th>Experiment</th>  </thead>
 <tbody>
 
-    {% for dr in dataSpec %}
+    {% for var in dataSpec %}
 
-    <tr> <th scope=row>{{ dr.variable }}</th> <td>{{ dr.variable_long_name }}</td> <td>{{ dr.cmor_table }}</td>
-        <td>{{ dr.frequency }}</td> <td>{{ dr.number_of_models }}</td>  <td>{{ dr.volume_of_data }}</td>
+    <tr> <th scope=row>{{ var.variable }}</th> <td>{{ var.variable_long_name }}</td> <td>{{ var.cmor_table }}</td>
+        <td>{{ var.frequency }}</td> <td>{{ var.experiment }}</td>>
     </tr>
 
     {% endfor %}

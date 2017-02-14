@@ -13,14 +13,44 @@ class DataSpecification(models.Model):
     frequency = models.CharField(max_length=20)
     priority = models.CharField(max_length=20, default='normal')
 
-# TODO Dynamic functions
+    def get_models(node, project, var, table, expts, latest, distrib):
+
+        result = {}
+        for expt in expts:
+            url = "https://%(node)s/esg-search/search?type=File" \
+                  "&project=%(project)s&experiment=%(expt)s&variable=%(var)s&cmor_table=%(table)s" \
+                  "&latest=%(latest)s&distrib=%(distrib)s&facets=model&format=application%%2Fsolr%%2Bjson&limit=1000" \
+                  % vars()
+
+            resp = requests.get(url)
+            json = resp.json()
+
+            mods = json["facet_counts"]["facet_fields"]['model']
+            models = dict(itertools.izip_longest(*[iter(mods)] * 2, fillvalue=""))
+
+            result[expt] = models.keys()
+
+        return result
+
+    def number_of_models(self,):
+        in_all = None
+
+        for key, items in models_per_expt.items():
+            if in_all is None:
+                in_all = set(items)
+            else:
+                in_all.intersection_update(items)
+        return in_all
+
+        # TODO Dynamic functions
 #    number_experiments = models.PositiveSmallIntegerField(null=True)
 #    number_ensemble_members = models.PositiveSmallIntegerField(null=True)
 #    number_of_models = models.PositiveSmallIntegerField()
 #    volume_of_data = models.DecimalField(max_digits=20, decimal_places=8, null=True)
 
 #    file_qc = models.ForeignKey('FileQC', null=True)
-#    dataset_qc = models.ForeignKey('DatasetQC', null=True)
+    dataset_qc = models.ForeignKey('DatasetQC', null=True)
+
 
 # TODO
 #class Requester(models.Model):
@@ -46,10 +76,10 @@ class Dataset(models.Model):
     ensemble = models.CharField(max_length=10)
     version = models.CharField(max_length=10)
 
-    experiment_family = models.CharField(max_length=100, blank=True)
-    forcing = models.CharField(max_length=500, blank=True)
-    start_time = models.DateField(blank=True)
-    end_time = models.DateField(blank=True)
+#    experiment_family = models.CharField(max_length=100, blank=True)
+#    forcing = models.CharField(max_length=500, blank=True)
+    start_time = models.DateField(blank=True, null=True)
+    end_time = models.DateField(blank=True, null=True)
     variable = models.CharField(max_length=20)
 
     # Generated from other facets when object is saved
@@ -68,7 +98,7 @@ class DataFile(models.Model):
 
     dataset = models.ForeignKey(Dataset)
 
-    filename = models.CharField(max_length=300, unique=True)
+    filepath = models.CharField(max_length=300, unique=True)
     size = models.BigIntegerField()
     checksum = models.CharField(max_length=80)
     tracking_id = models.CharField(max_length=80, blank=True)
@@ -102,9 +132,8 @@ class FileQC(models.Model):
 
     qc_check_type = QCcheck.qc_check_type
 
-    cf_compliance_score = models.PositiveSmallIntegerField()
-    ceda_cc_score = models.PositiveSmallIntegerField()
-
+    cf_compliance_score = models.PositiveSmallIntegerField(default=0)
+    ceda_cc_score = models.PositiveSmallIntegerField(default=0)
     file_qc_score = models.PositiveSmallIntegerField(default=0)
 
 
