@@ -14,10 +14,21 @@ from cfchecker.cfchecks import CFVersion, CFChecker, STANDARDNAME, AREATYPES, ne
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings()
 
+URL_DS_MODEL_FACETS = 'https://%(node)s/esg-search/search?type=Dataset&project=%(project)s&variable=%(variable)s' \
+                   '&cmor_table=%(table)s&time_frequency=%(frequency)s&experiment=%(experiment)s&latest=%(latest)s&distrib=%(distrib)s&' \
+                   'facets=model&format=application%%2Fsolr%%2Bjson'
 
-def get_spec_info(requester, project, variable, table, frequency, node, expts, distrib, latest):
+URL_DS_ENSEMBLE_FACETS = 'https://%(node)s/esg-search/search?type=Dataset&project=%(project)s&variable=%(variable)s' \
+                      '&cmor_table=%(table)s&time_frequency=%(frequency)s&model=%(model)s&experiment=%(experiment)s&' \
+                      'latest=%(latest)s&distrib=%(distrib)s&facets=ensemble&format=application%%2Fsolr%%2Bjson'
+
+URL_FILE_ENSEMBLE_FACETS = 'https://%(node)s/esg-search/search?type=File&project=%(project)s&variable=%(variable)s&' \
+                           'cmor_table=%(table)s&time_frequency=%(frequency)s&model=%(model)s&experiment=%(experiment)s&' \
+                           'ensemble=%(ensemble)s&latest=%(latest)s&distrib=%(distrib)s&facets=ensemble&format=application%%2Fsolr%%2Bjson'
+
+def get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib, latest):
     """
-    Uses ESGF pyclient to query ESGF and writes information for a given variable, table and frequency
+    Uses ESGF RESTful API to query ESGF and writes information for a given variable, table and frequency
     to the dataset and datafile models.
 
     :param variable: from data specification
@@ -27,37 +38,16 @@ def get_spec_info(requester, project, variable, table, frequency, node, expts, d
     """
 
     for experiment in expts:
-        url = 'https://%(node)s/esg-search/search?type=Dataset&' \
-              'project=%(project)s&variable=%(variable)s&cmor_table=%(table)s&time_frequency=%(frequency)s&' \
-              'experiment=%(experiment)s&'  \
-              'latest=True&distrib=False&' \
-              'facets=model&' \
-              'format=application%%2Fsolr%%2Bjson' % vars()
+        url = URL_DS_MODEL_FACETS % vars()
         resp = requests.get(url)
         json = resp.json()
         models = json["facet_counts"]["facet_fields"]["model"]
         models = dict(itertools.izip_longest(*[iter(models)] * 2, fillvalue=""))
-
-       # DICT - FUNCTION
-       for model in models:
-            if model == "CESM1(CAM5)":
-                model = "CESM1-CAM5"
-                #print "replaced: ", model
-            if model == "BCC-CSM1.1(m)":
-                model = "bccDa-csm1-1-m"
-                #print "replaced: ", model
-            if model == "ACCESS1.0":
-                model = "ACCESS1-0"
-                #print "replaced: ", model
+        check_valid_model_names(models)  # Translates some names from ESGF to archive friendly names
 
         for model in models.keys():
 
-                url = 'https://%(node)s/esg-search/search?type=Dataset&' \
-                      'project=%(project)s&variable=%(variable)s&cmor_table=%(table)s&time_frequency=%(frequency)s&' \
-                      'model=%(model)s&experiment=%(experiment)s&' \
-                      'latest=True&distrib=False&' \
-                      'facets=ensemble&' \
-                      'format=application%%2Fsolr%%2Bjson' % vars()
+                url = URL_DS_ENSEMBLE_FACETS % vars()
                 resp = requests.get(url)
                 json = resp.json()
                 ensembles = json["facet_counts"]["facet_fields"]["ensemble"]
@@ -65,7 +55,7 @@ def get_spec_info(requester, project, variable, table, frequency, node, expts, d
 
                 for ensemble in ensembles.keys():
 
-                    # EXTRACT ALL INFORMATION REQUIRED FOR A DATASET FIELD
+                    # EXTRACT ALL INFORMATION REQUIRED FOR A DATASET RECORD
                     json_resp = json["response"]["docs"][0]
                     product = json_resp["product"][0]
                     institute = json_resp["institute"][0]
@@ -74,28 +64,25 @@ def get_spec_info(requester, project, variable, table, frequency, node, expts, d
 
                     # MAKE A DATASET RECORD
                     ds = create_dataset_record(project, product, institute, model, experiment, frequency,
-                                          realm, table, ensemble, version, variable)
+                                               realm, table, ensemble, version, variable)
+                    link_dataset_to_specification(ds, d_spec)
 
-                    url = 'https://%(node)s/esg-search/search?type=File&' \
-                          'project=%(project)s&variable=%(variable)s&cmor_table=%(table)s&time_frequency=%(frequency)s&' \
-                          'model=%(model)s&experiment=%(experiment)s&ensemble=%(ensemble)s&' \
-                          'latest=True&distrib=False&' \
-                          'facets=ensemble&' \
-                          'format=application%%2Fsolr%%2Bjson' % vars()
-
+                    # GET ALL FILES INFORMATION RELATED TO DATASET
+                    url = URL_FILE_ENSEMBLE_FACETS % vars()
                     resp = requests.get(url)
                     json = resp.json()
 
                     datafiles = json["response"]["docs"]
                     for df in range(len(datafiles)):
                         fname = datafiles[df]["master_id"]
-
-
                         filepath = parse_filename(fname)
                         print filepath
                         start_time, end_time = get_start_end_times(frequency, filepath)
                         size = datafiles[df]["size"]
-                        checksum = datafiles[df]["checksum"][0]
+                        try:
+                            checksum = datafiles[df]["checksum"][0]
+                        except AttributeError:
+                            checksum = ''
                         tracking_id = datafiles[df]["tracking_id"][0]
                         download_url = datafiles[df]["url"][0]
                         variable_long_name = datafiles[df]["variable_long_name"][0]
@@ -116,9 +103,24 @@ def get_spec_info(requester, project, variable, table, frequency, node, expts, d
                         #run_ceda_cc(ceda_filepath)
                         #parse_ceda_cc()
 
+                    # add_long_name_to_dspec(d_spec, variable_long_name)
 
                     # OPEN CORRESPONDING FILE RECORD AND SET EXISTS TO TRUE
-    create_specification_record(requester, variable, table, frequency, variable_long_name)
+                    # set_ds_exists_true(ds)
+
+
+def check_valid_model_names(models):
+   # DICT - FUNCTION
+   for model in models:
+        if model == "CESM1(CAM5)":
+            model = "CESM1-CAM5"
+            #print "replaced: ", model
+        if model == "BCC-CSM1.1(m)":
+            model = "bccDa-csm1-1-m"
+            #print "replaced: ", model
+        if model == "ACCESS1.0":
+            model = "ACCESS1-0"
+            #print "replaced: ", model
 
 def create_ceda_filepath(path, version, variable):
     path = path.split('/')
@@ -131,8 +133,7 @@ def create_ceda_filepath(path, version, variable):
     return path
 
 def run_cf_checker(qcfile):
-    cf = CFChecker(cfStandardNamesXML=STANDARDNAME, cfAreaTypesXML=AREATYPES,
-                   version=newest_version)
+    cf = CFChecker(cfStandardNamesXML=STANDARDNAME, cfAreaTypesXML=AREATYPES, version=newest_version)
     resp = cf.checker(qcfile)
 
 def run_ceda_cc(qcfile):
@@ -181,15 +182,11 @@ def parse_ceda_cc():
     if errors > 1:
         return "fail"
 
-
-
-
 def parse_filename(fname):
     fname = fname.replace('.','/')
     fname = fname.replace('/nc','.nc')
     fname = '/'+fname
     return  fname
-
 
 def get_start_end_times(frequency, fname):
     if frequency == 'mon':
@@ -211,7 +208,7 @@ def get_start_end_times(frequency, fname):
     return start_time, end_time
 
 def create_dataset_record(project, product, institute, model, experiment, frequency,
-                          realm, table, ensemble, version, variable):
+                          realm, table, ensemble, version, variable, exists):
 
     ds, result = Dataset.objects.get_or_create(project=project,
                                                product=product,
@@ -224,8 +221,8 @@ def create_dataset_record(project, product, institute, model, experiment, freque
                                                ensemble=ensemble,
                                                variable=variable,
                                                version=version,
-                                               start_time=datetime.date(2000,01,01),
-                                               end_time=datetime.date(2000,01,01)
+                                               start_time=datetime.date(2000, 01, 01),
+                                               end_time=datetime.date(2000, 01, 01)
                                                )
     ds.save()
     return ds
@@ -251,19 +248,46 @@ def create_datafile_record(ds, filepath, size, checksum, download_url, index_nod
     newfile.save()
 
 
-def create_specification_record(requester, variable, cmor_table, frequency, variable_long_name):
+
+def create_specs_record(variable, cmor_table, frequency):
     """
-    Create a Request record
+    Create a data specification record
     """
-    req, result = DataSpecification.objects.get_or_create(requester=requester,
-                                                          variable=variable,
-                                                          cmor_table=cmor_table,
-                                                          frequency=frequency,
-                                                          variable_long_name=variable_long_name,
-                                                          )
+    specs, result = DataSpecification.objects.get_or_create(variable=variable,
+                                                            cmor_table=cmor_table,
+                                                            frequency=frequency
+                                                            )
+    specs.save()
+    return specs
+
+def create_requester_record(requester):
+    """
+    Create a Requester record
+    """
+    req, result = DataRequester.objects.get_or_create(requested_by=requester)
     req.save()
+    return req
+
+def link_requester_to_specification(d_spec, d_requester):
+    d_spec.datarequesters.add(d_requester)
+    d_spec.save()
+
+def link_dataset_to_specification(ds, d_spec):
+    ds.data_spec.add(d_spec)
+    ds.save()
+
+def add_long_name_to_dspec(d_spec, variable_long_name):
+    ins = DataSpecification.objects.get()
+
+    DataSpecification.objects.add(variable_long_name=variable_long_name)
+    dspm.save()
+
+def set_ds_exists_true(ds)
+    d = Dataset.objects.filter()
 
 if __name__ == '__main__':
+
+    # These constraints will in time be loaded in via csv for multiple projects.
     variable = 'tas'
     table = 'Amon'
     frequency = 'mon'
@@ -273,4 +297,9 @@ if __name__ == '__main__':
     expts = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
     expts = ['rcp26']
     requester = 'CP4CDS'
-    get_spec_info(requester, project, variable, table, frequency, node, expts, distrib=True, latest=True)
+    d_requester = create_requester_record(requester)
+    d_spec = create_specs_record(variable, table, frequency)
+    link_requester_to_specification(d_spec, d_requester)
+
+    # passing in d_spec to add in variable long name retrieved from ESGF
+    get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib=False, latest=True)

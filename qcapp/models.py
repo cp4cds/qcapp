@@ -3,16 +3,18 @@ from __future__ import unicode_literals
 from django.db import models
 
 # Create your models here.
+class DataRequester(models.Model):
+
+    requested_by = models.CharField(max_length=20)
 
 class DataSpecification(models.Model):
-
-    requester = models.CharField(max_length=20)
+    datarequesters = models.ManyToManyField(DataRequester, blank=True)
     variable = models.CharField(max_length=20)
-    variable_long_name = models.CharField(max_length=80)
+    variable_long_name = models.CharField(max_length=80, blank=True, null=True, default='')
     cmor_table = models.CharField(max_length=20)
     frequency = models.CharField(max_length=20)
     priority = models.CharField(max_length=20, default='normal')
-
+    """
     def get_models(node, project, var, table, expts, latest, distrib):
 
         result = {}
@@ -32,15 +34,18 @@ class DataSpecification(models.Model):
 
         return result
 
-    def number_of_models(self,):
-        in_all = None
-
+    def number_of_models(self, expts, models_per_experiment):
+        in_all = 0
+        self.variable
+        self.cmor_table
+        # LOOKUP WHICH EXPTS ARE RELEVANT
         for key, items in models_per_expt.items():
-            if in_all is None:
+            if in_all == 0:
                 in_all = set(items)
             else:
                 in_all.intersection_update(items)
         return in_all
+
 
         # TODO Dynamic functions
 #    number_experiments = models.PositiveSmallIntegerField(null=True)
@@ -51,13 +56,7 @@ class DataSpecification(models.Model):
 #    file_qc = models.ForeignKey('FileQC', null=True)
     dataset_qc = models.ForeignKey('DatasetQC', null=True)
 
-
-# TODO
-#class Requester(models.Model):
-#    data_requester = models.ForeignKey(DataSpecification)
-#    requested_by = models.CharField(max_length=20)
-
-
+"""
 
 class Dataset(models.Model):
 
@@ -98,7 +97,7 @@ class DataFile(models.Model):
 
     dataset = models.ForeignKey(Dataset)
 
-    filepath = models.CharField(max_length=300, unique=True)
+    filepath = models.CharField(max_length=300)
     size = models.BigIntegerField()
     checksum = models.CharField(max_length=80)
     tracking_id = models.CharField(max_length=80, blank=True)
