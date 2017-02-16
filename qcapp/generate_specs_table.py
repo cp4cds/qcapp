@@ -317,22 +317,45 @@ def add_long_name_to_dspec(d_spec, variable_long_name):
     d_spec.variable_long_name = variable_long_name
     d_spec.save()
 
+def read_project_data_specs(file):
+    reader = open(file, 'r')
+    data = reader.readlines()
+    reader.close()
+
+    return data
+
+
 
 if __name__ == '__main__':
 
     # These constraints will in time be loaded in via csv for multiple projects.
-    variable = 'tas'
-    table = 'Amon'
-    frequency = 'mon'
     project = 'CMIP5'
     # cp4cds-app1-test can't see ceda node?? for testing for now using dkrz
     node = 'esgf-data.dkrz.de'
+    #node = "esgf-index1.ceda.ac.uk"
     expts = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
-    requester = 'CP4CDS'
-    d_requester = create_requester_record(requester)
-    d_spec = create_specs_record(variable, table, frequency)
-    link_requester_to_specification(d_spec, d_requester)
+    file = '/usr/local/cp4cds-app/project-specs/cp4cds-dmp_data_request.csv'
+    data = read_project_data_specs(file)
+    lineno = 0
+    for line in data:
+        if lineno == 0:
+            requester = line.split(',')[0].strip()
+            d_requester = create_requester_record(requester)
 
-    # passing in d_spec to add in variable long name retrieved from ESGF
-#    get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib=False, latest=True)
-    get_no_models_per_expt(d_spec, expts)
+        if lineno > 1:
+            variable = line.split(',')[0].strip()
+            table = line.split(',')[1].strip()
+            frequency = line.split(',')[2].strip()
+            # passing in d_spec to add in variable long name retrieved from ESGF
+            #variable_long_name = line.split(',')[3].strip()
+            #number_experiments = line.split(',')[4].strip()
+            #number_of_models = line.split(',')[5].strip()
+            #volume_of_data = line.split(',')[6].strip()
+
+            # Create spec record and link to requester
+            d_spec = create_specs_record(variable, table, frequency)
+            link_requester_to_specification(d_spec, d_requester)
+
+            get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib=False, latest=True)
+            get_no_models_per_expt(d_spec, expts)
+        lineno += 1
