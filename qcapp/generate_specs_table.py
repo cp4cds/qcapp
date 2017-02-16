@@ -5,23 +5,20 @@ django.setup()
 from qcapp.models import *
 from django.db.models import Count, Max, Min, Sum, Avg
 import collections, os, timeit, datetime
-import requests
-import itertools
+import requests, itertools
 # IMPORT QC STUFF (only works in venv27)
 from ceda_cc import c4
 from cfchecker.cfchecks import CFVersion, CFChecker, STANDARDNAME, AREATYPES, newest_version
-
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings()
 
+# URL TEMPLATES
 URL_DS_MODEL_FACETS = 'https://%(node)s/esg-search/search?type=Dataset&project=%(project)s&variable=%(variable)s' \
                    '&cmor_table=%(table)s&time_frequency=%(frequency)s&experiment=%(experiment)s&latest=%(latest)s&distrib=%(distrib)s&' \
                    'facets=model&format=application%%2Fsolr%%2Bjson'
-
 URL_DS_ENSEMBLE_FACETS = 'https://%(node)s/esg-search/search?type=Dataset&project=%(project)s&variable=%(variable)s' \
                       '&cmor_table=%(table)s&time_frequency=%(frequency)s&model=%(model)s&experiment=%(experiment)s&' \
                       'latest=%(latest)s&distrib=%(distrib)s&facets=ensemble&format=application%%2Fsolr%%2Bjson'
-
 URL_FILE_ENSEMBLE_FACETS = 'https://%(node)s/esg-search/search?type=File&project=%(project)s&variable=%(variable)s&' \
                            'cmor_table=%(table)s&time_frequency=%(frequency)s&model=%(model)s&experiment=%(experiment)s&' \
                            'ensemble=%(ensemble)s&latest=%(latest)s&distrib=%(distrib)s&facets=ensemble&format=application%%2Fsolr%%2Bjson'
@@ -36,6 +33,10 @@ def get_spec_info(d_spec, project, variable, table, frequency, expts, node, dist
     :param frequency:from data specification
     :return: output to cache file
     """
+
+    # CHECK IF DS EXISTS?
+
+
 
     for experiment in expts:
         url = URL_DS_MODEL_FACETS % vars()
@@ -76,6 +77,7 @@ def get_spec_info(d_spec, project, variable, table, frequency, expts, node, dist
                     for df in range(len(datafiles)):
                         fname = datafiles[df]["master_id"]
                         filepath = parse_filename(fname)
+                        ceda_filepath = create_ceda_filepath(filepath, version, variable)
                         print filepath
                         start_time, end_time = get_start_end_times(frequency, filepath)
                         size = datafiles[df]["size"]
@@ -90,27 +92,54 @@ def get_spec_info(d_spec, project, variable, table, frequency, expts, node, dist
                         variable_units = datafiles[df]["variable_units"][0]
                         data_node = datafiles[df]["data_node"]
 
+
                         # Create a Datafile record for each file
-                        create_datafile_record(ds, filepath, size, checksum, download_url, data_node, tracking_id,
+                        create_datafile_record(ds, filepath, ceda_filepath, size, checksum, download_url, data_node, tracking_id,
                                                variable, cf_standard_name, variable_long_name, variable_units,
                                                start_time, end_time)
 
-                        ceda_filepath = create_ceda_filepath(filepath, version, variable)
-                        # RUN CF CHECKER
-                        #run_cf_checker(ceda_filepath)
+                    add_long_name_to_dspec(d_spec, variable_long_name)
+                    ds.exists = True
+                    ds.save()
 
-                        # RUN CEDA-CC
-                        #run_ceda_cc(ceda_filepath)
-                        #parse_ceda_cc()
+#def perform_qc():
 
-                    # add_long_name_to_dspec(d_spec, variable_long_name)
 
-                    # OPEN CORRESPONDING FILE RECORD AND SET EXISTS TO TRUE
-                    # set_ds_exists_true(ds)
+    # RUN CF CHECKER
+    # run_cf_checker(ceda_filepath)
+
+    # RUN CEDA-CC
+    # run_ceda_cc(ceda_filepath)
+    # parse_ceda_cc()
+
+
+
+def get_no_models_per_expt(d_spec, expts):
+
+    for experiment in expts:
+
+        models_object = Dataset.objects.filter(variable=d_spec.variable, cmor_table=d_spec.cmor_table,
+                                               frequency=d_spec.frequency, experiment=experiment)
+        models_by_experiment = {}
+        mlist = set([])
+        for m in models_object.all():
+             mlist.add(m.model)
+             models_by_experiment[experiment] = mlist
+
+    in_all = None
+    for key, items in models_by_experiment.items():
+        if in_all is None:
+            in_all = items
+        else:
+            in_all.intersection_update(items)
+
+    d_spec.number_of_models = len(in_all)
+    print len(in_all)
+    d_spec.save()
 
 
 def check_valid_model_names(models):
-   # DICT - FUNCTION
+
    for model in models:
         if model == "CESM1(CAM5)":
             model = "CESM1-CAM5"
@@ -189,26 +218,31 @@ def parse_filename(fname):
     return  fname
 
 def get_start_end_times(frequency, fname):
-    if frequency == 'mon':
-        start_time = datetime.date(int(fname[-16:-12]), int(fname[-12:-10]), 01)
-        end_mon = fname[-5:-3]
-        if (end_mon == '01') or (end_mon == '03') or (end_mon == '05') or (end_mon == '07') \
-                or (end_mon == '08') or (end_mon == '10') or (end_mon == '12'):
-            end_day = 31
-        elif (end_mon == '04') or (end_mon == '06') or (end_mon == '09') or (end_mon == '11'):
-            end_day = 30
-        else:
-            end_day = 28
-    end_time = datetime.date(int(fname[-9:-5]), int(fname[-5:-3]), end_day)
 
-    if frequency == 'day':
-        start_time = datetime.date(int(fname[-20:-16]), int(fname[-16:-14]), int(fname[-14:-12]))
-        end_time = datetime.date(int(fname[-11:-7]), int(fname[-7:-5]), int(fname[-5:-3]))
+    if fname.endswith('.nc'):
+        if frequency == 'mon':
+            start_time = datetime.date(int(fname[-16:-12]), int(fname[-12:-10]), 01)
+            end_mon = fname[-5:-3]
+            if (end_mon == '01') or (end_mon == '03') or (end_mon == '05') or (end_mon == '07') \
+                    or (end_mon == '08') or (end_mon == '10') or (end_mon == '12'):
+                end_day = 31
+            elif (end_mon == '04') or (end_mon == '06') or (end_mon == '09') or (end_mon == '11'):
+                end_day = 30
+            else:
+                end_day = 28
+        end_time = datetime.date(int(fname[-9:-5]), int(fname[-5:-3]), end_day)
+
+        if frequency == 'day':
+            start_time = datetime.date(int(fname[-20:-16]), int(fname[-16:-14]), int(fname[-14:-12]))
+            end_time = datetime.date(int(fname[-11:-7]), int(fname[-7:-5]), int(fname[-5:-3]))
+    else:
+        start_time = datetime.date(1900, 1, 1)
+        end_time = datetime.date(1999, 12, 31)
 
     return start_time, end_time
 
 def create_dataset_record(project, product, institute, model, experiment, frequency,
-                          realm, table, ensemble, version, variable, exists):
+                          realm, table, ensemble, version, variable):
 
     ds, result = Dataset.objects.get_or_create(project=project,
                                                product=product,
@@ -227,11 +261,14 @@ def create_dataset_record(project, product, institute, model, experiment, freque
     ds.save()
     return ds
 
-def create_datafile_record(ds, filepath, size, checksum, download_url, index_node, tracking_id,
+
+
+def create_datafile_record(ds, filepath, ceda_filepath, size, checksum, download_url, index_node, tracking_id,
                            variable, variable_cf_name, variable_long_name, variable_units, start_time, end_time):
 
     newfile, result = DataFile.objects.get_or_create(dataset=ds,
                                                      filepath=filepath,
+                                                     archive_path=ceda_filepath,
                                                      size=size,
                                                      checksum=checksum,
                                                      download_url=download_url,
@@ -277,13 +314,9 @@ def link_dataset_to_specification(ds, d_spec):
     ds.save()
 
 def add_long_name_to_dspec(d_spec, variable_long_name):
-    ins = DataSpecification.objects.get()
+    d_spec.variable_long_name = variable_long_name
+    d_spec.save()
 
-    DataSpecification.objects.add(variable_long_name=variable_long_name)
-    dspm.save()
-
-def set_ds_exists_true(ds)
-    d = Dataset.objects.filter()
 
 if __name__ == '__main__':
 
@@ -295,11 +328,11 @@ if __name__ == '__main__':
     # cp4cds-app1-test can't see ceda node?? for testing for now using dkrz
     node = 'esgf-data.dkrz.de'
     expts = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
-    expts = ['rcp26']
     requester = 'CP4CDS'
     d_requester = create_requester_record(requester)
     d_spec = create_specs_record(variable, table, frequency)
     link_requester_to_specification(d_spec, d_requester)
 
     # passing in d_spec to add in variable long name retrieved from ESGF
-    get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib=False, latest=True)
+#    get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib=False, latest=True)
+    get_no_models_per_expt(d_spec, expts)

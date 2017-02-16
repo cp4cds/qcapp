@@ -14,25 +14,16 @@ class DataSpecification(models.Model):
     cmor_table = models.CharField(max_length=20)
     frequency = models.CharField(max_length=20)
     priority = models.CharField(max_length=20, default='normal')
+    number_of_models = models.IntegerField(default=0)
+
     """
     def get_models(node, project, var, table, expts, latest, distrib):
+        models_by_expt = get_models(node, project, var, table, expts, latest, distrib)
 
-        result = {}
-        for expt in expts:
-            url = "https://%(node)s/esg-search/search?type=File" \
-                  "&project=%(project)s&experiment=%(expt)s&variable=%(var)s&cmor_table=%(table)s" \
-                  "&latest=%(latest)s&distrib=%(distrib)s&facets=model&format=application%%2Fsolr%%2Bjson&limit=1000" \
-                  % vars()
 
-            resp = requests.get(url)
-            json = resp.json()
 
-            mods = json["facet_counts"]["facet_fields"]['model']
-            models = dict(itertools.izip_longest(*[iter(mods)] * 2, fillvalue=""))
+        valid_models = check_in_all_models(models_by_expt)
 
-            result[expt] = models.keys()
-
-        return result
 
     def number_of_models(self, expts, models_per_experiment):
         in_all = 0
@@ -54,35 +45,36 @@ class DataSpecification(models.Model):
 #    volume_of_data = models.DecimalField(max_digits=20, decimal_places=8, null=True)
 
 #    file_qc = models.ForeignKey('FileQC', null=True)
-    dataset_qc = models.ForeignKey('DatasetQC', null=True)
 
-"""
+
+    dataset_qc = models.ForeignKey('DatasetQC', null=True)
+    """
 
 class Dataset(models.Model):
 
     data_spec = models.ManyToManyField(DataSpecification, blank=True)
     exists = models.BooleanField(default=False)
     project = models.CharField(max_length=30, default="cmip5")
-    product = models.CharField(max_length=20)
-    institute = models.CharField(max_length=30)
-    model = models.CharField(max_length=20)
+    product = models.CharField(max_length=20, blank=True)
+    institute = models.CharField(max_length=30, blank=True)
+    model = models.CharField(max_length=20, blank=True)
 
-    experiment = models.CharField(max_length=20)
-    frequency = models.CharField(max_length=20)
-    realm = models.CharField(max_length=20)
-    cmor_table = models.CharField(max_length=20)
+    experiment = models.CharField(max_length=20, blank=True)
+    frequency = models.CharField(max_length=20, blank=True)
+    realm = models.CharField(max_length=20, blank=True)
+    cmor_table = models.CharField(max_length=20, blank=True)
 
-    ensemble = models.CharField(max_length=10)
-    version = models.CharField(max_length=10)
+    ensemble = models.CharField(max_length=10, blank=True)
+    version = models.CharField(max_length=10, blank=True)
 
 #    experiment_family = models.CharField(max_length=100, blank=True)
 #    forcing = models.CharField(max_length=500, blank=True)
     start_time = models.DateField(blank=True, null=True)
     end_time = models.DateField(blank=True, null=True)
-    variable = models.CharField(max_length=20)
+    variable = models.CharField(max_length=20, blank=True)
 
     # Generated from other facets when object is saved
-    dataset_id = models.CharField(max_length=300, unique=True)
+    dataset_id = models.CharField(max_length=300, unique=True, blank=True)
 
     def save(self, *args, **kwargs):
         dataset_id = "%s.%s.%s.%s.%s.%s.%s.%s.%s.%s.%s" % \
@@ -98,6 +90,7 @@ class DataFile(models.Model):
     dataset = models.ForeignKey(Dataset)
 
     filepath = models.CharField(max_length=300)
+    archive_path = models.CharField(max_length=500)
     size = models.BigIntegerField()
     checksum = models.CharField(max_length=80)
     tracking_id = models.CharField(max_length=80, blank=True)
