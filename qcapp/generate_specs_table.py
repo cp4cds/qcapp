@@ -101,6 +101,7 @@ def get_spec_info(d_spec, project, variable, table, frequency, expts, node, dist
                     add_long_name_to_dspec(d_spec, variable_long_name)
                     ds.exists = True
                     ds.save()
+    d_spec.esgf_data_collected = True
 
 #def perform_qc():
 
@@ -116,15 +117,22 @@ def get_spec_info(d_spec, project, variable, table, frequency, expts, node, dist
 
 def get_no_models_per_expt(d_spec, expts):
 
+    volume = 0
     for experiment in expts:
 
-        models_object = Dataset.objects.filter(variable=d_spec.variable, cmor_table=d_spec.cmor_table,
+        dss = Dataset.objects.filter(variable=d_spec.variable, cmor_table=d_spec.cmor_table,
                                                frequency=d_spec.frequency, experiment=experiment)
         models_by_experiment = {}
         mlist = set([])
-        for m in models_object.all():
+        for m in dss.all():
              mlist.add(m.model)
              models_by_experiment[experiment] = mlist
+
+        for ds in dss.all():
+            dfs = DataFile.objects.filter(dataset=ds)
+            for df in dfs:
+                volume += df.size
+    d_spec.data_volume = volume / (1024. ** 3)
 
     in_all = None
     for key, items in models_by_experiment.items():
@@ -136,6 +144,7 @@ def get_no_models_per_expt(d_spec, expts):
     d_spec.number_of_models = len(in_all)
     print len(in_all)
     d_spec.save()
+
 
 
 def check_valid_model_names(models):
@@ -196,20 +205,18 @@ def parse_ceda_cc():
             errors = int(match.group(1))
         match = re.search(r'ERROR Exception has occured', line)
         if match:
-            return "exception"
+            return 'FAIL: Exception', 0
         match = re.search(r'INFO Done -- testing aborted because of severity of errors', line)
         if match:
-            return "abort"
+            return 'FAIL: Aborting due to severity of errors', 0
         match = re.search(r'ERROR C4\.\d{3}\.\d{3}: (.*)', line)
         if match:
             lasterror = match.groups()[0]
 
     if errors == 0:
-        return "pass"
-    if errors == 1:
-        return lasterror
+        return 'PASS: 0 Errors found', 100
     if errors > 1:
-        return "fail"
+        return 'FAIL: %s Errors found' % str(errors), 100-10*errors
 
 def parse_filename(fname):
     fname = fname.replace('.','/')
@@ -219,6 +226,7 @@ def parse_filename(fname):
 
 def get_start_end_times(frequency, fname):
 
+    print frequency
     if fname.endswith('.nc'):
         if frequency == 'mon':
             start_time = datetime.date(int(fname[-16:-12]), int(fname[-12:-10]), 01)
@@ -230,7 +238,7 @@ def get_start_end_times(frequency, fname):
                 end_day = 30
             else:
                 end_day = 28
-        end_time = datetime.date(int(fname[-9:-5]), int(fname[-5:-3]), end_day)
+            end_time = datetime.date(int(fname[-9:-5]), int(fname[-5:-3]), end_day)
 
         if frequency == 'day':
             start_time = datetime.date(int(fname[-20:-16]), int(fname[-16:-14]), int(fname[-14:-12]))
@@ -353,9 +361,10 @@ if __name__ == '__main__':
             #volume_of_data = line.split(',')[6].strip()
 
             # Create spec record and link to requester
-            d_spec = create_specs_record(variable, table, frequency)
-            link_requester_to_specification(d_spec, d_requester)
-
-            get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib=False, latest=True)
-            get_no_models_per_expt(d_spec, expts)
+            if not DataSpecification.objects.filter(variable=variable, cmor_table=table,
+                                                frequency=frequency, esgf_data_collected=True):
+                d_spec = create_specs_record(variable, table, frequency)
+                link_requester_to_specification(d_spec, d_requester)
+                get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib=False, latest=True)
+                get_no_models_per_expt(d_spec, expts)
         lineno += 1

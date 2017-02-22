@@ -14,7 +14,9 @@ class DataSpecification(models.Model):
     cmor_table = models.CharField(max_length=20)
     frequency = models.CharField(max_length=20)
     priority = models.CharField(max_length=20, default='normal')
+    esgf_data_collected = models.BooleanField(default=False)
     number_of_models = models.IntegerField(default=0)
+    data_volume = models.FloatField(blank=True, null=True)
 
     """
     def get_models(node, project, var, table, expts, latest, distrib):
@@ -91,7 +93,7 @@ class DataFile(models.Model):
 
     filepath = models.CharField(max_length=300)
     archive_path = models.CharField(max_length=500)
-    size = models.BigIntegerField()
+    size = models.FloatField(blank=True)
     checksum = models.CharField(max_length=80)
     tracking_id = models.CharField(max_length=80, blank=True)
     download_url = models.CharField(max_length=300)

@@ -4,3 +4,5 @@ db.sqlite*
 cccc*
 Rec*
 *.zip
+*.out
+tests.py
