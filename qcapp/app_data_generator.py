@@ -33,76 +33,44 @@ def get_spec_info(d_spec, project, variable, table, frequency, expts, node, dist
     :param frequency:from data specification
     :return: output to cache file
     """
-
-    # CHECK IF DS EXISTS?
-
-
-
     for experiment in expts:
-        url = URL_DS_MODEL_FACETS % vars()
-        resp = requests.get(url)
-        json = resp.json()
-        models = json["facet_counts"]["facet_fields"]["model"]
-        models = dict(itertools.izip_longest(*[iter(models)] * 2, fillvalue=""))
+
+        models, json = esgf_ds_search(URL_DS_MODEL_FACETS, 'model', project, variable, table, frequency, experiment,
+                                '', node, distrib, latest)
         check_valid_model_names(models)  # Translates some names from ESGF to archive friendly names
 
         for model in models.keys():
 
-                url = URL_DS_ENSEMBLE_FACETS % vars()
-                resp = requests.get(url)
-                json = resp.json()
-                ensembles = json["facet_counts"]["facet_fields"]["ensemble"]
-                ensembles = dict(itertools.izip_longest(*[iter(ensembles)] * 2, fillvalue=""))
+            ensembles, json = esgf_ds_search(URL_DS_ENSEMBLE_FACETS, 'ensemble', project, variable, table, frequency, experiment,
+                                              model, node, distrib, latest)
 
-                for ensemble in ensembles.keys():
+            for ensemble in ensembles.keys():
 
-                    # EXTRACT ALL INFORMATION REQUIRED FOR A DATASET RECORD
-                    json_resp = json["response"]["docs"][0]
-                    product = json_resp["product"][0]
-                    institute = json_resp["institute"][0]
-                    realm = json_resp["realm"][0]
-                    version = json_resp["version"]
+                # EXTRACT ALL INFORMATION REQUIRED FOR A DATASET RECORD
+                product, institute, realm, version, esgf_ds_id, esgf_node \
+                    = extract_ds_info(json["response"]["docs"][0])
+                # MAKE A DATASET RECORD
+                ds = create_dataset_record(project, product, institute, model, experiment, frequency, realm, table,
+                                           ensemble, version, esgf_ds_id, esgf_node, variable)
+                link_dataset_to_specification(ds, d_spec)
 
-                    # MAKE A DATASET RECORD
-                    ds = create_dataset_record(project, product, institute, model, experiment, frequency,
-                                               realm, table, ensemble, version, variable)
-                    link_dataset_to_specification(ds, d_spec)
-
-                    # GET ALL FILES INFORMATION RELATED TO DATASET
-                    url = URL_FILE_ENSEMBLE_FACETS % vars()
-                    resp = requests.get(url)
-                    json = resp.json()
-
-                    datafiles = json["response"]["docs"]
-                    for df in range(len(datafiles)):
-                        fname = datafiles[df]["master_id"]
-                        filepath = parse_filename(fname)
-                        ceda_filepath = create_ceda_filepath(filepath, version, variable)
-                        print filepath
-                        start_time, end_time = get_start_end_times(frequency, filepath)
-                        size = datafiles[df]["size"]
-                        try:
-                            checksum = datafiles[df]["checksum"][0]
-                        except AttributeError:
-                            checksum = ''
-                        tracking_id = datafiles[df]["tracking_id"][0]
-                        download_url = datafiles[df]["url"][0]
-                        variable_long_name = datafiles[df]["variable_long_name"][0]
-                        cf_standard_name = datafiles[df]["cf_standard_name"][0]
-                        variable_units = datafiles[df]["variable_units"][0]
-                        data_node = datafiles[df]["data_node"]
+                # GET ALL FILES INFORMATION RELATED TO DATASET
+                filepath, ceda_filepath, start_time, end_time, size, checksum, tracking_id, download_url, \
+                variable_long_name, cf_standard_name, variable_units = \
+                    get_all_datafile_info(URL_FILE_ENSEMBLE_FACETS, project, variable, table, frequency,
+                                          experiment, model, ensemble, version, node, distrib, latest)
 
 
-                        # Create a Datafile record for each file
-                        create_datafile_record(ds, filepath, ceda_filepath, size, checksum, download_url, data_node, tracking_id,
-                                               variable, cf_standard_name, variable_long_name, variable_units,
-                                               start_time, end_time)
+                # Create a Datafile record for each file
+                create_datafile_record(ds, filepath, ceda_filepath, size, checksum, download_url, tracking_id,
+                                       variable, cf_standard_name, variable_long_name, variable_units,
+                                       start_time, end_time)
 
-                    add_long_name_to_dspec(d_spec, variable_long_name)
-                    ds.exists = True
-                    ds.save()
+                add_long_name_to_dspec(d_spec, variable_long_name)
+                ds.exists = True
+                ds.save()
     d_spec.esgf_data_collected = True
-
+    d_spec.save()
 #def perform_qc():
 
 
@@ -113,6 +81,56 @@ def get_spec_info(d_spec, project, variable, table, frequency, expts, node, dist
     # run_ceda_cc(ceda_filepath)
     # parse_ceda_cc()
 
+def esgf_ds_search(search_template, facet_check, project, variable, table, frequency, experiment, model, node, distrib, latest):
+    url = search_template % vars()
+    resp = requests.get(url, verify=False)
+    json = resp.json()
+    result = json["facet_counts"]["facet_fields"][facet_check]
+    result = dict(itertools.izip_longest(*[iter(result)] * 2, fillvalue=""))
+
+    return result, json
+
+
+def extract_ds_info(json_resp):
+    product = json_resp["product"][0].strip()
+    institute = json_resp["institute"][0].strip()
+    realm = json_resp["realm"][0].strip()
+    version = json_resp["version"].strip()
+    esgf_ds_id = json_resp["drs_id"][0].strip()
+    esgf_node = json_resp["data_node"].strip()
+
+    return product, institute, realm, version, esgf_ds_id, esgf_node
+
+def get_all_datafile_info(url_template, project, variable, table, frequency, experiment, model, ensemble,
+                          version, node, distrib, latest):
+
+    url = url_template % vars()
+    resp = resp = requests.get(url, verify=False)
+    json = resp.json()
+
+    datafiles = json["response"]["docs"]
+    for datafile in range(len(datafiles)):
+        df = datafiles[datafile]
+        fname = df["master_id"]
+        filepath = parse_filename(fname)
+        ceda_filepath = create_ceda_filepath(filepath, version, variable)
+        start_time, end_time = get_start_end_times(frequency, filepath)
+        size = df["size"]
+
+        try:
+            checksum = df["checksum"][0].strip()
+        except AttributeError:
+            checksum = ''
+
+        tracking_id = df["tracking_id"][0].strip()
+        download_url = df["url"][0].strip()
+        variable_long_name = df["variable_long_name"][0].strip()
+        cf_standard_name = df["cf_standard_name"][0].strip()
+        variable_units = df["variable_units"][0].strip()
+
+    return filepath, ceda_filepath, start_time, end_time, size, checksum, tracking_id, download_url, \
+           variable_long_name, cf_standard_name, variable_units
+
 
 
 def get_no_models_per_expt(d_spec, expts):
@@ -121,7 +139,7 @@ def get_no_models_per_expt(d_spec, expts):
     for experiment in expts:
 
         dss = Dataset.objects.filter(variable=d_spec.variable, cmor_table=d_spec.cmor_table,
-                                               frequency=d_spec.frequency, experiment=experiment)
+                                     frequency=d_spec.frequency, experiment=experiment)
         models_by_experiment = {}
         mlist = set([])
         for m in dss.all():
@@ -174,13 +192,19 @@ def run_cf_checker(qcfile):
     cf = CFChecker(cfStandardNamesXML=STANDARDNAME, cfAreaTypesXML=AREATYPES, version=newest_version)
     resp = cf.checker(qcfile)
 
-def run_ceda_cc(qcfile):
+def run_ceda_cc():
     # run the ceda-cc - generate the qcBatch log.
     # write list to a file for use by ceda-cc
-    odir = '/usr/local/cp4cds-app/ceda-cc-output'
 
-    m = c4.main(args=['-p', 'CMIP5', '-f', qcfile, '--ld', odir])
-    # need to now parse output in the odir
+
+    for dataset in Dataset.objects.all():
+        odir = '/usr/local/cp4cds-app/ceda-cc-log-files/' + dataset.esgf_ds_id
+
+        datafiles = dataset.datafile_set.all()
+        for datafile in datafiles:
+            file = datafile.archive_path
+            argslist = ['-p', 'CMIP5', '-f', file, '--log', 'multi', '--ld', odir, '--cae', '--blfmode', 'a']
+            m = c4.main(argslist)
 
 def parse_ceda_cc():
     """Parse the qcBatch log for fails
@@ -226,7 +250,6 @@ def parse_filename(fname):
 
 def get_start_end_times(frequency, fname):
 
-    print frequency
     if fname.endswith('.nc'):
         if frequency == 'mon':
             start_time = datetime.date(int(fname[-16:-12]), int(fname[-12:-10]), 01)
@@ -250,45 +273,23 @@ def get_start_end_times(frequency, fname):
     return start_time, end_time
 
 def create_dataset_record(project, product, institute, model, experiment, frequency,
-                          realm, table, ensemble, version, variable):
+                          realm, table, ensemble, version, esgf_ds_id, esgf_node, variable):
 
-    ds, result = Dataset.objects.get_or_create(project=project,
-                                               product=product,
-                                               institute=institute,
-                                               model=model,
-                                               experiment=experiment,
-                                               frequency=frequency,
-                                               realm=realm,
-                                               cmor_table=table,
-                                               ensemble=ensemble,
-                                               variable=variable,
-                                               version=version,
-                                               start_time=datetime.date(2000, 01, 01),
-                                               end_time=datetime.date(2000, 01, 01)
-                                               )
+    ds, result = Dataset.objects.get_or_create(project=project, product=product, institute=institute, model=model,
+                                               experiment=experiment, frequency=frequency, realm=realm,
+                                               cmor_table=table, ensemble=ensemble, variable=variable, version=version,
+                                               esgf_ds_id=esgf_ds_id, esgf_node=esgf_node)
     ds.save()
     return ds
 
 
-
-def create_datafile_record(ds, filepath, ceda_filepath, size, checksum, download_url, index_node, tracking_id,
+def create_datafile_record(ds, filepath, ceda_filepath, size, checksum, download_url, tracking_id,
                            variable, variable_cf_name, variable_long_name, variable_units, start_time, end_time):
 
-    newfile, result = DataFile.objects.get_or_create(dataset=ds,
-                                                     filepath=filepath,
-                                                     archive_path=ceda_filepath,
-                                                     size=size,
-                                                     checksum=checksum,
-                                                     download_url=download_url,
-                                                     tracking_id=tracking_id,
-                                                     data_node=index_node,
-                                                     variable=variable,
-                                                     cf_standard_name=variable_cf_name,
-                                                     variable_long_name=variable_long_name,
-                                                     variable_units=variable_units,
-                                                     start_time=start_time,
-                                                     end_time=end_time
-                                                     )
+    newfile, result = DataFile.objects.get_or_create(dataset=ds, filepath=filepath, archive_path=ceda_filepath, size=size,
+                                                     checksum=checksum, download_url=download_url, tracking_id=tracking_id,
+                                                     variable=variable, cf_standard_name=variable_cf_name, variable_long_name=variable_long_name,
+                                                     variable_units=variable_units, start_time=start_time, end_time=end_time)
 
     newfile.save()
 
@@ -339,12 +340,14 @@ if __name__ == '__main__':
     # These constraints will in time be loaded in via csv for multiple projects.
     project = 'CMIP5'
     # cp4cds-app1-test can't see ceda node?? for testing for now using dkrz
-    node = 'esgf-data.dkrz.de'
-    #node = "esgf-index1.ceda.ac.uk"
+    node = "172.16.150.171"
     expts = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
     file = '/usr/local/cp4cds-app/project-specs/cp4cds-dmp_data_request.csv'
     data = read_project_data_specs(file)
     lineno = 0
+    distrib = False
+    latest = True
+
     for line in data:
         if lineno == 0:
             requester = line.split(',')[0].strip()
@@ -365,6 +368,6 @@ if __name__ == '__main__':
                                                 frequency=frequency, esgf_data_collected=True):
                 d_spec = create_specs_record(variable, table, frequency)
                 link_requester_to_specification(d_spec, d_requester)
-                get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib=False, latest=True)
+                get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib, latest)
                 get_no_models_per_expt(d_spec, expts)
         lineno += 1

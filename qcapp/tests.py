@@ -8,7 +8,7 @@ django.setup()
 
 from qcapp.models import *
 from django.db.models import Count, Max, Min, Sum, Avg
-import collections, os, timeit, datetime
+import collections, os, timeit, datetime, sys
 import requests, itertools
 # IMPORT QC STUFF (only works in venv27)
 from ceda_cc import c4
@@ -16,8 +16,9 @@ from cfchecker.cfchecks import CFVersion, CFChecker, STANDARDNAME, AREATYPES, ne
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import netCDF4
 requests.packages.urllib3.disable_warnings()
+import pdb
 
-dsid = 'CMIP5.output1.MIROC.MIROC5.rcp26.mon.atmos.Amon.r1i1p1.tas.20120710'
+dsid = 'CMIP5.output1.MIROC.MIROC5.rcp26.mon.atmos.Amon.r2i1p1.tas.20120710'
 dsid = dsid.replace('CMIP5','cmip5')
 dsid = dsid.split('.')
 del dsid[-2]
@@ -31,16 +32,30 @@ print dsid
 odir = '/usr/local/cp4cds-app/ceda-cc-output-test'
 
 
-argslist = ['-p', 'CMIP5', '-D', dsid, '--ld', odir]
-m = c4.main()
+qcfile = '/badc/cmip5/data/cmip5/output1/MIROC/MIROC5/rcp26/mon/atmos/Amon/r2i1p1/v20120710/cfc12global/cfc12global_Amon_MIROC5_rcp26_r2i1p1_200601-210012.nc'
+version = newest_version
 
-#for path, dir, file in os.walk(dsid):
-#    for f in file:
-#        file = os.path.join(path, f)
-#        print file
-#        m = c4.main(args=['-p', 'CMIP5',
-#                          '-f', file,
-#                          '--ld', odir,
-#                          '--flfmode', 'wo'])
-#        print m
+
+
+def quiet_cfchecker(CFChecker, STANDARDNAME, AREATYPES, version, qcfile):
+#   version = CFChecker.getFileCFVersion
+    cf = CFChecker(cfStandardNamesXML=STANDARDNAME, cfAreaTypesXML=AREATYPES, silent=True)
+    resp = cf.checker(qcfile)
+
+    for k,v in resp.items():
+        print k
+        print v
+
+
+quiet_cfchecker(CFChecker, STANDARDNAME, AREATYPES, version, qcfile)
+
+"""
+for path, dir, file in os.walk(dsid):
+    for f in file:
+        file = os.path.join(path, f)
+        print file
+        argslist = ['-p', 'CMIP5', '-f', file, '--log', 'multi', '--ld', odir, '--cae', '--blfmode', 'a']
+        m = c4.main(argslist)
+        print m
 #        print help(m)
+"""

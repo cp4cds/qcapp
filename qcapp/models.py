@@ -57,26 +57,28 @@ class Dataset(models.Model):
     data_spec = models.ManyToManyField(DataSpecification, blank=True)
     exists = models.BooleanField(default=False)
     project = models.CharField(max_length=30, default="cmip5")
-    product = models.CharField(max_length=20, blank=True)
-    institute = models.CharField(max_length=30, blank=True)
-    model = models.CharField(max_length=20, blank=True)
+    product = models.CharField(max_length=20)
+    institute = models.CharField(max_length=30)
+    model = models.CharField(max_length=20)
 
-    experiment = models.CharField(max_length=20, blank=True)
-    frequency = models.CharField(max_length=20, blank=True)
-    realm = models.CharField(max_length=20, blank=True)
-    cmor_table = models.CharField(max_length=20, blank=True)
+    experiment = models.CharField(max_length=20)
+    frequency = models.CharField(max_length=20)
+    realm = models.CharField(max_length=20)
+    cmor_table = models.CharField(max_length=20)
+    ensemble = models.CharField(max_length=10)
+    version = models.CharField(max_length=10)
 
-    ensemble = models.CharField(max_length=10, blank=True)
-    version = models.CharField(max_length=10, blank=True)
+    esgf_ds_id = models.CharField(max_length=200, blank=True)
+    esgf_node = models.CharField(max_length=80, blank=True)
 
 #    experiment_family = models.CharField(max_length=100, blank=True)
 #    forcing = models.CharField(max_length=500, blank=True)
     start_time = models.DateField(blank=True, null=True)
     end_time = models.DateField(blank=True, null=True)
-    variable = models.CharField(max_length=20, blank=True)
+    variable = models.CharField(max_length=20)
 
     # Generated from other facets when object is saved
-    dataset_id = models.CharField(max_length=300, unique=True, blank=True)
+    dataset_id = models.CharField(max_length=300, unique=True)
 
     def save(self, *args, **kwargs):
         dataset_id = "%s.%s.%s.%s.%s.%s.%s.%s.%s.%s.%s" % \
@@ -103,7 +105,6 @@ class DataFile(models.Model):
     cf_standard_name = models.CharField(max_length=300)
     variable_units = models.CharField(max_length=20)
 
-    data_node = models.URLField()
     start_time = models.DateField()
     end_time = models.DateField()
 
