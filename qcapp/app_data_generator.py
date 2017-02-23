@@ -58,14 +58,8 @@ def get_spec_info(d_spec, project, variable, table, frequency, expts, node, dist
                 # GET ALL FILES INFORMATION RELATED TO DATASET
                 filepath, ceda_filepath, start_time, end_time, size, checksum, tracking_id, download_url, \
                 variable_long_name, cf_standard_name, variable_units = \
-                    get_all_datafile_info(URL_FILE_ENSEMBLE_FACETS, project, variable, table, frequency,
+                    get_all_datafile_info(URL_FILE_ENSEMBLE_FACETS, ds, project, variable, table, frequency,
                                           experiment, model, ensemble, version, node, distrib, latest)
-
-
-                # Create a Datafile record for each file
-                create_datafile_record(ds, filepath, ceda_filepath, size, checksum, download_url, tracking_id,
-                                       variable, cf_standard_name, variable_long_name, variable_units,
-                                       start_time, end_time)
 
                 add_long_name_to_dspec(d_spec, variable_long_name)
                 ds.exists = True
@@ -95,7 +89,7 @@ def extract_ds_info(json_resp):
     return product, institute, realm, version, esgf_ds_id, esgf_node
 
 
-def get_all_datafile_info(url_template, project, variable, table, frequency, experiment, model, ensemble,
+def get_all_datafile_info(url_template, ds, project, variable, table, frequency, experiment, model, ensemble,
                           version, node, distrib, latest):
 
     url = url_template % vars()
@@ -121,6 +115,11 @@ def get_all_datafile_info(url_template, project, variable, table, frequency, exp
         variable_long_name = df["variable_long_name"][0].strip()
         cf_standard_name = df["cf_standard_name"][0].strip()
         variable_units = df["variable_units"][0].strip()
+
+        # Create a Datafile record for each file
+        create_datafile_record(ds, filepath, ceda_filepath, size, checksum, download_url, tracking_id,
+                               variable, cf_standard_name, variable_long_name, variable_units,
+                               start_time, end_time)
 
     return filepath, ceda_filepath, start_time, end_time, size, checksum, tracking_id, download_url, \
            variable_long_name, cf_standard_name, variable_units
@@ -183,18 +182,22 @@ def create_ceda_filepath(path, version, variable):
 
 def perform_qc():
 
+    counter = 0
     for dataset in Dataset.objects.all():
-        odir = '/usr/local/cp4cds-app/ceda-cc-log-files/' + dataset.esgf_ds_id
-
+        dsid = dataset.esgf_ds_id
+        odir = os.path.join('/usr/local/cp4cds-app/ceda-cc-log-files/', *dsid.split('.')[2:])
+        if not odir:
+            os.makedirs(odir)
         datafiles = dataset.datafile_set.all()
-        for datafile in datafiles:
-            go = True
-            if go:
+        while counter < 2:
+            for datafile in datafiles:
                 file = datafile.archive_path
                 ceda_cc_file = run_ceda_cc(file, odir)
-                print ceda_cc_file
-                go = False
+                print 'ccfile:' + ceda_cc_file
+                counter += 1
+
 #            parse_ceda_cc()
+
 
 #            run_cf_checker()
 
@@ -207,10 +210,12 @@ def run_cf_checker(qcfile):
 def run_ceda_cc(file, odir):
     # run the ceda-cc - generate the qcBatch log.
     # write list to a file for use by ceda-cc
+    print 'running ceda-cc'
+    print 'odir:', odir
     argslist = ['-p', 'CMIP5', '-f', file, '--log', 'multi', '--ld', odir, '--cae', '--blfmode', 'a']
     m = c4.main(argslist)
 
-    return odir + file[:-3] + '__qclog_' + time.strftime("%Y%m%d") + '.txt'
+    return odir + '/' + file.split('/')[-1][:-3] + '__qclog_' + time.strftime("%Y%m%d") + '.txt'
 
 
 def parse_ceda_cc():
