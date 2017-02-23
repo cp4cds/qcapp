@@ -32,6 +32,12 @@ def var_qcplot(request, variable):
 
 
 
+def dataset_qc(request, variable):
+
+    dataset = Dataset.objects.filter(variable=variable)
+    return render(request, 'qcapp/dataset_qc.html', {'dataset': dataset})
+
+
 def ag_test(request):
     dataSpec = DataSpecification.objects.all()
     return render(request, 'qcapp/ag-test.html', {'dataSpec': dataSpec,

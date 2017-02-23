@@ -128,26 +128,42 @@ def get_all_datafile_info(url_template, ds, project, variable, table, frequency,
 def get_no_models_per_expt(d_spec, expts):
 
     volume = 0
+    models_by_experiment = {}
+
+    # get a list of models that have variable in experiment store in dict.
     for experiment in expts:
 
-        dss = Dataset.objects.filter(variable=d_spec.variable, cmor_table=d_spec.cmor_table,
-                                     frequency=d_spec.frequency, experiment=experiment)
-        models_by_experiment = {}
-        mlist = set([])
-        for m in dss.all():
-             mlist.add(m.model)
-             models_by_experiment[experiment] = mlist
+        datasets = Dataset.objects.filter(variable=d_spec.variable, cmor_table=d_spec.cmor_table,
+                                          frequency=d_spec.frequency, experiment=experiment)
+        models = set([])
+        for dataset in datasets.all():
+            models.add(dataset.model)
 
-        for ds in dss.all():
-            dfs = DataFile.objects.filter(dataset=ds)
-            for df in dfs:
-                volume += df.size
+        models_by_experiment[experiment] = list(models)
+
+        valid_models = check_in_all_models(d_spec, models_by_experiment)
+
+        # Get data volumes
+
+        for model in valid_models:
+            datasets = Dataset.objects.filter(variable=d_spec.variable, cmor_table=d_spec.cmor_table,
+                                              frequency=d_spec.frequency, experiment=experiment, model=model)
+
+            datafiles = DataFile.objects.filter(dataset=datasets)
+            for datafile in datafiles:
+                volume += datafile.size
+
+
     d_spec.data_volume = volume / (1024. ** 3)
 
+
+
+def check_in_all_models(d_spec, models_per_experiment):
+
     in_all = None
-    for key, items in models_by_experiment.items():
+    for key, items in models_per_experiment.iteritems():
         if in_all is None:
-            in_all = items
+            in_all = set(items)
         else:
             in_all.intersection_update(items)
 
@@ -155,6 +171,7 @@ def get_no_models_per_expt(d_spec, expts):
     print len(in_all)
     d_spec.save()
 
+    return list(in_all)
 
 def check_valid_model_names(models):
 
@@ -372,11 +389,11 @@ def generate_data_records(project, node, expts, file, distrib, latest):
             frequency = line.split(',')[2].strip()
 
             # Create spec record and link to requester
-            if not DataSpecification.objects.filter(variable=variable, cmor_table=table,
+            if DataSpecification.objects.filter(variable=variable, cmor_table=table,
                                                     frequency=frequency, esgf_data_collected=True):
                 d_spec = create_specs_record(variable, table, frequency)
                 link_requester_to_specification(d_spec, d_requester)
-                get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib, latest)
+               # get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib, latest)
                 get_no_models_per_expt(d_spec, expts)
         lineno += 1
 
@@ -389,5 +406,5 @@ if __name__ == '__main__':
     distrib = False
     latest = True
     file = '/usr/local/cp4cds-app/project-specs/cp4cds-dmp_data_request.csv'
-    #generate_data_records(project, node, expts, file, distrib, latest)
-    perform_qc()
+    generate_data_records(project, node, expts, file, distrib, latest)
+    #perform_qc()
