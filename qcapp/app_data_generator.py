@@ -4,7 +4,7 @@ django.setup()
 
 from qcapp.models import *
 from django.db.models import Count, Max, Min, Sum, Avg
-import collections, os, timeit, datetime
+import collections, os, timeit, datetime, time
 import requests, itertools
 # IMPORT QC STUFF (only works in venv27)
 from ceda_cc import c4
@@ -22,6 +22,7 @@ URL_DS_ENSEMBLE_FACETS = 'https://%(node)s/esg-search/search?type=Dataset&projec
 URL_FILE_ENSEMBLE_FACETS = 'https://%(node)s/esg-search/search?type=File&project=%(project)s&variable=%(variable)s&' \
                            'cmor_table=%(table)s&time_frequency=%(frequency)s&model=%(model)s&experiment=%(experiment)s&' \
                            'ensemble=%(ensemble)s&latest=%(latest)s&distrib=%(distrib)s&facets=ensemble&format=application%%2Fsolr%%2Bjson'
+
 
 def get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib, latest):
     """
@@ -71,15 +72,7 @@ def get_spec_info(d_spec, project, variable, table, frequency, expts, node, dist
                 ds.save()
     d_spec.esgf_data_collected = True
     d_spec.save()
-#def perform_qc():
 
-
-    # RUN CF CHECKER
-    # run_cf_checker(ceda_filepath)
-
-    # RUN CEDA-CC
-    # run_ceda_cc(ceda_filepath)
-    # parse_ceda_cc()
 
 def esgf_ds_search(search_template, facet_check, project, variable, table, frequency, experiment, model, node, distrib, latest):
     url = search_template % vars()
@@ -100,6 +93,7 @@ def extract_ds_info(json_resp):
     esgf_node = json_resp["data_node"].strip()
 
     return product, institute, realm, version, esgf_ds_id, esgf_node
+
 
 def get_all_datafile_info(url_template, project, variable, table, frequency, experiment, model, ensemble,
                           version, node, distrib, latest):
@@ -130,7 +124,6 @@ def get_all_datafile_info(url_template, project, variable, table, frequency, exp
 
     return filepath, ceda_filepath, start_time, end_time, size, checksum, tracking_id, download_url, \
            variable_long_name, cf_standard_name, variable_units
-
 
 
 def get_no_models_per_expt(d_spec, expts):
@@ -164,7 +157,6 @@ def get_no_models_per_expt(d_spec, expts):
     d_spec.save()
 
 
-
 def check_valid_model_names(models):
 
    for model in models:
@@ -178,6 +170,7 @@ def check_valid_model_names(models):
             model = "ACCESS1-0"
             #print "replaced: ", model
 
+
 def create_ceda_filepath(path, version, variable):
     path = path.split('/')
     vid = 'v'+version
@@ -188,23 +181,37 @@ def create_ceda_filepath(path, version, variable):
 
     return path
 
-def run_cf_checker(qcfile):
-    cf = CFChecker(cfStandardNamesXML=STANDARDNAME, cfAreaTypesXML=AREATYPES, version=newest_version)
-    resp = cf.checker(qcfile)
-
-def run_ceda_cc():
-    # run the ceda-cc - generate the qcBatch log.
-    # write list to a file for use by ceda-cc
-
+def perform_qc():
 
     for dataset in Dataset.objects.all():
         odir = '/usr/local/cp4cds-app/ceda-cc-log-files/' + dataset.esgf_ds_id
 
         datafiles = dataset.datafile_set.all()
         for datafile in datafiles:
-            file = datafile.archive_path
-            argslist = ['-p', 'CMIP5', '-f', file, '--log', 'multi', '--ld', odir, '--cae', '--blfmode', 'a']
-            m = c4.main(argslist)
+            go = True
+            if go:
+                file = datafile.archive_path
+                ceda_cc_file = run_ceda_cc(file, odir)
+                print ceda_cc_file
+                go = False
+#            parse_ceda_cc()
+
+#            run_cf_checker()
+
+
+def run_cf_checker(qcfile):
+    cf = CFChecker(cfStandardNamesXML=STANDARDNAME, cfAreaTypesXML=AREATYPES, version=newest_version, silent=True)
+    resp = cf.checker(qcfile)
+
+
+def run_ceda_cc(file, odir):
+    # run the ceda-cc - generate the qcBatch log.
+    # write list to a file for use by ceda-cc
+    argslist = ['-p', 'CMIP5', '-f', file, '--log', 'multi', '--ld', odir, '--cae', '--blfmode', 'a']
+    m = c4.main(argslist)
+
+    return odir + file[:-3] + '__qclog_' + time.strftime("%Y%m%d") + '.txt'
+
 
 def parse_ceda_cc():
     """Parse the qcBatch log for fails
@@ -242,11 +249,13 @@ def parse_ceda_cc():
     if errors > 1:
         return 'FAIL: %s Errors found' % str(errors), 100-10*errors
 
+
 def parse_filename(fname):
     fname = fname.replace('.','/')
     fname = fname.replace('/nc','.nc')
     fname = '/'+fname
     return  fname
+
 
 def get_start_end_times(frequency, fname):
 
@@ -272,6 +281,7 @@ def get_start_end_times(frequency, fname):
 
     return start_time, end_time
 
+
 def create_dataset_record(project, product, institute, model, experiment, frequency,
                           realm, table, ensemble, version, esgf_ds_id, esgf_node, variable):
 
@@ -294,7 +304,6 @@ def create_datafile_record(ds, filepath, ceda_filepath, size, checksum, download
     newfile.save()
 
 
-
 def create_specs_record(variable, cmor_table, frequency):
     """
     Create a data specification record
@@ -306,6 +315,7 @@ def create_specs_record(variable, cmor_table, frequency):
     specs.save()
     return specs
 
+
 def create_requester_record(requester):
     """
     Create a Requester record
@@ -314,17 +324,21 @@ def create_requester_record(requester):
     req.save()
     return req
 
+
 def link_requester_to_specification(d_spec, d_requester):
     d_spec.datarequesters.add(d_requester)
     d_spec.save()
+
 
 def link_dataset_to_specification(ds, d_spec):
     ds.data_spec.add(d_spec)
     ds.save()
 
+
 def add_long_name_to_dspec(d_spec, variable_long_name):
     d_spec.variable_long_name = variable_long_name
     d_spec.save()
+
 
 def read_project_data_specs(file):
     reader = open(file, 'r')
@@ -334,19 +348,13 @@ def read_project_data_specs(file):
     return data
 
 
-
-if __name__ == '__main__':
-
-    # These constraints will in time be loaded in via csv for multiple projects.
-    project = 'CMIP5'
-    # cp4cds-app1-test can't see ceda node?? for testing for now using dkrz
-    node = "172.16.150.171"
-    expts = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
-    file = '/usr/local/cp4cds-app/project-specs/cp4cds-dmp_data_request.csv'
+def generate_data_records(project, node, expts, file, distrib, latest):
+    """
+    Generate data records from csv input
+    :return:
+    """
     data = read_project_data_specs(file)
     lineno = 0
-    distrib = False
-    latest = True
 
     for line in data:
         if lineno == 0:
@@ -357,17 +365,24 @@ if __name__ == '__main__':
             variable = line.split(',')[0].strip()
             table = line.split(',')[1].strip()
             frequency = line.split(',')[2].strip()
-            # passing in d_spec to add in variable long name retrieved from ESGF
-            #variable_long_name = line.split(',')[3].strip()
-            #number_experiments = line.split(',')[4].strip()
-            #number_of_models = line.split(',')[5].strip()
-            #volume_of_data = line.split(',')[6].strip()
 
             # Create spec record and link to requester
             if not DataSpecification.objects.filter(variable=variable, cmor_table=table,
-                                                frequency=frequency, esgf_data_collected=True):
+                                                    frequency=frequency, esgf_data_collected=True):
                 d_spec = create_specs_record(variable, table, frequency)
                 link_requester_to_specification(d_spec, d_requester)
                 get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib, latest)
                 get_no_models_per_expt(d_spec, expts)
         lineno += 1
+
+if __name__ == '__main__':
+
+    # These constraints will in time be loaded in via csv for multiple projects.
+    project = 'CMIP5'
+    node = "172.16.150.171"
+    expts = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
+    distrib = False
+    latest = True
+    file = '/usr/local/cp4cds-app/project-specs/cp4cds-dmp_data_request.csv'
+    #generate_data_records(project, node, expts, file, distrib, latest)
+    perform_qc()
