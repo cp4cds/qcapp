@@ -17,7 +17,20 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import netCDF4
 requests.packages.urllib3.disable_warnings()
 import pdb
+from django.shortcuts import render
+from django.http import HttpResponse
 
+from qcapp.models import *
+from qcapp.app_data_generator import *
+
+
+#testing data volumes
+spec = DataSpecification.objects.first()
+get_no_models_per_expt(spec, ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85'])
+
+
+
+"""
 dsid = 'CMIP5.output1.MIROC.MIROC5.rcp26.mon.atmos.Amon.r2i1p1.tas.20120710'
 dsid = dsid.replace('CMIP5','cmip5')
 dsid = dsid.split('.')
@@ -49,7 +62,6 @@ def quiet_cfchecker(CFChecker, STANDARDNAME, AREATYPES, version, qcfile):
 
 quiet_cfchecker(CFChecker, STANDARDNAME, AREATYPES, version, qcfile)
 
-"""
 for path, dir, file in os.walk(dsid):
     for f in file:
         file = os.path.join(path, f)

@@ -131,13 +131,19 @@ class FileQC(models.Model):
     ceda_cc_score = models.PositiveSmallIntegerField(default=0)
     file_qc_score = models.PositiveSmallIntegerField(default=0)
 
-
     # TODO
     #cf_compliance_details = models.CharField(max_length=500)
     #global_attributes_score = models.SmallIntegerField()
     #global_attributes_details = models.CharField(max_length=500)
     #variable_attributes_score = models.SmallIntegerField()
     #variable_attributes_details = models.CharField(max_length=500)
+
+
+#class CFResults(models.Model):
+
+#    qc_file = models.ForeignKey(FileQC)
+#    cf_result = models.CharField(blank=True, max_length=500)
+
 
 class DatasetQC(models.Model):
 

@@ -1,0 +1,31 @@
+<br>
+<br>
+
+
+
+{% extends 'qcapp/base.html' %}
+
+{% block contents %}
+
+This is the Climate Projections for the Climate Data Store (CP4CDS) quality control application.
+The aim of this application is to provide users with information on the availability of quality controlled
+CMIP5 data. This application supports a number of different ways of interrogating the data.
+The availability of the data can be viewed per variable, per model or per experiment.
+<br> <br>
+Each file included in this database has been checked for metadata consistency using the CEDA compliance
+checker developed and maintained by STFC-CEDA and for Climate and Forecast (CF) convention
+conformance using the CF-checker developed and maintained by The University of Reading and STFC-CEDA.
+
+Full details of all quality control procedures can be found in the documentation section.
+
+<BR> <BR>
+Interrogate the data by
+<BR>
+<a class="btn btn-default btn-lg" href="http://127.0.0.1:8000/data-spec/" role="button" >variable</a>
+<a class="btn btn-default btn-lg" href="http://127.0.0.1:8000/data-spec/" role="button" >model</a>
+<a class="btn btn-default btn-lg" href="http://127.0.0.1:8000/data-spec/" role="button" >experiment</a>
+<BR> <BR>
+
+<a class="btn btn-default btn-lg" href="http://127.0.0.1:8000/documentation/" role="button">Documentation</a>
+
+{% endblock %}

@@ -7,8 +7,25 @@
 
 {% block contents %}
 
-<h3>Number of models and volume for data for variables that exist in experiments </h3>
-<h4>historical, piControl, rcp45 </h4>
+<h2>Select experiments to find the number of models and volume of data available</h2>
+
+<form action="/data-spec/" method="get">
+<label class="checkbox-inline"><input type="checkbox" name='historical' value="">historical</label>
+<label class="checkbox-inline"><input type="checkbox" name='piControl' value="">piControl</label>
+<label class="checkbox-inline"><input type="checkbox" name='amip' value="">amip</label>
+<label class="checkbox-inline"><input type="checkbox" name='rcp26' value="">rcp26</label>
+<label class="checkbox-inline"><input type="checkbox" name='rcp45' value="">rcp45</label>
+<label class="checkbox-inline"><input type="checkbox" name='rcp60' value="">rcp60</label>
+<label class="checkbox-inline"><input type="checkbox" name='rcp85' value="">rcp85</label>
+<br>
+<input class="btn btn-success btn-sm" type="submit" value="Submit">
+<br>
+<h3> Selected experiments: </h3>
+<p> {{ expts }} </p>>
+</form>
+
+
+
 
 <table class="table table-hover">
 <thead> <tr> <th>Variable</th> <th>Long Name</th> <th>CMOR table</th> <th>Frequency</th> <th>Number of Models</th> <th>Data Volume (GB)</th> </thead>
@@ -18,8 +35,6 @@
 
     <tr> <th scope=row>{{ var.variable }}</th> <td>{{ var.variable_long_name }}</td> <td>{{ var.cmor_table }}</td>
         <td>{{ var.frequency }}</td> <td>{{ var.number_of_models }}</td>> <td>{{ var.data_volume|floatformat:2 }}</td>>
-    <td> <a class="btn btn-default" href="{{ var.variable }}" role="button">QC plots</a> </td>
-    <td> <a class="btn btn-default" href="{{ var.variable }}" role="button">Dataset QC</a> </td>
     </tr>
 
     {% endfor %}

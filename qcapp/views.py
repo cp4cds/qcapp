@@ -3,6 +3,8 @@ from django.http import HttpResponse
 
 from qcapp.models import *
 from .models import *
+from .app_data_generator import *
+
 
 # Create your views here.
 def happy(request, expt):
@@ -14,11 +16,43 @@ def test(request):
     requestName = Request.objects.first().request_name
     return HttpResponse("I am a test." + requestName )
 
-def data_spec(request):
+def home(request):
+
+    return render(request, 'qcapp/home.html', {'page_title': 'About CP4CDS: Climate Projections for the Climate Data Store'})
+
+def documentation(request):
+
+    return render(request, 'qcapp/documentation.html', {'page_title': 'Documentation'})
+
+
+
+def data_spec_model(request):
 
     dataSpec = DataSpecification.objects.all()
 
-    return render(request, 'qcapp/data-spec.html', {'dataSpec': dataSpec})
+    return render(request, 'qcapp/data-spec-model.html', {'dataSpec': dataSpec})
+
+
+def data_spec_experiment(request):
+
+    dataSpec = DataSpecification.objects.all()
+
+    return render(request, 'qcapp/data-spec-experiment.html', {'dataSpec': dataSpec})
+
+
+
+def data_spec(request):
+
+#    dataSpec = DataSpecification.objects.filter(variable='tas').first()
+    exptsSelected = request.GET.keys()
+    dataSpec = DataSpecification.objects.all()
+    for spec in dataSpec:
+        get_no_models_per_expt(spec, exptsSelected)
+
+    return render(request, 'qcapp/data-spec.html', {'page_title': "Data requested by CP4CDS", 'dataSpec': dataSpec, 'expts': exptsSelected})
+#    dataSpec = DataSpecification.objects.all()
+#    return  render(request, 'qcapp/data-spec.html', {'page_title': "Data requested by CP4CDS", 'dataSpec': dataSpec} )
+
 
 def variable_summary(request, variable):
 
@@ -28,14 +62,19 @@ def variable_summary(request, variable):
 def var_qcplot(request, variable):
 
     dataset = Dataset.objects.filter(variable=variable)
-    return render(request, 'qcapp/var-qcplot.html', {'dataset': dataset})
+    return render(request, 'qcapp/var-qcplot.html', {'page_title': 'Variable quality control plot','dataset': dataset})
+
+def file_qc(request):
+
+
+    return render(request, 'qcapp/file_qc.html', {'page_title': 'File:'})
 
 
 
 def dataset_qc(request, variable):
 
     dataset = Dataset.objects.filter(variable=variable)
-    return render(request, 'qcapp/dataset_qc.html', {'dataset': dataset})
+    return render(request, 'qcapp/var-qcplot.html', {'page_title': 'Variable quality control plot', 'dataset': dataset, })
 
 
 def ag_test(request):

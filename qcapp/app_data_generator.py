@@ -127,7 +127,6 @@ def get_all_datafile_info(url_template, ds, project, variable, table, frequency,
 
 def get_no_models_per_expt(d_spec, expts):
 
-    volume = 0
     models_by_experiment = {}
 
     # get a list of models that have variable in experiment store in dict.
@@ -140,22 +139,29 @@ def get_no_models_per_expt(d_spec, expts):
             models.add(dataset.model)
 
         models_by_experiment[experiment] = list(models)
+    valid_models = check_in_all_models(d_spec, models_by_experiment)
 
-        valid_models = check_in_all_models(d_spec, models_by_experiment)
 
-        # Get data volumes
-
-        for model in valid_models:
-            datasets = Dataset.objects.filter(variable=d_spec.variable, cmor_table=d_spec.cmor_table,
+    # Get data volumes
+    d_spec.data_volume = 0.0
+    volume = 0.0
+    for model in valid_models:
+        for experiment in expts:
+            ds = Dataset.objects.filter(variable=d_spec.variable, cmor_table=d_spec.cmor_table,
                                               frequency=d_spec.frequency, experiment=experiment, model=model)
 
-            datafiles = DataFile.objects.filter(dataset=datasets)
-            for datafile in datafiles:
-                volume += datafile.size
+            #datafiles = DataFile.objects.filter(dataset=datasets)
+            #for datafile in datafiles:
+            #    volume += datafile.size
+            #
+            #  RETURNS SAME AS AGGREGATION BUT DIFFERENT TO PREVIOUS RESULT
+            #
+            volume += DataFile.objects.filter(dataset=ds).aggregate(Sum('size')).values()[0]
 
 
     d_spec.data_volume = volume / (1024. ** 3)
-
+    print d_spec.variable, d_spec.cmor_table, d_spec.frequency, d_spec.data_volume
+    d_spec.save()
 
 
 def check_in_all_models(d_spec, models_per_experiment):
@@ -168,7 +174,6 @@ def check_in_all_models(d_spec, models_per_experiment):
             in_all.intersection_update(items)
 
     d_spec.number_of_models = len(in_all)
-    print len(in_all)
     d_spec.save()
 
     return list(in_all)
@@ -209,19 +214,49 @@ def perform_qc():
         while counter < 2:
             for datafile in datafiles:
                 file = datafile.archive_path
-                ceda_cc_file = run_ceda_cc(file, odir)
-                print 'ccfile:' + ceda_cc_file
+#                ceda_cc_file = run_ceda_cc(file, odir)
+ #               print 'ccfile:' + ceda_cc_file
                 counter += 1
 
 #            parse_ceda_cc()
 
-
-#            run_cf_checker()
+                print file
+                run_cf_checker(file)
 
 
 def run_cf_checker(qcfile):
     cf = CFChecker(cfStandardNamesXML=STANDARDNAME, cfAreaTypesXML=AREATYPES, version=newest_version, silent=True)
     resp = cf.checker(qcfile)
+
+    vars = resp.items()[0]
+    for message in vars[1].values():
+        if len(message['FATAL']) > 0:
+            fatal_msg = 'FATAL: ', message['FATAL'][0]
+            create_cf_error_record(qcf, fatal_msg)
+        if len(message['ERROR']) > 0:
+            error_msg = 'ERROR: ', message['WARN'][0]
+            create_cf_error_record(qcf, error_msg)
+
+    gll = resp.items()[1]
+    if gll[1]['FATAL']:
+        fatal_msg = 'FATAL: ', gll[1]['FATAL'][0]
+        create_cf_error_record(qcf, fatal_msg)
+    if gll[1]['WARN']:
+        error_msg = 'ERROR: ', gll[1]['WARN'][0]
+        create_cf_error_record(qcf, error_msg)
+
+def create_file_qc_record():
+    fqc, result = DataSpecification.objects.get_or_create(qc_check='',cf_compliance_score=0, ceda_cc_score=0,
+                                                          file_qc_score=0)
+    fqc.save()
+    check_file = models.ForeignKey(DataFile)
+
+    return fqc
+
+
+def create_cf_error_record(fqc, error):
+    cf_record, result = DataSpecification.objects.get_or_create(qc_file=fqc, cf_result=error)
+    cf_record.save()
 
 
 def run_ceda_cc(file, odir):
@@ -390,7 +425,7 @@ def generate_data_records(project, node, expts, file, distrib, latest):
 
             # Create spec record and link to requester
             if DataSpecification.objects.filter(variable=variable, cmor_table=table,
-                                                    frequency=frequency, esgf_data_collected=True):
+                                                frequency=frequency, esgf_data_collected=True):
                 d_spec = create_specs_record(variable, table, frequency)
                 link_requester_to_specification(d_spec, d_requester)
                # get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib, latest)
