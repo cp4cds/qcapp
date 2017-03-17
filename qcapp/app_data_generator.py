@@ -127,9 +127,12 @@ def get_all_datafile_info(url_template, ds, project, variable, table, frequency,
 
 def get_no_models_per_expt(d_spec, expts):
 
+    # initialise
     models_by_experiment = {}
-
-    # get a list of models that have variable in experiment store in dict.
+    d_spec.data_volume = 0.0
+    volume = 0.0
+    print expts
+    # get a list of models where the variable exists for experiment; store result in dict.
     for experiment in expts:
 
         datasets = Dataset.objects.filter(variable=d_spec.variable, cmor_table=d_spec.cmor_table,
@@ -139,28 +142,18 @@ def get_no_models_per_expt(d_spec, expts):
             models.add(dataset.model)
 
         models_by_experiment[experiment] = list(models)
-    valid_models = check_in_all_models(d_spec, models_by_experiment)
-
-
-    # Get data volumes
-    d_spec.data_volume = 0.0
-    volume = 0.0
-    for model in valid_models:
-        for experiment in expts:
+        valid_models = check_in_all_models(d_spec, models_by_experiment)
+        print valid_models
+        # Get data volumes for all valid model
+        for model in valid_models:
             ds = Dataset.objects.filter(variable=d_spec.variable, cmor_table=d_spec.cmor_table,
-                                              frequency=d_spec.frequency, experiment=experiment, model=model)
-
-            #datafiles = DataFile.objects.filter(dataset=datasets)
-            #for datafile in datafiles:
-            #    volume += datafile.size
-            #
-            #  RETURNS SAME AS AGGREGATION BUT DIFFERENT TO PREVIOUS RESULT
-            #
-            volume += DataFile.objects.filter(dataset=ds).aggregate(Sum('size')).values()[0]
+                                        frequency=d_spec.frequency, experiment=experiment, model=model)
+            for d in ds:
+                volume += DataFile.objects.filter(dataset=d).aggregate(Sum('size')).values()[0]
 
 
     d_spec.data_volume = volume / (1024. ** 3)
-    print d_spec.variable, d_spec.cmor_table, d_spec.frequency, d_spec.data_volume
+    print d_spec.variable, d_spec.frequency, d_spec.data_volume
     d_spec.save()
 
 

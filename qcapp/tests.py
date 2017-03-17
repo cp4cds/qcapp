@@ -27,6 +27,7 @@ from qcapp.app_data_generator import *
 #testing data volumes
 spec = DataSpecification.objects.first()
 get_no_models_per_expt(spec, ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85'])
+get_no_models_per_expt(spec, ['rcp60', 'rcp26', 'amip', 'rcp85', 'historical', 'rcp45', 'piControl'])
 
 
 
