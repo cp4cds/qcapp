@@ -69,6 +69,11 @@ def get_spec_info(d_spec, project, variable, table, frequency, expts, node, dist
 
 
 def esgf_ds_search(search_template, facet_check, project, variable, table, frequency, experiment, model, node, distrib, latest):
+    """
+    Perform an esgf dataset search using the specified template
+
+    :return: dictionary of facets
+    """
     url = search_template % vars()
     resp = requests.get(url, verify=False)
     json = resp.json()
@@ -79,6 +84,11 @@ def esgf_ds_search(search_template, facet_check, project, variable, table, frequ
 
 
 def extract_ds_info(json_resp):
+    """
+    Parse json data
+    :param json_resp:
+    :return:
+    """
     product = json_resp["product"][0].strip()
     institute = json_resp["institute"][0].strip()
     realm = json_resp["realm"][0].strip()
@@ -92,6 +102,11 @@ def extract_ds_info(json_resp):
 def get_all_datafile_info(url_template, ds, project, variable, table, frequency, experiment, model, ensemble,
                           version, node, distrib, latest):
 
+    """
+    Get all datafile information for a given dataset
+
+    :return:
+    """
     url = url_template % vars()
     resp = resp = requests.get(url, verify=False)
     json = resp.json()
@@ -126,7 +141,12 @@ def get_all_datafile_info(url_template, ds, project, variable, table, frequency,
 
 
 def get_no_models_per_expt(d_spec, expts):
+    """
+    Calculate the number of models which have a given variable in a set of specfied experiments
+    Calculate the associated data volume
 
+    :return:
+    """
     # initialise
     models_by_experiment = {}
     d_spec.data_volume = 0.0
@@ -143,28 +163,36 @@ def get_no_models_per_expt(d_spec, expts):
 
         models_by_experiment[experiment] = list(models)
         valid_models = check_in_all_models(d_spec, models_by_experiment)
-        print valid_models
-        # Get data volumes for all valid model
-        for model in valid_models:
+        #print experiment, valid_models
+
+    # Get data volumes for all valid model
+    for model in valid_models:
+        for experiment in expts:
             ds = Dataset.objects.filter(variable=d_spec.variable, cmor_table=d_spec.cmor_table,
                                         frequency=d_spec.frequency, experiment=experiment, model=model)
             for d in ds:
                 volume += DataFile.objects.filter(dataset=d).aggregate(Sum('size')).values()[0]
 
+        #print experiment, volume / (1024. ** 3)
 
     d_spec.data_volume = volume / (1024. ** 3)
-    print d_spec.variable, d_spec.frequency, d_spec.data_volume
+    print d_spec.variable, d_spec.frequency, d_spec.data_volume, valid_models
     d_spec.save()
 
 
 def check_in_all_models(d_spec, models_per_experiment):
+    """
+    Perform an intersection check to determine
+    what list of models all variables are in over a
+    dictionary of experiments and with list of models
+    """
 
     in_all = None
-    for key, items in models_per_experiment.iteritems():
+    for key, models in models_per_experiment.iteritems():
         if in_all is None:
-            in_all = set(items)
+            in_all = set(models)
         else:
-            in_all.intersection_update(items)
+            in_all.intersection_update(models)
 
     d_spec.number_of_models = len(in_all)
     d_spec.save()
@@ -172,8 +200,11 @@ def check_in_all_models(d_spec, models_per_experiment):
     return list(in_all)
 
 def check_valid_model_names(models):
-
-   for model in models:
+    """
+    Modify invalid model names
+    :return:
+    """
+    for model in models:
         if model == "CESM1(CAM5)":
             model = "CESM1-CAM5"
             #print "replaced: ", model
@@ -186,6 +217,12 @@ def check_valid_model_names(models):
 
 
 def create_ceda_filepath(path, version, variable):
+    """
+    Generate the archive location of a file from the esgf path, version and variable
+
+    :return:
+    """
+
     path = path.split('/')
     vid = 'v'+version
     path.insert(-1, vid)
@@ -195,8 +232,15 @@ def create_ceda_filepath(path, version, variable):
 
     return path
 
-def perform_qc():
 
+def perform_qc():
+    """
+    Perform the quality control
+    Generate CEDA-CC files and parse output
+    Perform CF-checks
+
+    :return:
+    """
     counter = 0
     for dataset in Dataset.objects.all():
         dsid = dataset.esgf_ds_id
@@ -218,7 +262,12 @@ def perform_qc():
 
 
 def run_cf_checker(qcfile):
-    cf = CFChecker(cfStandardNamesXML=STANDARDNAME, cfAreaTypesXML=AREATYPES, version=newest_version, silent=True)
+    """
+    Run the CF checker
+
+    :return:
+    """
+
     resp = cf.checker(qcfile)
 
     vars = resp.items()[0]
@@ -238,7 +287,25 @@ def run_cf_checker(qcfile):
         error_msg = 'ERROR: ', gll[1]['WARN'][0]
         create_cf_error_record(qcf, error_msg)
 
+
+def create_cf_error_record(fqc, qcfile, error):
+    """
+    Generate a CF-error record
+
+    :return:
+    """
+
+    qc_check, result = DataSpecification.objects.get_or_create(qc_check_type='CF', qc_check_file=qcfile)
+    qc_check.save()
+
+    qc_err, result = DataSpecification.objects.get_or_create(qc_check=cf_record, qc_error=error)
+    qc_err.save()
+
 def create_file_qc_record():
+    """
+    Generate a file QC record
+    :return:
+    """
     fqc, result = DataSpecification.objects.get_or_create(qc_check='',cf_compliance_score=0, ceda_cc_score=0,
                                                           file_qc_score=0)
     fqc.save()
@@ -247,12 +314,11 @@ def create_file_qc_record():
     return fqc
 
 
-def create_cf_error_record(fqc, error):
-    cf_record, result = DataSpecification.objects.get_or_create(qc_file=fqc, cf_result=error)
-    cf_record.save()
-
-
 def run_ceda_cc(file, odir):
+    """
+    Run CEDA-CC on a single file
+    :return:
+    """
     # run the ceda-cc - generate the qcBatch log.
     # write list to a file for use by ceda-cc
     print 'running ceda-cc'
@@ -264,7 +330,9 @@ def run_ceda_cc(file, odir):
 
 
 def parse_ceda_cc():
-    """Parse the qcBatch log for fails
+
+    """
+    Parse CEDA-CC qcBatch log output for details
 
     Makes a dictotionary with arrivals file path and status
     Run the bactch log parser to work out where the file is going.
@@ -301,13 +369,21 @@ def parse_ceda_cc():
 
 
 def parse_filename(fname):
+    """
+    Parse a file name to get a file path from a DRS
+    :return: filepath
+    """
     fname = fname.replace('.','/')
     fname = fname.replace('/nc','.nc')
     fname = '/'+fname
-    return  fname
+    return fname
 
 
 def get_start_end_times(frequency, fname):
+    """
+    Get start and end times from the filename
+    :return:
+    """
 
     if fname.endswith('.nc'):
         if frequency == 'mon':
@@ -334,7 +410,11 @@ def get_start_end_times(frequency, fname):
 
 def create_dataset_record(project, product, institute, model, experiment, frequency,
                           realm, table, ensemble, version, esgf_ds_id, esgf_node, variable):
+    """
+    Generate a dataset record
 
+    :return:
+    """
     ds, result = Dataset.objects.get_or_create(project=project, product=product, institute=institute, model=model,
                                                experiment=experiment, frequency=frequency, realm=realm,
                                                cmor_table=table, ensemble=ensemble, variable=variable, version=version,
@@ -345,6 +425,10 @@ def create_dataset_record(project, product, institute, model, experiment, freque
 
 def create_datafile_record(ds, filepath, ceda_filepath, size, checksum, download_url, tracking_id,
                            variable, variable_cf_name, variable_long_name, variable_units, start_time, end_time):
+    """
+    Create a datafile record
+    :return:
+    """
 
     newfile, result = DataFile.objects.get_or_create(dataset=ds, filepath=filepath, archive_path=ceda_filepath, size=size,
                                                      checksum=checksum, download_url=download_url, tracking_id=tracking_id,
@@ -376,21 +460,34 @@ def create_requester_record(requester):
 
 
 def link_requester_to_specification(d_spec, d_requester):
+    """
+    Link up a data specification and data requester record
+    :return:
+    """
     d_spec.datarequesters.add(d_requester)
     d_spec.save()
 
 
 def link_dataset_to_specification(ds, d_spec):
+    """
+    Link up a dataset to a data specification record
+    """
     ds.data_spec.add(d_spec)
     ds.save()
 
 
 def add_long_name_to_dspec(d_spec, variable_long_name):
+    """
+    Add retrieved long name to data specification record
+    """
     d_spec.variable_long_name = variable_long_name
     d_spec.save()
 
 
 def read_project_data_specs(file):
+    """
+    Read in the project data specifications from csv
+    """
     reader = open(file, 'r')
     data = reader.readlines()
     reader.close()

@@ -110,22 +110,30 @@ class DataFile(models.Model):
 
 class QCcheck(models.Model):
 
+    file_qc = models.ForeignKey('FileQC')
     qc_check_type = models.CharField(max_length=300)
-    qc_check_file = models.BooleanField(default=False)
-    qc_check_dataset = models.BooleanField(default=False)
-    qc_score = models.PositiveSmallIntegerField()
-    qc_details = models.TextField()
+#    qc_check_file = models.BooleanField(default=False)
+
+#    qc_check_dataset = models.BooleanField(default=False)
+#    qc_score = models.PositiveSmallIntegerField()
+#    qc_details = models.TextField()
     # TODO interactive comments field
 #    qc_comments =
+
+
+class QCerror(models.Model):
+
+    qc_check = models.ForeignKey(QCcheck)
+    qc_error = models.CharField(max_length=300)
 
 
 class FileQC(models.Model):
 
     check_file = models.ForeignKey(DataFile)
     # FOR CF AND CEDA-CC RESULTS
-    qc_check = models.ManyToManyField(QCcheck, blank=True)
+    qc_check = models.ForeignKey(QCcheck, blank=True)
 
-    qc_check_type = QCcheck.qc_check_type
+    #qc_check_type = QCcheck.qc_check_type
 
     cf_compliance_score = models.PositiveSmallIntegerField(default=0)
     ceda_cc_score = models.PositiveSmallIntegerField(default=0)
