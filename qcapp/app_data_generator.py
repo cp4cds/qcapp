@@ -11,7 +11,7 @@ from ceda_cc import c4
 from cfchecker.cfchecks import CFVersion, CFChecker, STANDARDNAME, AREATYPES, newest_version
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings()
-
+import pdb
 # URL TEMPLATES
 URL_DS_MODEL_FACETS = 'https://%(node)s/esg-search/search?type=Dataset&project=%(project)s&variable=%(variable)s' \
                    '&cmor_table=%(table)s&time_frequency=%(frequency)s&experiment=%(experiment)s&latest=%(latest)s&distrib=%(distrib)s&' \
@@ -19,9 +19,9 @@ URL_DS_MODEL_FACETS = 'https://%(node)s/esg-search/search?type=Dataset&project=%
 URL_DS_ENSEMBLE_FACETS = 'https://%(node)s/esg-search/search?type=Dataset&project=%(project)s&variable=%(variable)s' \
                       '&cmor_table=%(table)s&time_frequency=%(frequency)s&model=%(model)s&experiment=%(experiment)s&' \
                       'latest=%(latest)s&distrib=%(distrib)s&facets=ensemble&format=application%%2Fsolr%%2Bjson'
-URL_FILE_ENSEMBLE_FACETS = 'https://%(node)s/esg-search/search?type=File&project=%(project)s&variable=%(variable)s&' \
-                           'cmor_table=%(table)s&time_frequency=%(frequency)s&model=%(model)s&experiment=%(experiment)s&' \
-                           'ensemble=%(ensemble)s&latest=%(latest)s&distrib=%(distrib)s&facets=ensemble&format=application%%2Fsolr%%2Bjson'
+URL_FILE_INFO = 'https://%(node)s/esg-search/search?type=File&project=%(project)s&variable=%(variable)s&' \
+                'cmor_table=%(table)s&time_frequency=%(frequency)s&model=%(model)s&experiment=%(experiment)s&' \
+                'ensemble=%(ensemble)s&latest=%(latest)s&distrib=%(distrib)s&format=application%%2Fsolr%%2Bjson&limit=10000'
 
 
 def get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib, latest):
@@ -58,7 +58,7 @@ def get_spec_info(d_spec, project, variable, table, frequency, expts, node, dist
                 # GET ALL FILES INFORMATION RELATED TO DATASET
                 filepath, ceda_filepath, start_time, end_time, size, checksum, tracking_id, download_url, \
                 variable_long_name, cf_standard_name, variable_units = \
-                    get_all_datafile_info(URL_FILE_ENSEMBLE_FACETS, ds, project, variable, table, frequency,
+                    get_all_datafile_info(URL_FILE_INFO, ds, project, variable, table, frequency,
                                           experiment, model, ensemble, version, node, distrib, latest)
 
                 add_long_name_to_dspec(d_spec, variable_long_name)
@@ -151,33 +151,35 @@ def get_no_models_per_expt(d_spec, expts):
     models_by_experiment = {}
     d_spec.data_volume = 0.0
     volume = 0.0
-    print expts
-    # get a list of models where the variable exists for experiment; store result in dict.
-    for experiment in expts:
 
+    ############################################################################################################
+    # GENERATE A LIST OF MODELS FOR A GROUP OF EXPERIMENTS WHERE A GIVEN VARIABLE EXISTS IN ALL THE EXPERIMENTS
+    # RESULT IS STORED IN A DICTIONARY
+    for experiment in expts:
         datasets = Dataset.objects.filter(variable=d_spec.variable, cmor_table=d_spec.cmor_table,
                                           frequency=d_spec.frequency, experiment=experiment)
         models = set([])
         for dataset in datasets.all():
             models.add(dataset.model)
-
         models_by_experiment[experiment] = list(models)
-        valid_models = check_in_all_models(d_spec, models_by_experiment)
-        #print experiment, valid_models
 
-    # Get data volumes for all valid model
+    valid_models = check_in_all_models(d_spec, models_by_experiment)
+    ############################################################################################################
+
+
+    ############################################################################################################
+    # CALCULATE DATA VOLUMES FOR ALL VALID MODELS
     for model in valid_models:
         for experiment in expts:
             ds = Dataset.objects.filter(variable=d_spec.variable, cmor_table=d_spec.cmor_table,
                                         frequency=d_spec.frequency, experiment=experiment, model=model)
             for d in ds:
                 volume += DataFile.objects.filter(dataset=d).aggregate(Sum('size')).values()[0]
-
-        #print experiment, volume / (1024. ** 3)
-
     d_spec.data_volume = volume / (1024. ** 3)
-    print d_spec.variable, d_spec.frequency, d_spec.data_volume, valid_models
+    print d_spec.variable, d_spec.frequency, d_spec.data_volume, len(valid_models)
     d_spec.save()
+    ############################################################################################################
+
 
 
 def check_in_all_models(d_spec, models_per_experiment):
@@ -267,7 +269,7 @@ def run_cf_checker(qcfile):
 
     :return:
     """
-
+    cf = CFChecker(cfStandardNamesXML=STANDARDNAME, cfAreaTypesXML=AREATYPES, version=newest_version, silent=True)
     resp = cf.checker(qcfile)
 
     vars = resp.items()[0]
@@ -488,10 +490,8 @@ def read_project_data_specs(file):
     """
     Read in the project data specifications from csv
     """
-    reader = open(file, 'r')
-    data = reader.readlines()
-    reader.close()
-
+    with open(file, 'r') as reader:
+        data = reader.readlines()
     return data
 
 
@@ -518,7 +518,7 @@ def generate_data_records(project, node, expts, file, distrib, latest):
                                                 frequency=frequency, esgf_data_collected=True):
                 d_spec = create_specs_record(variable, table, frequency)
                 link_requester_to_specification(d_spec, d_requester)
-               # get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib, latest)
+                get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib, latest)
                 get_no_models_per_expt(d_spec, expts)
         lineno += 1
 
