@@ -3,7 +3,7 @@ from django.http import HttpResponse
 
 from qcapp.models import *
 from .models import *
-from .app_data_generator import *
+from app_functions import *
 
 
 # Create your views here.
