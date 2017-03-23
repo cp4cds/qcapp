@@ -1,17 +1,19 @@
 import django
-
 django.setup()
 
 from qcapp.models import *
 from django.db.models import Count, Max, Min, Sum, Avg
+
 import collections, os, timeit, datetime, time
 import requests, itertools
-# IMPORT QC STUFF (only works in venv27)
+
 from ceda_cc import c4
 from cfchecker.cfchecks import CFVersion, CFChecker, STANDARDNAME, AREATYPES, newest_version
+
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
+
 requests.packages.urllib3.disable_warnings()
-import pdb
+
 # URL TEMPLATES
 URL_DS_MODEL_FACETS = 'https://%(node)s/esg-search/search?type=Dataset&project=%(project)s&variable=%(variable)s' \
                    '&cmor_table=%(table)s&time_frequency=%(frequency)s&experiment=%(experiment)s&latest=%(latest)s&distrib=%(distrib)s&' \
@@ -51,9 +53,15 @@ def get_spec_info(d_spec, project, variable, table, frequency, expts, node, dist
                 product, institute, realm, version, esgf_ds_id, esgf_node \
                     = extract_ds_info(json["response"]["docs"][0])
                 # MAKE A DATASET RECORD
-                ds = create_dataset_record(project, product, institute, model, experiment, frequency, realm, table,
-                                           ensemble, version, esgf_ds_id, esgf_node, variable)
-                link_dataset_to_specification(ds, d_spec)
+                ds, result = Dataset.objects.get_or_create(project=project, product=product, institute=institute,
+                                                           model=model, experiment=experiment, frequency=frequency,
+                                                           realm=realm, cmor_table=table, ensemble=ensemble,
+                                                           variable=variable, version=version, esgf_ds_id=esgf_ds_id,
+                                                           esgf_node=esgf_node)
+
+                #LINK DATASET TO SPEC
+                ds.data_spec.add(d_spec)
+                ds.save()
 
                 # GET ALL FILES INFORMATION RELATED TO DATASET
                 filepath, ceda_filepath, start_time, end_time, size, checksum, tracking_id, download_url, \
@@ -61,7 +69,10 @@ def get_spec_info(d_spec, project, variable, table, frequency, expts, node, dist
                     get_all_datafile_info(URL_FILE_INFO, ds, project, variable, table, frequency,
                                           experiment, model, ensemble, version, node, distrib, latest)
 
-                add_long_name_to_dspec(d_spec, variable_long_name)
+                # ADD VARIABLE LONG NAME TO SPECIFICATION
+                d_spec.variable_long_name = variable_long_name
+                d_spec.save()
+
                 ds.exists = True
                 ds.save()
     d_spec.esgf_data_collected = True
@@ -132,9 +143,13 @@ def get_all_datafile_info(url_template, ds, project, variable, table, frequency,
         variable_units = df["variable_units"][0].strip()
 
         # Create a Datafile record for each file
-        create_datafile_record(ds, filepath, ceda_filepath, size, checksum, download_url, tracking_id,
-                               variable, cf_standard_name, variable_long_name, variable_units,
-                               start_time, end_time)
+        newfile, result = DataFile.objects.get_or_create(dataset=ds, filepath=filepath, archive_path=ceda_filepath,
+                                                         size=size, checksum=checksum, download_url=download_url,
+                                                         tracking_id=tracking_id, variable=variable,
+                                                         cf_standard_name=variable_cf_name,
+                                                         variable_long_name=variable_long_name,
+                                                         variable_units=variable_units, start_time=start_time,
+                                                         end_time=end_time)
 
     return filepath, ceda_filepath, start_time, end_time, size, checksum, tracking_id, download_url, \
            variable_long_name, cf_standard_name, variable_units
@@ -169,6 +184,7 @@ def get_no_models_per_expt(d_spec, expts):
     # CALCULATE DATA VOLUMES FOR ALL VALID MODELS
     d_spec.data_volume = 0.0
     volume = 0.0
+    #Dataset.objects.all().prefetch_related('')
     for model in valid_models:
         for experiment in expts:
             ds = Dataset.objects.filter(variable=d_spec.variable, cmor_table=d_spec.cmor_table,
@@ -396,6 +412,7 @@ def get_start_end_times(frequency, fname):
         if frequency == 'mon':
             start_time = datetime.date(int(fname[-16:-12]), int(fname[-12:-10]), 01)
             end_mon = fname[-5:-3]
+            #if end_mon in ['01', '03', '05', '07', '08', '10', '12']:
             if (end_mon == '01') or (end_mon == '03') or (end_mon == '05') or (end_mon == '07') \
                     or (end_mon == '08') or (end_mon == '10') or (end_mon == '12'):
                 end_day = 31
@@ -415,103 +432,19 @@ def get_start_end_times(frequency, fname):
     return start_time, end_time
 
 
-def create_dataset_record(project, product, institute, model, experiment, frequency,
-                          realm, table, ensemble, version, esgf_ds_id, esgf_node, variable):
-    """
-    Generate a dataset record
-
-    :return:
-    """
-    ds, result = Dataset.objects.get_or_create(project=project, product=product, institute=institute, model=model,
-                                               experiment=experiment, frequency=frequency, realm=realm,
-                                               cmor_table=table, ensemble=ensemble, variable=variable, version=version,
-                                               esgf_ds_id=esgf_ds_id, esgf_node=esgf_node)
-    ds.save()
-    return ds
-
-
-def create_datafile_record(ds, filepath, ceda_filepath, size, checksum, download_url, tracking_id,
-                           variable, variable_cf_name, variable_long_name, variable_units, start_time, end_time):
-    """
-    Create a datafile record
-    :return:
-    """
-
-    newfile, result = DataFile.objects.get_or_create(dataset=ds, filepath=filepath, archive_path=ceda_filepath, size=size,
-                                                     checksum=checksum, download_url=download_url, tracking_id=tracking_id,
-                                                     variable=variable, cf_standard_name=variable_cf_name, variable_long_name=variable_long_name,
-                                                     variable_units=variable_units, start_time=start_time, end_time=end_time)
-
-    newfile.save()
-
-
-def create_specs_record(variable, cmor_table, frequency):
-    """
-    Create a data specification record
-    """
-    specs, result = DataSpecification.objects.get_or_create(variable=variable,
-                                                            cmor_table=cmor_table,
-                                                            frequency=frequency
-                                                            )
-    specs.save()
-    return specs
-
-
-def create_requester_record(requester):
-    """
-    Create a Requester record
-    """
-    req, result = DataRequester.objects.get_or_create(requested_by=requester)
-    req.save()
-    return req
-
-
-def link_requester_to_specification(d_spec, d_requester):
-    """
-    Link up a data specification and data requester record
-    :return:
-    """
-    d_spec.datarequesters.add(d_requester)
-    d_spec.save()
-
-
-def link_dataset_to_specification(ds, d_spec):
-    """
-    Link up a dataset to a data specification record
-    """
-    ds.data_spec.add(d_spec)
-    ds.save()
-
-
-def add_long_name_to_dspec(d_spec, variable_long_name):
-    """
-    Add retrieved long name to data specification record
-    """
-    d_spec.variable_long_name = variable_long_name
-    d_spec.save()
-
-
-def read_project_data_specs(file):
-    """
-    Read in the project data specifications from csv
-    """
-    with open(file, 'r') as reader:
-        data = reader.readlines()
-    return data
-
-
 def generate_data_records(project, node, expts, file, distrib, latest):
     """
     Generate data records from csv input
     :return:
     """
-    data = read_project_data_specs(file)
-    lineno = 0
+    with open(file, 'r') as reader:
+        data = reader.readlines()
 
+    lineno = 0
     for line in data:
         if lineno == 0:
             requester = line.split(',')[0].strip()
-            d_requester = create_requester_record(requester)
+            d_requester, result = DataRequester.objects.get_or_create(requested_by=requester)
 
         if lineno > 1:
             variable = line.split(',')[0].strip()
@@ -519,10 +452,11 @@ def generate_data_records(project, node, expts, file, distrib, latest):
             frequency = line.split(',')[2].strip()
 
             # Create spec record and link to requester
-            if DataSpecification.objects.filter(variable=variable, cmor_table=table,
-                                                frequency=frequency, esgf_data_collected=True):
-                d_spec = create_specs_record(variable, table, frequency)
-                link_requester_to_specification(d_spec, d_requester)
+            if DataSpecification.objects.filter(variable=variable, cmor_table=table, frequency=frequency, esgf_data_collected=True):
+                d_spec = DataSpecification.objects.get_or_create(variable=variable, cmor_table=cmor_table, frequency=frequency)
+                # Link requester to specification
+                d_spec.datarequesters.add(d_requester)
+                d_spec.save()
                 #get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib, latest)
                 get_no_models_per_expt(d_spec, expts)
         lineno += 1

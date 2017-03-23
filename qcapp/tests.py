@@ -21,7 +21,7 @@ from django.shortcuts import render
 from django.http import HttpResponse
 
 from qcapp.models import *
-from qcapp.app_data_generator import *
+from app_functions import *
 
 
 #testing data volumes

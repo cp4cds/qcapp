@@ -4,7 +4,11 @@ from django.db import models
 
 # Create your models here.
 class DataRequester(models.Model):
+    """
+    The CP4CDS data requester model.
 
+    This holds the name of the project that specifics a subset of CMIP5 data for QC
+    """
     requested_by = models.CharField(max_length=20)
 
 class DataSpecification(models.Model):
