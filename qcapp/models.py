@@ -12,6 +12,9 @@ class DataRequester(models.Model):
     requested_by = models.CharField(max_length=20)
 
 class DataSpecification(models.Model):
+    """
+    The data specification
+    """
     datarequesters = models.ManyToManyField(DataRequester, blank=True)
     variable = models.CharField(max_length=20)
     variable_long_name = models.CharField(max_length=80, blank=True, null=True, default='')
@@ -28,7 +31,9 @@ class DataSpecification(models.Model):
 
 
 class Dataset(models.Model):
-
+    """
+    Dataset record
+    """
     data_spec = models.ManyToManyField(DataSpecification, blank=True)
 
     exists = models.BooleanField(default=False)
@@ -62,7 +67,9 @@ class Dataset(models.Model):
 
 
 class DataFile(models.Model):
-
+    """
+    Dataset file
+    """
     dataset = models.ForeignKey(Dataset)
 
     filepath = models.CharField(max_length=300)
