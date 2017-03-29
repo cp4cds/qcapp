@@ -89,7 +89,7 @@ class DataFile(models.Model):
 
 class QCerror(models.Model):
 
-    qc_check = models.ForeignKey(QCcheck)
+    qc_check = models.ForeignKey('QCcheck')
     qc_error = models.CharField(max_length=300)
 
 
@@ -163,14 +163,12 @@ class QCplot(models.Model):
     end_time = models.DateField(blank=True)
     variable = models.CharField(max_length=20)
 
-
-class QCresults(models.Model):
-    dataset_qc = models.ForeignKey(DatasetQC)
-    file_qc = models.ManyToManyField(FileQC)
-    dataset_qc_score = DatasetQC.aggregate_score_of_ds_files
-    file_qc_score = FileQC.file_qc_score
+"""
+#class QCresults(models.Model):
+#    dataset_qc = models.ForeignKey(DatasetQC)
+#    file_qc = models.ManyToManyField(FileQC)
+#    dataset_qc_score = DatasetQC.aggregate_score_of_ds_files
+#    file_qc_score = FileQC.file_qc_score
 #   dataset_qc_link =
 #   Many of these
 #   Link to plot?
-
-"""

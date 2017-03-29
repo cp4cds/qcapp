@@ -230,13 +230,59 @@ def check_valid_model_names(models):
     for model in models:
         if model == "CESM1(CAM5)":
             model = "CESM1-CAM5"
-            #print "replaced: ", model
+        if model == "CESM1(WACCM)":
+            model = "CESM1-WACCM"
+                #print "replaced: ", model
         if model == "BCC-CSM1.1(m)":
             model = "bccDa-csm1-1-m"
             #print "replaced: ", model
         if model == "ACCESS1.0":
             model = "ACCESS1-0"
             #print "replaced: ", model
+        if model == "ACCESS1.3":
+            model = "ACCESS1-3"
+        if model == "BCC-CSM1.1":
+            model = "bcc-csm1-1"
+        if model == "INM-CM4":
+            model = "inmcm4"
+
+def parse_filename(fname):
+    """
+    Parse a file name to get a file path from a DRS
+    :return: filepath
+    """
+    fname = fname.replace('.','/')
+    fname = fname.replace('/nc','.nc')
+    fname = '/'+fname
+    return fname
+
+
+def get_start_end_times(frequency, fname):
+    """
+    Get start and end times from the filename
+    :return:
+    """
+
+    if fname.endswith('.nc'):
+        if frequency == 'mon':
+            start_time = datetime.date(int(fname[-16:-12]), int(fname[-12:-10]), 01)
+            end_mon = fname[-5:-3]
+            if end_mon == '02':
+                end_day = 28
+            elif end_mon in ['04', '06', '09', '11']:
+                end_day = 30
+            else:
+                end_day = 31
+            end_time = datetime.date(int(fname[-9:-5]), int(fname[-5:-3]), end_day)
+
+        if frequency == 'day':
+            start_time = datetime.date(int(fname[-20:-16]), int(fname[-16:-14]), int(fname[-14:-12]))
+            end_time = datetime.date(int(fname[-11:-7]), int(fname[-7:-5]), int(fname[-5:-3]))
+    else:
+        start_time = datetime.date(1900, 1, 1)
+        end_time = datetime.date(1999, 12, 31)
+
+    return start_time, end_time
 
 
 def create_ceda_filepath(path, version, variable):
@@ -256,40 +302,12 @@ def create_ceda_filepath(path, version, variable):
     return path
 
 
-def perform_qc():
-    """
-    Perform the quality control
-    Generate CEDA-CC files and parse output
-    Perform CF-checks
-
-    :return:
-    """
-    counter = 0
-    for dataset in Dataset.objects.all():
-        dsid = dataset.esgf_ds_id
-        odir = os.path.join('/usr/local/cp4cds-app/ceda-cc-log-files/', *dsid.split('.')[2:])
-        if not odir:
-            os.makedirs(odir)
-        datafiles = dataset.datafile_set.all()
-        while counter < 2:
-            for datafile in datafiles:
-                file = datafile.archive_path
-#                ceda_cc_file = run_ceda_cc(file, odir)
- #               print 'ccfile:' + ceda_cc_file
-                counter += 1
-
-#            parse_ceda_cc()
-
-                print file
-                run_cf_checker(file)
 
 
-def run_cf_checker(qcfile):
+def run_cf_checker(qcfile, file_qc_table):
     """
     Run the CF checker
 
-    :return:
-    """
     cf = CFChecker(cfStandardNamesXML=STANDARDNAME, cfAreaTypesXML=AREATYPES, version=CFVersion(), silent=True)
     resp = cf.checker(qcfile)
 
@@ -297,45 +315,27 @@ def run_cf_checker(qcfile):
     for message in vars[1].values():
         if len(message['FATAL']) > 0:
             fatal_msg = 'FATAL: ', message['FATAL'][0]
-            create_cf_error_record(qcf, fatal_msg)
+#            create_cf_error_record(qcf, fatal_msg)
         if len(message['ERROR']) > 0:
             error_msg = 'ERROR: ', message['WARN'][0]
-            create_cf_error_record(qcf, error_msg)
+#            create_cf_error_record(qcf, error_msg)
 
     gll = resp.items()[1]
     if gll[1]['FATAL']:
         fatal_msg = 'FATAL: ', gll[1]['FATAL'][0]
-        create_cf_error_record(qcf, fatal_msg)
+#        create_cf_error_record(qcf, fatal_msg)
     if gll[1]['WARN']:
         error_msg = 'ERROR: ', gll[1]['WARN'][0]
-        create_cf_error_record(qcf, error_msg)
-
-
-def create_cf_error_record(fqc, qcfile, error):
+#        create_cf_error_record(qcf, error_msg)
+    
+    :return: Nothing returned from function, 
+             In QCcheck table an entry is made for each CF error detected 
+             the error message is recorded in table QCerror
+             The QCcheck is linked to the FileQC record through a M2M link
     """
-    Generate a CF-error record
-
-    :return:
-    """
-
-    qc_check, result = DataSpecification.objects.get_or_create(qc_check_type='CF', qc_check_file=qcfile)
-    qc_check.save()
-
-    qc_err, result = DataSpecification.objects.get_or_create(qc_check=cf_record, qc_error=error)
-    qc_err.save()
-
-def create_file_qc_record():
-    """
-    Generate a file QC record
-    :return:
-    """
-    fqc, result = DataSpecification.objects.get_or_create(qc_check='',cf_compliance_score=0, ceda_cc_score=0,
-                                                          file_qc_score=0)
-    fqc.save()
-    check_file = models.ForeignKey(DataFile)
-
-    return fqc
-
+    error_msg = 'test'
+#    qc_check_table, _ = DataSpecification.objects.get_or_create(file_qc=file_qc_table, qc_check_type='CF')
+#    qc_error_table, _ = DataSpecification.objects.get_or_create(qc_check=qc_check_table, qc_error=error_msg)
 
 def run_ceda_cc(file, odir):
     """
@@ -352,7 +352,7 @@ def run_ceda_cc(file, odir):
     return odir + '/' + file.split('/')[-1][:-3] + '__qclog_' + time.strftime("%Y%m%d") + '.txt'
 
 
-def parse_ceda_cc():
+def parse_ceda_cc(ceda_cc_file, file_qc_table):
 
     """
     Parse CEDA-CC qcBatch log output for details
@@ -363,7 +363,7 @@ def parse_ceda_cc():
       - Minor fail - just one fail - Work out manually / contact data provider /manually pass
       - Fail - more than filure reported by ceda-cc - Work out manually / contact data provider
       - Exceptions - where ceda-cc trows an exception - Work out manually
-    """
+
     logfiles = glob.glob("logs_02/**")
     if len(logfiles) != 1:
         log("unexpected number of ceda-cc output files")
@@ -389,48 +389,35 @@ def parse_ceda_cc():
         return 'PASS: 0 Errors found', 100
     if errors > 1:
         return 'FAIL: %s Errors found' % str(errors), 100-10*errors
-
-
-def parse_filename(fname):
     """
-    Parse a file name to get a file path from a DRS
-    :return: filepath
-    """
-    fname = fname.replace('.','/')
-    fname = fname.replace('/nc','.nc')
-    fname = '/'+fname
-    return fname
+    error_msg = 'test'
+#    qc_check_table, _ = DataSpecification.objects.get_or_create(file_qc=file_qc_table, qc_check_type='CEDA-CC')
+#    qc_error_table, _ = DataSpecification.objects.get_or_create(qc_check=qc_check_table, qc_error=error_msg)
 
 
-def get_start_end_times(frequency, fname):
+def perform_qc():
     """
-    Get start and end times from the filename
+    Perform the quality control
+    Generate CEDA-CC files and parse output
+    Perform CF-checks
+
     :return:
     """
+    for dataset in Dataset.objects.first():
 
-    if fname.endswith('.nc'):
-        if frequency == 'mon':
-            start_time = datetime.date(int(fname[-16:-12]), int(fname[-12:-10]), 01)
-            end_mon = fname[-5:-3]
-            #if end_mon in ['01', '03', '05', '07', '08', '10', '12']:
-            if (end_mon == '01') or (end_mon == '03') or (end_mon == '05') or (end_mon == '07') \
-                    or (end_mon == '08') or (end_mon == '10') or (end_mon == '12'):
-                end_day = 31
-            elif (end_mon == '04') or (end_mon == '06') or (end_mon == '09') or (end_mon == '11'):
-                end_day = 30
-            else:
-                end_day = 28
-            end_time = datetime.date(int(fname[-9:-5]), int(fname[-5:-3]), end_day)
+        dsid = dataset.esgf_ds_id
+        odir = os.path.join('/usr/local/cp4cds-app/ceda-cc-log-files/', *dsid.split('.')[2:])
+        if not odir:
+            os.makedirs(odir)
 
-        if frequency == 'day':
-            start_time = datetime.date(int(fname[-20:-16]), int(fname[-16:-14]), int(fname[-14:-12]))
-            end_time = datetime.date(int(fname[-11:-7]), int(fname[-7:-5]), int(fname[-5:-3]))
-    else:
-        start_time = datetime.date(1900, 1, 1)
-        end_time = datetime.date(1999, 12, 31)
-
-    return start_time, end_time
-
+        datafiles = dataset.datafile_set.first()
+        for datafile in datafiles:
+            file = datafile.archive_path
+            print file
+            file_qc_table, _ = DataSpecification.objects.get_or_create(check_file=datafile)
+            run_cf_checker(file, file_qc_table)
+            ceda_cc_file = run_ceda_cc(file, odir)
+            parse_ceda_cc(ceda_cc_file, file_qc_table)
 
 def generate_data_records(project, node, expts, file, distrib, latest):
     """
@@ -457,7 +444,7 @@ def generate_data_records(project, node, expts, file, distrib, latest):
                 # Link requester to specification
                 d_spec.datarequesters.add(d_requester)
                 d_spec.save()
-                #get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib, latest)
+                get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib, latest)
                 get_no_models_per_expt(d_spec, expts)
         lineno += 1
 
@@ -470,5 +457,5 @@ if __name__ == '__main__':
     distrib = False
     latest = True
     file = '/usr/local/cp4cds-app/project-specs/cp4cds-dmp_data_request.csv'
-    generate_data_records(project, node, expts, file, distrib, latest)
-    #perform_qc()
+    #generate_data_records(project, node, expts, file, distrib, latest)
+    perform_qc()
