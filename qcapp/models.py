@@ -23,8 +23,12 @@ class DataSpecification(models.Model):
     esgf_data_collected = models.BooleanField(default=False)
     number_of_models = models.IntegerField(default=0)
     data_volume = models.FloatField(blank=True, null=True)
+<<<<<<< HEAD
 
 
+=======
+#    dataset_qc = models.ForeignKey('DatasetQC', null=True)
+>>>>>>> master
 
 class Dataset(models.Model):
     """
@@ -43,6 +47,13 @@ class Dataset(models.Model):
     cmor_table = models.CharField(max_length=20)
     ensemble = models.CharField(max_length=10)
     version = models.CharField(max_length=10)
+<<<<<<< HEAD
+=======
+
+    esgf_ds_id = models.CharField(max_length=200, blank=True)
+    esgf_node = models.CharField(max_length=80, blank=True)
+
+>>>>>>> master
     start_time = models.DateField(blank=True, null=True)
     end_time = models.DateField(blank=True, null=True)
     variable = models.CharField(max_length=20)
@@ -84,6 +95,7 @@ class DataFile(models.Model):
     start_time = models.DateField()
     end_time = models.DateField()
 
+<<<<<<< HEAD
     # Datafile QC information
     cf_compliance_score = models.PositiveSmallIntegerField(default=0)
     ceda_cc_score = models.PositiveSmallIntegerField(default=0)
@@ -169,3 +181,5 @@ class QCplot(models.Model):
 #   Link to plot?
 """
 
+=======
+>>>>>>> master
