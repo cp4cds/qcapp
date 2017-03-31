@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 from django.db import models
 
-# Create your models here.
 class DataRequester(models.Model):
     """
     The CP4CDS data requester model.
@@ -25,9 +24,6 @@ class DataSpecification(models.Model):
     number_of_models = models.IntegerField(default=0)
     data_volume = models.FloatField(blank=True, null=True)
 
-# TO DO WHEN QC IS COMPLETE
-#    file_qc = models.ForeignKey('FileQC', null=True)
-#    dataset_qc = models.ForeignKey('DatasetQC', null=True)
 
 
 class Dataset(models.Model):
@@ -52,6 +48,9 @@ class Dataset(models.Model):
     variable = models.CharField(max_length=20)
     esgf_ds_id = models.CharField(max_length=200, blank=True)
     esgf_node = models.CharField(max_length=80, blank=True)
+
+    # TO DO WHEN QC IS COMPLETE
+    #    dataset_qc = models.ForeignKey('DatasetQC', null=True)
 
 
     # Generated from other facets when object is saved
@@ -85,29 +84,25 @@ class DataFile(models.Model):
     start_time = models.DateField()
     end_time = models.DateField()
 
-
-
-class QCerror(models.Model):
-
-    qc_check = models.ForeignKey('QCcheck')
-    qc_error = models.CharField(max_length=300)
-
-
-class QCcheck(models.Model):
-
-    file_qc = models.ManyToManyField('FileQC')
-    qc_check_type = models.CharField(max_length=20)
-
-
-class FileQC(models.Model):
-
-    check_file = models.ForeignKey(DataFile)
+    # Datafile QC information
     cf_compliance_score = models.PositiveSmallIntegerField(default=0)
     ceda_cc_score = models.PositiveSmallIntegerField(default=0)
     file_qc_score = models.PositiveSmallIntegerField(default=0)
 
+class QCcheck(models.Model):
+
+    file_qc = models.ManyToManyField(DataFile)
+    qc_check_type = models.CharField(max_length=20)
+
+
+class QCerror(models.Model):
+
+    qc_check = models.ForeignKey(QCcheck)
+    qc_error = models.CharField(max_length=300)
+
 
 """
+
 class DatasetQC(models.Model):
 
     check_dataset = models.ForeignKey(Dataset)
@@ -163,7 +158,7 @@ class QCplot(models.Model):
     end_time = models.DateField(blank=True)
     variable = models.CharField(max_length=20)
 
-"""
+
 #class QCresults(models.Model):
 #    dataset_qc = models.ForeignKey(DatasetQC)
 #    file_qc = models.ManyToManyField(FileQC)
@@ -172,3 +167,5 @@ class QCplot(models.Model):
 #   dataset_qc_link =
 #   Many of these
 #   Link to plot?
+"""
+

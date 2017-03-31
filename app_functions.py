@@ -4,7 +4,7 @@ django.setup()
 from qcapp.models import *
 from django.db.models import Count, Max, Min, Sum, Avg
 
-import collections, os, timeit, datetime, time
+import collections, os, timeit, datetime, time, re
 import requests, itertools
 
 from ceda_cc import c4
@@ -53,11 +53,11 @@ def get_spec_info(d_spec, project, variable, table, frequency, expts, node, dist
                 product, institute, realm, version, esgf_ds_id, esgf_node \
                     = extract_ds_info(json["response"]["docs"][0])
                 # MAKE A DATASET RECORD
-                ds, result = Dataset.objects.get_or_create(project=project, product=product, institute=institute,
-                                                           model=model, experiment=experiment, frequency=frequency,
-                                                           realm=realm, cmor_table=table, ensemble=ensemble,
-                                                           variable=variable, version=version, esgf_ds_id=esgf_ds_id,
-                                                           esgf_node=esgf_node)
+                ds, _ = Dataset.objects.get_or_create(project=project, product=product, institute=institute,
+                                                      model=model, experiment=experiment, frequency=frequency,
+                                                      realm=realm, cmor_table=table, ensemble=ensemble,
+                                                      variable=variable, version=version, esgf_ds_id=esgf_ds_id,
+                                                      esgf_node=esgf_node)
 
                 #LINK DATASET TO SPEC
                 ds.data_spec.add(d_spec)
@@ -143,13 +143,13 @@ def get_all_datafile_info(url_template, ds, project, variable, table, frequency,
         variable_units = df["variable_units"][0].strip()
 
         # Create a Datafile record for each file
-        newfile, result = DataFile.objects.get_or_create(dataset=ds, filepath=filepath, archive_path=ceda_filepath,
-                                                         size=size, checksum=checksum, download_url=download_url,
-                                                         tracking_id=tracking_id, variable=variable,
-                                                         cf_standard_name=variable_cf_name,
-                                                         variable_long_name=variable_long_name,
-                                                         variable_units=variable_units, start_time=start_time,
-                                                         end_time=end_time)
+        newfile, _ = DataFile.objects.get_or_create(dataset=ds, filepath=filepath, archive_path=ceda_filepath,
+                                                    size=size, checksum=checksum, download_url=download_url,
+                                                    tracking_id=tracking_id, variable=variable,
+                                                    cf_standard_name=variable_cf_name,
+                                                    variable_long_name=variable_long_name,
+                                                    variable_units=variable_units, start_time=start_time,
+                                                    end_time=end_time)
 
     return filepath, ceda_filepath, start_time, end_time, size, checksum, tracking_id, download_url, \
            variable_long_name, cf_standard_name, variable_units
@@ -197,7 +197,6 @@ def get_no_models_per_expt(d_spec, expts):
     ############################################################################################################
 
 
-
 def check_in_all_models(d_spec, models_per_experiment):
     """
     Perform an intersection check to determine
@@ -222,6 +221,7 @@ def check_in_all_models(d_spec, models_per_experiment):
     else:
         return list(in_all)
 
+
 def check_valid_model_names(models):
     """
     Modify invalid model names
@@ -245,6 +245,7 @@ def check_valid_model_names(models):
             model = "bcc-csm1-1"
         if model == "INM-CM4":
             model = "inmcm4"
+
 
 def parse_filename(fname):
     """
@@ -302,97 +303,110 @@ def create_ceda_filepath(path, version, variable):
     return path
 
 
-
-
-def run_cf_checker(qcfile, file_qc_table):
+def run_cf_checker(qcfile, d_file):
     """
-    Run the CF checker
+    
+    :param qcfile: single file with full CEDA archive path to be checked
+    :param d_file: the DataFile object to link the CF results to
+    
+    :result The results of the CF-Checker are stored in the QCerror and QCchecks tables 
+    
+    Run the CF checker in in-line mode with auto-version of file detection for a single file.
+    The following options are used in the CF-Checker:
+        cfStandardNamesXML=STANDARDNAME, 
+        cfAreaTypesXML=AREATYPES, 
+        version=CFVersion(), 
+        silent=True 
+    
+    
+    """
+
+    
+    print ""
+    print ""
+    print "RUNNING CF CHECKER", qcfile
+    print ""
+    print ""
 
     cf = CFChecker(cfStandardNamesXML=STANDARDNAME, cfAreaTypesXML=AREATYPES, version=CFVersion(), silent=True)
-    resp = cf.checker(qcfile)
 
+    start_time = timeit.default_timer()
+    resp = cf.checker(qcfile)
+    time_taken = timeit.default_timer() - start_time
+    print "Time taken for a single file CF check is ", time_taken
+
+    error_msgs = []
     vars = resp.items()[0]
     for message in vars[1].values():
         if len(message['FATAL']) > 0:
-            fatal_msg = 'FATAL: ', message['FATAL'][0]
-#            create_cf_error_record(qcf, fatal_msg)
+            error_msgs.append('FATAL: ' + message['FATAL'][0])
         if len(message['ERROR']) > 0:
-            error_msg = 'ERROR: ', message['WARN'][0]
-#            create_cf_error_record(qcf, error_msg)
+            error_msgs.append('ERROR: ' + message['ERROR'][0])
+        if len(message['WARN']) > 0:
+            error_msgs.append('WARNING: ' + message['WARN'][0])
+        if len(message['INFO']) > 0:
+            error_msgs.append('INFO: ' + message['INFO'][0])
 
     gll = resp.items()[1]
     if gll[1]['FATAL']:
-        fatal_msg = 'FATAL: ', gll[1]['FATAL'][0]
-#        create_cf_error_record(qcf, fatal_msg)
+        error_msgs.append('FATAL: ' + gll[1]['FATAL'][0])
+    if gll[1]['ERROR']:
+        error_msgs.append('ERROR: ' + gll[1]['ERROR'][0])
     if gll[1]['WARN']:
-        error_msg = 'ERROR: ', gll[1]['WARN'][0]
-#        create_cf_error_record(qcf, error_msg)
+        error_msgs.append('WARN: ' + gll[1]['WARN'][0])
+    if gll[1]['INFO']:
+        error_msgs.append('INFO: ' + gll[1]['INFO'][0])
+
+    # Record CF output to database tables
+    qc_check_table = make_qc_check_table('CF', d_file)
+    for err in error_msgs:
+        qc_err, _ = QCerror.objects.get_or_create(qc_check=qc_check_table, qc_error=err)
+
+
+def make_qc_check_table(qcCheck, df):
+    qc_check_table = QCcheck(qc_check_type=qcCheck)
+    qc_check_table.save()
+    qc_check_table.file_qc.add(df)
+    qc_check_table.save()
+    return qc_check_table
+
+def run_ceda_cc(file, d_file, odir):
+    """
+    Run CEDA-CC on a single file with the following options, generating a qcBatch log
+        -p CMIP5
+        -f file
+        --log multi
+        --ld 
+        --cae
+        --blfmode a
     
-    :return: Nothing returned from function, 
-             In QCcheck table an entry is made for each CF error detected 
-             the error message is recorded in table QCerror
-             The QCcheck is linked to the FileQC record through a M2M link
+    Output is written to log file directly parsed and (TODO deleted)
+
+    :result: CEDA-CC errors recorded in QCerror
     """
-    error_msg = 'test'
-#    qc_check_table, _ = DataSpecification.objects.get_or_create(file_qc=file_qc_table, qc_check_type='CF')
-#    qc_error_table, _ = DataSpecification.objects.get_or_create(qc_check=qc_check_table, qc_error=error_msg)
 
-def run_ceda_cc(file, odir):
-    """
-    Run CEDA-CC on a single file
-    :return:
-    """
-    # run the ceda-cc - generate the qcBatch log.
-    # write list to a file for use by ceda-cc
-    print 'running ceda-cc'
-    print 'odir:', odir
-    argslist = ['-p', 'CMIP5', '-f', file, '--log', 'multi', '--ld', odir, '--cae', '--blfmode', 'a']
-    m = c4.main(argslist)
+    # Run CEDA-CC
+    cedacc_args = ['-p', 'CMIP5', '-f', file, '--log', 'multi', '--ld', odir, '--cae', '--blfmode', 'a']
+    _ = c4.main(cedacc_args)
 
-    return odir + '/' + file.split('/')[-1][:-3] + '__qclog_' + time.strftime("%Y%m%d") + '.txt'
+    # CEDA-CC filename
+    ceda_cc_file = odir + '/' + file.split('/')[-1][:-3] + '__qclog_' + time.strftime("%Y%m%d") + '.txt'
 
+    # Read in CEDA-CC output
+    with open(ceda_cc_file, 'r') as reader:
+        ceda_cc_out = reader.readlines()
 
-def parse_ceda_cc(ceda_cc_file, file_qc_table):
+    # Identify where CEDA-CC picks up a QC error
+    cedacc_error = re.compile('.*FAILED::.*')
+    error_msgs = []
+    for line in ceda_cc_out:
+        if cedacc_error.match(line.strip()):
+            error_msgs.append(line)
 
-    """
-    Parse CEDA-CC qcBatch log output for details
-
-    Makes a dictotionary with arrivals file path and status
-    Run the bactch log parser to work out where the file is going.
-      - good files are marked as good
-      - Minor fail - just one fail - Work out manually / contact data provider /manually pass
-      - Fail - more than filure reported by ceda-cc - Work out manually / contact data provider
-      - Exceptions - where ceda-cc trows an exception - Work out manually
-
-    logfiles = glob.glob("logs_02/**")
-    if len(logfiles) != 1:
-        log("unexpected number of ceda-cc output files")
-        return "ERROR"
-
-    logfile = logfiles[0]
-
-    for line in open(logfile):
-        match = re.search(r'Done -- error count (\d+)', line)
-        if match:
-            errors = int(match.group(1))
-        match = re.search(r'ERROR Exception has occured', line)
-        if match:
-            return 'FAIL: Exception', 0
-        match = re.search(r'INFO Done -- testing aborted because of severity of errors', line)
-        if match:
-            return 'FAIL: Aborting due to severity of errors', 0
-        match = re.search(r'ERROR C4\.\d{3}\.\d{3}: (.*)', line)
-        if match:
-            lasterror = match.groups()[0]
-
-    if errors == 0:
-        return 'PASS: 0 Errors found', 100
-    if errors > 1:
-        return 'FAIL: %s Errors found' % str(errors), 100-10*errors
-    """
-    error_msg = 'test'
-#    qc_check_table, _ = DataSpecification.objects.get_or_create(file_qc=file_qc_table, qc_check_type='CEDA-CC')
-#    qc_error_table, _ = DataSpecification.objects.get_or_create(qc_check=qc_check_table, qc_error=error_msg)
+    # Make a CEDA-CC qc_check table and qc_error tables for all CEDA-CC errors
+    qc_check_table = make_qc_check_table('CEDA-CC', d_file)
+    for err in error_msgs:
+        qc_err, _ = QCerror.objects.get_or_create(qc_check=qc_check_table, qc_error=err)
 
 
 def perform_qc():
@@ -403,21 +417,25 @@ def perform_qc():
 
     :return:
     """
-    for dataset in Dataset.objects.first():
 
-        dsid = dataset.esgf_ds_id
-        odir = os.path.join('/usr/local/cp4cds-app/ceda-cc-log-files/', *dsid.split('.')[2:])
-        if not odir:
-            os.makedirs(odir)
+#    for dataset in Dataset.objects.all():
+    dataset = Dataset.objects.first()
+    dsid = dataset.esgf_ds_id
+    odir = os.path.join('/usr/local/cp4cds-app/ceda-cc-log-files/', *dsid.split('.')[2:])
+    if not odir:
+        os.makedirs(odir)
 
-        datafiles = dataset.datafile_set.first()
-        for datafile in datafiles:
-            file = datafile.archive_path
-            print file
-            file_qc_table, _ = DataSpecification.objects.get_or_create(check_file=datafile)
-            run_cf_checker(file, file_qc_table)
-            ceda_cc_file = run_ceda_cc(file, odir)
-            parse_ceda_cc(ceda_cc_file, file_qc_table)
+    datafiles = dataset.datafile_set.all()
+    for d_file in datafiles:
+        qcfile = str(d_file.archive_path)
+        if qcfile:
+            # Run CEDA-CC, including parsing of output and recording of error output
+            run_ceda_cc(qcfile, d_file, '/usr/local/cp4cds-app/ceda-cc-log-files/')
+
+            # Run CF checker and record error output
+            run_cf_checker(qcfile, d_file)
+
+
 
 def generate_data_records(project, node, expts, file, distrib, latest):
     """
@@ -431,7 +449,7 @@ def generate_data_records(project, node, expts, file, distrib, latest):
     for line in data:
         if lineno == 0:
             requester = line.split(',')[0].strip()
-            d_requester, result = DataRequester.objects.get_or_create(requested_by=requester)
+            d_requester, _ = DataRequester.objects.get_or_create(requested_by=requester)
 
         if lineno > 1:
             variable = line.split(',')[0].strip()
@@ -439,13 +457,11 @@ def generate_data_records(project, node, expts, file, distrib, latest):
             frequency = line.split(',')[2].strip()
 
             # Create spec record and link to requester
-            if DataSpecification.objects.filter(variable=variable, cmor_table=table, frequency=frequency, esgf_data_collected=True):
-                d_spec = DataSpecification.objects.get_or_create(variable=variable, cmor_table=cmor_table, frequency=frequency)
-                # Link requester to specification
+            if DataSpecification.objects.filter(variable=variable, cmor_table=table, frequency=frequency, esgf_data_collected=False):
+                d_spec, _ = DataSpecification.objects.get_or_create(variable=variable, cmor_table=cmor_table, frequency=frequency)
                 d_spec.datarequesters.add(d_requester)
                 d_spec.save()
                 get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib, latest)
-                get_no_models_per_expt(d_spec, expts)
         lineno += 1
 
 if __name__ == '__main__':
@@ -458,4 +474,3 @@ if __name__ == '__main__':
     latest = True
     file = '/usr/local/cp4cds-app/project-specs/cp4cds-dmp_data_request.csv'
     #generate_data_records(project, node, expts, file, distrib, latest)
-    perform_qc()

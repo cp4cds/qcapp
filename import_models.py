@@ -10,7 +10,7 @@ from ceda_cc import c4
 from cfchecker.cfchecks import CFVersion, CFChecker, STANDARDNAME, AREATYPES, newest_version
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings()
-
+from app_functions import *
 print "Counts..."
 print "Dataset:", Dataset.objects.count()
 print "DataFile:", DataFile.objects.count()
