@@ -473,4 +473,4 @@ if __name__ == '__main__':
     distrib = False
     latest = True
     file = '/usr/local/cp4cds-app/project-specs/cp4cds-dmp_data_request.csv'
-    #generate_data_records(project, node, expts, file, distrib, latest)
+    generate_data_records(project, node, expts, file, distrib, latest)
