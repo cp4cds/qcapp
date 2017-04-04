@@ -303,7 +303,6 @@ def create_ceda_filepath(path, version, variable):
     return path
 
 
-<<<<<<< HEAD
 def run_cf_checker(qcfile, d_file):
     """
     
@@ -403,8 +402,6 @@ def run_ceda_cc(file, d_file, odir):
     for line in ceda_cc_out:
         if cedacc_error.match(line.strip()):
             error_msgs.append(line)
-=======
->>>>>>> master
 
     # Make a CEDA-CC qc_check table and qc_error tables for all CEDA-CC errors
     qc_check_table = make_qc_check_table('CEDA-CC', d_file)
