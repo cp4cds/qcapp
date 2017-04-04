@@ -5,6 +5,8 @@ cccc*
 Rec*
 *.zip
 *.out
+*.GOOD
+*.OLD
 tests.py
 # Prerequisites
 *.d
