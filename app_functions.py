@@ -146,7 +146,7 @@ def get_all_datafile_info(url_template, ds, project, variable, table, frequency,
         newfile, _ = DataFile.objects.get_or_create(dataset=ds, filepath=filepath, archive_path=ceda_filepath,
                                                     size=size, checksum=checksum, download_url=download_url,
                                                     tracking_id=tracking_id, variable=variable,
-                                                    cf_standard_name=variable_cf_name,
+                                                    cf_standard_name=cf_standard_name,
                                                     variable_long_name=variable_long_name,
                                                     variable_units=variable_units, start_time=start_time,
                                                     end_time=end_time)
@@ -455,13 +455,14 @@ def generate_data_records(project, node, expts, file, distrib, latest):
             variable = line.split(',')[0].strip()
             table = line.split(',')[1].strip()
             frequency = line.split(',')[2].strip()
+            print variable, table, frequency
 
             # Create spec record and link to requester
-            if DataSpecification.objects.filter(variable=variable, cmor_table=table, frequency=frequency, esgf_data_collected=False):
-                d_spec, _ = DataSpecification.objects.get_or_create(variable=variable, cmor_table=cmor_table, frequency=frequency)
-                d_spec.datarequesters.add(d_requester)
-                d_spec.save()
-                get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib, latest)
+            #if DataSpecification.objects.filter(variable=variable, cmor_table=table, frequency=frequency, esgf_data_collected=True):
+            d_spec, _ = DataSpecification.objects.get_or_create(variable=variable, cmor_table=table, frequency=frequency)
+            d_spec.datarequesters.add(d_requester)
+            d_spec.save()
+            get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib, latest)
         lineno += 1
 
 if __name__ == '__main__':

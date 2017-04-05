@@ -85,9 +85,9 @@ class DataFile(models.Model):
     end_time = models.DateField()
 
     # Datafile QC information
-    cf_compliance_score = models.PositiveSmallIntegerField(default=0)
-    ceda_cc_score = models.PositiveSmallIntegerField(default=0)
-    file_qc_score = models.PositiveSmallIntegerField(default=0)
+    cf_compliance_score = models.PositiveSmallIntegerField(default=0, blank=True)
+    ceda_cc_score = models.PositiveSmallIntegerField(default=0, blank=True)
+    file_qc_score = models.PositiveSmallIntegerField(default=0, blank=True)
 
 class QCcheck(models.Model):
 
