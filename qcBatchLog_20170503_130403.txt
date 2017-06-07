@@ -1,6 +1,0 @@
-2017-05-03 13:04:03,146 INFO Starting batch -- number of file: 1
-2017-05-03 13:04:03,146 INFO Source: /badc/cmip5/data/cmip5/output1/LASG-CESS/FGOALS-g2/historical/mon/atmos/Amon/r3i1p1/v1/tas/tas_Amon_FGOALS-g2_historical_r3i1p1_196001-196912.nc
-2017-05-03 13:04:03,232 INFO Python netcdf: netCDF4
-2017-05-03 13:04:03,232 INFO Starting: tas_Amon_FGOALS-g2_historical_r3i1p1_196001-196912.nc
-2017-05-03 13:04:03,233 INFO Log file: /usr/local/cp4cds-app/qcapp/tas_Amon_FGOALS-g2_historical_r3i1p1_196001-196912__qclog_20170503.txt
-2017-05-03 13:04:03,238 INFO Done -- error count 1
