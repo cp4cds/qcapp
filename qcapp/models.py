@@ -74,7 +74,8 @@ class DataFile(models.Model):
     filepath = models.CharField(max_length=300)
     archive_path = models.CharField(max_length=500)
     size = models.FloatField(blank=True)
-    checksum = models.CharField(max_length=80)
+    sha256_checksum = models.CharField(max_length=80)
+    md5_checksum = models.CharField(max_length=80, blank=True)
     tracking_id = models.CharField(max_length=80, blank=True)
     download_url = models.CharField(max_length=300)
     variable = models.CharField(max_length=20)
@@ -91,7 +92,7 @@ class DataFile(models.Model):
 
 class QCcheck(models.Model):
 
-    file_qc = models.ManyToManyField(DataFile)
+    file_qc = models.ForeignKey(DataFile, null=True)
     qc_check_type = models.CharField(max_length=20)
 
 

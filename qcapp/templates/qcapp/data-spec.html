@@ -6,6 +6,7 @@
 {% extends 'qcapp/base.html' %}
 
 {% block contents %}
+<h2>Select project </h2>
 
 <h2>Select experiments to find the number of models and volume of data available</h2>
 
@@ -21,11 +22,8 @@
 <input class="btn btn-success btn-sm" type="submit" value="Submit">
 <br>
 <h3> Selected experiments: </h3>
-<p> {{ expts }} </p>>
+<p> {{ expts }} </p>
 </form>
-
-
-
 
 <table class="table table-hover">
 <thead> <tr> <th>Variable</th> <th>Long Name</th> <th>CMOR table</th> <th>Frequency</th> <th>Number of Models</th> <th>Data Volume (GB)</th> </thead>
@@ -34,7 +32,7 @@
     {% for var in dataSpec %}
 
     <tr> <th scope=row>{{ var.variable }}</th> <td>{{ var.variable_long_name }}</td> <td>{{ var.cmor_table }}</td>
-        <td>{{ var.frequency }}</td> <td>{{ var.number_of_models }}</td>> <td>{{ var.data_volume|floatformat:2 }}</td>>
+        <td>{{ var.frequency }}</td> <td>{{ var.number_of_models }}</td> <td>{{ var.data_volume|floatformat:2 }}</td>
     </tr>
 
     {% endfor %}

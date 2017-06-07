@@ -1,5 +1,8 @@
 qcproj/settings_local.py
 *.pyc
+amapDraft.txt
+*.log
+
 db.sqlite*
 cccc*
 Rec*

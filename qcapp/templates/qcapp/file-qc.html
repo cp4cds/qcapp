@@ -1,0 +1,31 @@
+
+<br>
+<br>
+
+{% extends 'qcapp/base.html' %}
+
+{% block contents %}
+
+<h2>Internal Metadata consistency</h2>
+<h3>CEDA-CC report: </h3>
+
+    {% for qc in cedacc_qc %}
+        {% for err in qc.qcerror_set.all %}
+           <p> {{ err.qc_error }} </p>
+        {% endfor %}
+    {% endfor %}
+
+
+
+<h2>Climate and Forecast convention compliance</h2>
+<h3>CF-Checker report</h3>
+
+    {% for qc in cf_qc %}
+        {% for err in qc.qcerror_set.all %}
+           <p> {{ err.qc_error }} </p>
+        {% endfor %}
+    {% endfor %}
+
+
+
+{% endblock %}

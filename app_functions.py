@@ -4,7 +4,8 @@ django.setup()
 from qcapp.models import *
 from django.db.models import Count, Max, Min, Sum, Avg
 
-import collections, os, timeit, datetime, time, re
+import collections, os, timeit, datetime, time, re, glob
+import commands
 import requests, itertools
 
 from ceda_cc import c4
@@ -64,7 +65,7 @@ def get_spec_info(d_spec, project, variable, table, frequency, expts, node, dist
                 ds.save()
 
                 # GET ALL FILES INFORMATION RELATED TO DATASET
-                filepath, ceda_filepath, start_time, end_time, size, checksum, tracking_id, download_url, \
+                filepath, ceda_filepath, start_time, end_time, size, sha256_checksum, tracking_id, download_url, \
                 variable_long_name, cf_standard_name, variable_units = \
                     get_all_datafile_info(URL_FILE_INFO, ds, project, variable, table, frequency,
                                           experiment, model, ensemble, version, node, distrib, latest)
@@ -121,7 +122,6 @@ def get_all_datafile_info(url_template, ds, project, variable, table, frequency,
     url = url_template % vars()
     resp = resp = requests.get(url, verify=False)
     json = resp.json()
-
     datafiles = json["response"]["docs"]
     for datafile in range(len(datafiles)):
         df = datafiles[datafile]
@@ -132,9 +132,9 @@ def get_all_datafile_info(url_template, ds, project, variable, table, frequency,
         size = df["size"]
 
         try:
-            checksum = df["checksum"][0].strip()
+            sha256_checksum = df["sha256_checksum"][0].strip()
         except AttributeError:
-            checksum = ''
+            sha256_checksum = ''
 
         tracking_id = df["tracking_id"][0].strip()
         download_url = df["url"][0].strip()
@@ -144,14 +144,14 @@ def get_all_datafile_info(url_template, ds, project, variable, table, frequency,
 
         # Create a Datafile record for each file
         newfile, _ = DataFile.objects.get_or_create(dataset=ds, filepath=filepath, archive_path=ceda_filepath,
-                                                    size=size, checksum=checksum, download_url=download_url,
+                                                    size=size, sha256_checksum=sha256_checksum, download_url=download_url,
                                                     tracking_id=tracking_id, variable=variable,
                                                     cf_standard_name=cf_standard_name,
                                                     variable_long_name=variable_long_name,
                                                     variable_units=variable_units, start_time=start_time,
                                                     end_time=end_time)
 
-    return filepath, ceda_filepath, start_time, end_time, size, checksum, tracking_id, download_url, \
+    return filepath, ceda_filepath, start_time, end_time, size, sha256_checksum, tracking_id, download_url, \
            variable_long_name, cf_standard_name, variable_units
 
 
@@ -176,7 +176,7 @@ def get_no_models_per_expt(d_spec, expts):
         models_by_experiment[experiment] = list(models)
 
     valid_models = check_in_all_models(d_spec, models_by_experiment)
-    print valid_models
+    #print valid_models
     ############################################################################################################
 
 
@@ -192,10 +192,10 @@ def get_no_models_per_expt(d_spec, expts):
             for d in ds.all():
                 volume += d.datafile_set.all().aggregate(Sum('size')).values()[0]
     d_spec.data_volume = volume / (1024. ** 3)
-    print d_spec.variable, d_spec.frequency, d_spec.data_volume, len(valid_models)
+#    print d_spec.variable, d_spec.frequency, d_spec.data_volume, len(valid_models)
     d_spec.save()
     ############################################################################################################
-
+    #return valid_models
 
 def check_in_all_models(d_spec, models_per_experiment):
     """
@@ -265,6 +265,20 @@ def get_start_end_times(frequency, fname):
     """
 
     if fname.endswith('.nc'):
+        
+        ncfile = os.path.basename(fname)
+        timestamp = ncfile.strip('.nc').split('_')[-1]
+
+        # IF timestamp is of the form YYYYMMDDHHMM-YYYYMMDDHHMM
+        if len(timestamp) == 25:
+            start_time = datetime.date(int(timestamp[:4]), int(timestamp[4:6]), int(timestamp[7:8]))
+            end_time = datetime.date(int(timestamp[-12:-8]), int(timestamp[-8:-6]), int(timestamp[-6:-4]))
+
+        # IF timestamp is of the form YYYYMMDDHH-YYYYMMDDHH
+        if len(timestamp) == 21:
+            start_time = datetime.date(int(timestamp[:4]), int(timestamp[4:6]), int(timestamp[7:8]))
+            end_time = datetime.date(int(timestamp[-10:-6]), int(timestamp[-6:-4]), int(timestamp[-4:-2]))
+
         if frequency == 'mon':
             start_time = datetime.date(int(fname[-16:-12]), int(fname[-12:-10]), 01)
             end_mon = fname[-5:-3]
@@ -322,53 +336,53 @@ def run_cf_checker(qcfile, d_file):
     """
 
     
-    print ""
-    print ""
-    print "RUNNING CF CHECKER", qcfile
-    print ""
-    print ""
-
+#    print ""
+#    print ""
+#    print "RUNNING CF CHECKER", qcfile
+#    print ""
+#    print ""
+    STANDARDNAME = '/usr/local/cp4cds-app/cf-checker/cf-standard-name-table.xml'
+    AREATYPES = '/usr/local/cp4cds-app/cf-checker/area-type-table.xml'
     cf = CFChecker(cfStandardNamesXML=STANDARDNAME, cfAreaTypesXML=AREATYPES, version=CFVersion(), silent=True)
 
-    start_time = timeit.default_timer()
-    resp = cf.checker(qcfile)
-    time_taken = timeit.default_timer() - start_time
-    print "Time taken for a single file CF check is ", time_taken
+#    start_time = timeit.default_timer()
 
-    error_msgs = []
-    vars = resp.items()[0]
-    for message in vars[1].values():
-        if len(message['FATAL']) > 0:
-            error_msgs.append('FATAL: ' + message['FATAL'][0])
-        if len(message['ERROR']) > 0:
-            error_msgs.append('ERROR: ' + message['ERROR'][0])
-        if len(message['WARN']) > 0:
-            error_msgs.append('WARNING: ' + message['WARN'][0])
-        if len(message['INFO']) > 0:
-            error_msgs.append('INFO: ' + message['INFO'][0])
+    try:
+        resp = cf.checker(qcfile)
 
-    gll = resp.items()[1]
-    if gll[1]['FATAL']:
-        error_msgs.append('FATAL: ' + gll[1]['FATAL'][0])
-    if gll[1]['ERROR']:
-        error_msgs.append('ERROR: ' + gll[1]['ERROR'][0])
-    if gll[1]['WARN']:
-        error_msgs.append('WARN: ' + gll[1]['WARN'][0])
-    if gll[1]['INFO']:
-        error_msgs.append('INFO: ' + gll[1]['INFO'][0])
+#    time_taken = timeit.default_timer() - start_time
+#    print "Time taken for a single file CF check is ", time_taken
+
+        error_msgs = []
+        vars = resp.items()[0]
+        for message in vars[1].values():
+            if len(message['FATAL']) > 0:
+                error_msgs.append('FATAL: ' + message['FATAL'][0])
+            if len(message['ERROR']) > 0:
+                error_msgs.append('ERROR: ' + message['ERROR'][0])
+            if len(message['WARN']) > 0:
+                error_msgs.append('WARNING: ' + message['WARN'][0])
+            if len(message['INFO']) > 0:
+                error_msgs.append('INFO: ' + message['INFO'][0])
+
+        gll = resp.items()[1]
+        if gll[1]['FATAL']:
+            error_msgs.append('FATAL: ' + gll[1]['FATAL'][0])
+        if gll[1]['ERROR']:
+            error_msgs.append('ERROR: ' + gll[1]['ERROR'][0])
+        if gll[1]['WARN']:
+            error_msgs.append('WARN: ' + gll[1]['WARN'][0])
+        if gll[1]['INFO']:
+            error_msgs.append('INFO: ' + gll[1]['INFO'][0])
+
+    except:
+        error_msgs = ['FATAL']
 
     # Record CF output to database tables
-    qc_check_table = make_qc_check_table('CF', d_file)
+    qc_check_table, _ = QCcheck.objects.get_or_create(file_qc=d_file, qc_check_type='CF')
     for err in error_msgs:
         qc_err, _ = QCerror.objects.get_or_create(qc_check=qc_check_table, qc_error=err)
 
-
-def make_qc_check_table(qcCheck, df):
-    qc_check_table = QCcheck(qc_check_type=qcCheck)
-    qc_check_table.save()
-    qc_check_table.file_qc.add(df)
-    qc_check_table.save()
-    return qc_check_table
 
 def run_ceda_cc(file, d_file, odir):
     """
@@ -386,30 +400,43 @@ def run_ceda_cc(file, d_file, odir):
     """
 
     # Run CEDA-CC
-    cedacc_args = ['-p', 'CMIP5', '-f', file, '--log', 'multi', '--ld', odir, '--cae', '--blfmode', 'a']
-    _ = c4.main(cedacc_args)
+    ceda_cc_file = glob.glob('{0}/{1}__qclog_*.txt'.format(odir, file.split('/')[-1][:-3]))
+
+    if not ceda_cc_file[0]:
+    
+        cedacc_args = ['-p', 'CMIP5', '-f', file, '--log', 'multi', '--ld', odir, '--cae', '--blfmode', 'a']
+        _ = c4.main(cedacc_args)
 
     # CEDA-CC filename
-    ceda_cc_file = odir + '/' + file.split('/')[-1][:-3] + '__qclog_' + time.strftime("%Y%m%d") + '.txt'
-
+    #ceda_cc_file = glob.glob('{0}/{1}__qclog_*.txt'.format(odir, file.split('/')[-1][:-3]))
+    #odir + '/' + file.split('/')[-1][:-3] + '__qclog_' + time.strftime("%Y%m%d") + '.txt'
+    
+    
     # Read in CEDA-CC output
-    with open(ceda_cc_file, 'r') as reader:
+    with open(ceda_cc_file[0], 'r') as reader:
         ceda_cc_out = reader.readlines()
 
     # Identify where CEDA-CC picks up a QC error
     cedacc_error = re.compile('.*FAILED::.*')
+    cedacc_exception = re.compile('.*Exception.*')
+    cedacc_abort = re.compile('.*aborted.*')
     error_msgs = []
     for line in ceda_cc_out:
         if cedacc_error.match(line.strip()):
             error_msgs.append(line)
+        if cedacc_exception.match(line.strip()):
+            error_msgs.append(line)
+        if cedacc_abort.match(line.strip()):
+            error_msgs.append(line)
 
     # Make a CEDA-CC qc_check table and qc_error tables for all CEDA-CC errors
-    qc_check_table = make_qc_check_table('CEDA-CC', d_file)
+    qc_check_table, _ = QCcheck.objects.get_or_create(file_qc=d_file, qc_check_type='CEDA-CC')
+
     for err in error_msgs:
         qc_err, _ = QCerror.objects.get_or_create(qc_check=qc_check_table, qc_error=err)
 
 
-def perform_qc():
+def perform_qc(project):
     """
     Perform the quality control
     Generate CEDA-CC files and parse output
@@ -417,24 +444,37 @@ def perform_qc():
 
     :return:
     """
+    data_specs = DataSpecification.objects.filter(datarequesters__requested_by__contains=project)
+    
+    for dspec in data_specs:
+        datasets = dspec.dataset_set.all()
+        for dataset in datasets:
+            dsid = dataset.esgf_ds_id
+            odir = os.path.join('/usr/local/cp4cds-app/ceda-cc-log-files', *dsid.split('.')[2:])
+            if not os.path.isdir(odir):
+                os.makedirs(odir)
 
-#    for dataset in Dataset.objects.all():
-    dataset = Dataset.objects.first()
-    dsid = dataset.esgf_ds_id
-    odir = os.path.join('/usr/local/cp4cds-app/ceda-cc-log-files/', *dsid.split('.')[2:])
-    if not odir:
-        os.makedirs(odir)
+            datafiles = dataset.datafile_set.all()
+            for d_file in datafiles:
+                qcfile = str(d_file.archive_path)
+                if qcfile:
+                    print qcfile
+                    if not d_file.md5_checksum:
+                        md5 = commands.getoutput('md5sum %s' % qcfile).split(' ')[0]
+                        d_file.md5_checksum = md5
+                    # Run CEDA-CC, including parsing of output and recording of error output
+                    if not QCcheck.objects.filter(file_qc=d_file).filter(qc_check_type='CEDA-CC'):
+                        run_ceda_cc(qcfile, d_file, odir)
+        
+                    # Run CF checker and record error output
+                    if not QCcheck.objects.filter(file_qc=d_file).filter(qc_check_type='CF'):
+                        run_cf_checker(qcfile, d_file)
 
-    datafiles = dataset.datafile_set.all()
-    for d_file in datafiles:
-        qcfile = str(d_file.archive_path)
-        if qcfile:
-            # Run CEDA-CC, including parsing of output and recording of error output
-            run_ceda_cc(qcfile, d_file, '/usr/local/cp4cds-app/ceda-cc-log-files/')
-
-            # Run CF checker and record error output
-            run_cf_checker(qcfile, d_file)
-
+                    # RECORD SCORES to d_file
+                    #d_file.cf_compliance_score
+                    #d_file.ceda_cc_score
+                    #d_file.file_qc_score
+                    d_file.save()
 
 
 def generate_data_records(project, node, expts, file, distrib, latest):
@@ -473,5 +513,11 @@ if __name__ == '__main__':
     expts = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
     distrib = False
     latest = True
-    file = '/usr/local/cp4cds-app/project-specs/cp4cds-dmp_data_request.csv'
-    generate_data_records(project, node, expts, file, distrib, latest)
+#    file = '/usr/local/cp4cds-app/project-specs/cp4cds-dmp_data_request.csv'
+#    file = '/usr/local/cp4cds-app/project-specs/magic_data_request.csv'
+#    file = '/usr/local/cp4cds-app/project-specs/abc4cde_data_request.csv'
+#    generate_data_records(project, node, expts, file, distrib, latest)
+    
+    project = 'CP4CDS'
+    perform_qc(project)
+
