@@ -25,6 +25,26 @@ from app_functions import *
 import argparse
 import commands
 
+
+#for dataset in Dataset.objects.filter(data_spec__datarequesters__requested_by__contains='CP4CDS'):
+#    datafiles = dataset.datafile_set.all()
+#    for d_file in datafiles:
+#        qcfile = str(d_file.archive_path)
+    #    run_cf_checker(qcfile, d_file)
+    ##
+    #    run_cf_checker(qcfile, d_file)
+
+
+#        facets = qcfile.split('/')[6:12]
+#        odir = os.path.join('/usr/local/cp4cds-app/ceda-cc-log-files/', *facets)
+#        if qcfile:
+            # Run CEDA-CC, including parsing of output and recording of error output
+#            run_ceda_cc(qcfile, d_file, odir)
+
+    # Run CF checker and record error output
+
+
+
 project = "CP4CDS"
 data_specs = DataSpecification.objects.filter(datarequesters__requested_by__contains=project)
 LOGFILE = '../cp4cds_filelist.log'

@@ -25,6 +25,7 @@ urlpatterns = [
     url(r'^home/', qcapp.views.home),
     url(r'^documentation/', qcapp.views.documentation),
     url(r'^file-qc/', qcapp.views.file_qc, name="file-qc"),
+    url(r'^variable-qc/', qcapp.views.variable_qc, name="variable-qc"),
     url(r'^data-spec/', qcapp.views.data_spec, name="data-spec"),
     url(r'^data-spec-model/', qcapp.views.data_spec_model, name="data-spec-model"),
     url(r'^data-spec-experiment/', qcapp.views.data_spec_experiment, name="data-spec-experiment"),

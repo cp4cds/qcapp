@@ -25,7 +25,8 @@ URL_DS_ENSEMBLE_FACETS = 'https://%(node)s/esg-search/search?type=Dataset&projec
 URL_FILE_INFO = 'https://%(node)s/esg-search/search?type=File&project=%(project)s&variable=%(variable)s&' \
                 'cmor_table=%(table)s&time_frequency=%(frequency)s&model=%(model)s&experiment=%(experiment)s&' \
                 'ensemble=%(ensemble)s&latest=%(latest)s&distrib=%(distrib)s&format=application%%2Fsolr%%2Bjson&limit=10000'
-
+ARCHIVE_ROOT = "/badc/cmip5/data/"
+GWSDIR = "/group_workspaces/jasmin/cp4cds1/qc/CFchecks/CF-OUTPUT/"
 
 def get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib, latest):
     """
@@ -120,16 +121,19 @@ def get_all_datafile_info(url_template, ds, project, variable, table, frequency,
     :return:
     """
     url = url_template % vars()
-    resp = resp = requests.get(url, verify=False)
+    resp = requests.get(url, verify=False)
     json = resp.json()
     datafiles = json["response"]["docs"]
     for datafile in range(len(datafiles)):
         df = datafiles[datafile]
-        fname = df["master_id"]
-        filepath = parse_filename(fname)
-        ceda_filepath = create_ceda_filepath(filepath, version, variable)
+        ceda_filepath = df["url"][0].split('|')[0].replace("http://esgf-data1.ceda.ac.uk/thredds/fileServer/esg_dataroot/", ARCHIVE_ROOT)
+        # CHECK FILE IS VALID
+        if not os.path.isfile(ceda_filepath):
+            print "NOT VALID CEDA FILE"
+
         start_time, end_time = get_start_end_times(frequency, filepath)
         size = df["size"]
+        fname = df["master_id"]
 
         try:
             sha256_checksum = df["sha256_checksum"][0].strip()
@@ -247,15 +251,6 @@ def check_valid_model_names(models):
             model = "inmcm4"
 
 
-def parse_filename(fname):
-    """
-    Parse a file name to get a file path from a DRS
-    :return: filepath
-    """
-    fname = fname.replace('.','/')
-    fname = fname.replace('/nc','.nc')
-    fname = '/'+fname
-    return fname
 
 
 def get_start_end_times(frequency, fname):
@@ -300,21 +295,21 @@ def get_start_end_times(frequency, fname):
     return start_time, end_time
 
 
-def create_ceda_filepath(path, version, variable):
+def read_cf_checker_output(file, d_file):
+
     """
-    Generate the archive location of a file from the esgf path, version and variable
-
-    :return:
+    :param file: File to quality control 
+    (format /badc/cmip5/data/cmip5/output1/
+    <institute>/<model>/<experiment>/<frequency>/<realm>/<table>/<ensemble>/<version>/<variable>/<filename>)
+    :param d_file: associated DataFile record
+    :return: 
     """
 
-    path = path.split('/')
-    vid = 'v'+version
-    path.insert(-1, vid)
-    path.insert(-1, variable)
-    path = os.path.join('', *path)
-    path = '/badc/cmip5/data/' + path
 
-    return path
+
+
+
+
 
 
 def run_cf_checker(qcfile, d_file):
@@ -378,10 +373,13 @@ def run_cf_checker(qcfile, d_file):
     except:
         error_msgs = ['FATAL']
 
-    # Record CF output to database tables
-    qc_check_table, _ = QCcheck.objects.get_or_create(file_qc=d_file, qc_check_type='CF')
-    for err in error_msgs:
-        qc_err, _ = QCerror.objects.get_or_create(qc_check=qc_check_table, qc_error=err)
+    if len(error_msgs) > 0:
+        qc_check_table, _ = QCcheck.objects.get_or_create(file_qc=d_file, qc_check_type='CF')
+
+        for err in error_msgs:
+            qc_err, _ = QCerror.objects.get_or_create(qc_error=err)
+            qc_check_table.qc_error.add(qc_err)
+        qc_check_table.save()
 
 
 def run_ceda_cc(file, d_file, odir):
@@ -399,42 +397,51 @@ def run_ceda_cc(file, d_file, odir):
     :result: CEDA-CC errors recorded in QCerror
     """
 
+    print file
+
     # Run CEDA-CC
-    ceda_cc_file = glob.glob('{0}/{1}__qclog_*.txt'.format(odir, file.split('/')[-1][:-3]))
-
-    if not ceda_cc_file[0]:
-    
-        cedacc_args = ['-p', 'CMIP5', '-f', file, '--log', 'multi', '--ld', odir, '--cae', '--blfmode', 'a']
-        _ = c4.main(cedacc_args)
-
-    # CEDA-CC filename
-    #ceda_cc_file = glob.glob('{0}/{1}__qclog_*.txt'.format(odir, file.split('/')[-1][:-3]))
-    #odir + '/' + file.split('/')[-1][:-3] + '__qclog_' + time.strftime("%Y%m%d") + '.txt'
-    
-    
-    # Read in CEDA-CC output
-    with open(ceda_cc_file[0], 'r') as reader:
-        ceda_cc_out = reader.readlines()
-
-    # Identify where CEDA-CC picks up a QC error
-    cedacc_error = re.compile('.*FAILED::.*')
-    cedacc_exception = re.compile('.*Exception.*')
-    cedacc_abort = re.compile('.*aborted.*')
+    ceda_cc_file = glob.glob('{0}/*/{1}__qclog_*.txt'.format(odir, file.split('/')[-1][:-3]))
     error_msgs = []
-    for line in ceda_cc_out:
-        if cedacc_error.match(line.strip()):
-            error_msgs.append(line)
-        if cedacc_exception.match(line.strip()):
-            error_msgs.append(line)
-        if cedacc_abort.match(line.strip()):
-            error_msgs.append(line)
 
-    # Make a CEDA-CC qc_check table and qc_error tables for all CEDA-CC errors
-    qc_check_table, _ = QCcheck.objects.get_or_create(file_qc=d_file, qc_check_type='CEDA-CC')
+    if len(ceda_cc_file) == 0:
+        error_msgs.append('File not found %s' % file)
+    else:
+        if not ceda_cc_file[0]:
 
-    for err in error_msgs:
-        qc_err, _ = QCerror.objects.get_or_create(qc_check=qc_check_table, qc_error=err)
+            cedacc_args = ['-p', 'CMIP5', '-f', file, '--log', 'multi', '--ld', odir, '--cae', '--blfmode', 'a']
+            _ = c4.main(cedacc_args)
 
+        # CEDA-CC filename
+        #ceda_cc_file = glob.glob('{0}/{1}__qclog_*.txt'.format(odir, file.split('/')[-1][:-3]))
+        #odir + '/' + file.split('/')[-1][:-3] + '__qclog_' + time.strftime("%Y%m%d") + '.txt'
+
+
+        # Read in CEDA-CC output
+        with open(ceda_cc_file[0], 'r') as reader:
+            ceda_cc_out = reader.readlines()
+
+        # Identify where CEDA-CC picks up a QC error
+        cedacc_error = re.compile('.*FAILED::.*')
+        cedacc_exception = re.compile('.*Exception.*')
+        cedacc_abort = re.compile('.*aborted.*')
+
+        for line in ceda_cc_out:
+            if cedacc_error.match(line.strip()):
+                error_msgs.append(line)
+            if cedacc_exception.match(line.strip()):
+                error_msgs.append(line)
+            if cedacc_abort.match(line.strip()):
+                error_msgs.append(line)
+
+        # Make a CEDA-CC qc_check table and qc_error tables for all CEDA-CC errors
+
+    if len(error_msgs) > 0:
+        qc_check_table, _ = QCcheck.objects.get_or_create(file_qc=d_file, qc_check_type='CEDA-CC')
+
+        for err in error_msgs:
+            qc_err, _ = QCerror.objects.get_or_create(qc_error=err)
+            qc_check_table.qc_error.add(qc_err)
+        qc_check_table.save()
 
 def perform_qc(project):
     """
@@ -459,6 +466,7 @@ def perform_qc(project):
                 qcfile = str(d_file.archive_path)
                 if qcfile:
                     print qcfile
+
                     if not d_file.md5_checksum:
                         md5 = commands.getoutput('md5sum %s' % qcfile).split(' ')[0]
                         d_file.md5_checksum = md5
@@ -513,11 +521,11 @@ if __name__ == '__main__':
     expts = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
     distrib = False
     latest = True
-#    file = '/usr/local/cp4cds-app/project-specs/cp4cds-dmp_data_request.csv'
+    file = '/usr/local/cp4cds-app/project-specs/cp4cds-dmp_data_request.csv'
 #    file = '/usr/local/cp4cds-app/project-specs/magic_data_request.csv'
 #    file = '/usr/local/cp4cds-app/project-specs/abc4cde_data_request.csv'
-#    generate_data_records(project, node, expts, file, distrib, latest)
-    
-    project = 'CP4CDS'
-    perform_qc(project)
+    generate_data_records(project, node, expts, file, distrib, latest)
+#url = "https://172.16.150.171/esg-search/search?type=File&project=CMIP5&variable=tas&cmor_table=Amon&time_frequency=mon&model=HadGEM2-ES&experiment=historical&ensemble=r1i1p1&latest=True&distrib=False&format=application%%2Fsolr%%2Bjson&limit=10000"
+#    project = 'CP4CDS'
+#    perform_qc(project)
 

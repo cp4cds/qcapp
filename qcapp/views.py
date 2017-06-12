@@ -111,3 +111,16 @@ def ag_test(request):
     return render(request, 'qcapp/ag-test.html', {'dataSpec': dataSpec,
                                                   'page_title': 'My great page!!!'})
 
+
+def variable_qc(request):
+
+    variable = 'tas'
+    files = DataFile.objects.filter(variable=variable)
+#    cedacc_qc = files.qccheck_set.filter(qc_check_type='CEDA-CC')
+
+#    ds_id = os.path.dirname(file.filepath).replace('/', '.')[1:]
+#    filen = os.path.basename(file.filepath)
+    title = "Variable %s dataset" % variable
+
+    return render(request, 'qcapp/variable-qc.html',
+                  {'page_title': title})

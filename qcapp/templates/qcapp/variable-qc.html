@@ -1,0 +1,33 @@
+
+<br>
+<br>
+
+{% extends 'qcapp/base.html' %}
+
+{% block contents %}
+
+<h2>Internal Metadata consistency</h2>
+<h3>CEDA-CC report: </h3>
+
+
+<table class="table table-hover">
+<thead> <tr> <th>Path</th> <th>Error</th>  </thead>
+<tbody>
+
+    {% for error in QCerror.objects.all %}
+        {% for check in error.qccheck_set.all %}
+
+            <tr> <th scope=row>{{ check.file_qc.archive_path }}</th> <td>{{ error.qc_error }}</td>
+            </tr>
+
+
+        {% endfor %}
+    {% endfor %}
+
+
+
+</tbody>
+
+</table>
+
+{% endblock %}

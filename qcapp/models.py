@@ -90,16 +90,16 @@ class DataFile(models.Model):
     ceda_cc_score = models.PositiveSmallIntegerField(default=0, blank=True)
     file_qc_score = models.PositiveSmallIntegerField(default=0, blank=True)
 
+class QCerror(models.Model):
+
+    qc_error = models.CharField(max_length=300)
+
 class QCcheck(models.Model):
 
     file_qc = models.ForeignKey(DataFile, null=True)
+    qc_error = models.ManyToManyField(QCerror, null=True, blank=True)
     qc_check_type = models.CharField(max_length=20)
 
-
-class QCerror(models.Model):
-
-    qc_check = models.ForeignKey(QCcheck)
-    qc_error = models.CharField(max_length=300)
 
 
 """
