@@ -70,8 +70,6 @@ class DataFile(models.Model):
     Dataset file
     """
     dataset = models.ForeignKey(Dataset)
-
-    filepath = models.CharField(max_length=300)
     archive_path = models.CharField(max_length=500)
     size = models.FloatField(blank=True)
     sha256_checksum = models.CharField(max_length=80)

@@ -47,7 +47,7 @@ import commands
 
 project = "CP4CDS"
 data_specs = DataSpecification.objects.filter(datarequesters__requested_by__contains=project)
-LOGFILE = '../cp4cds_filelist.log'
+LOGFILE = '../cp4cds_filelist2.log'
 
 for dspec in data_specs:
     datasets = dspec.dataset_set.all()

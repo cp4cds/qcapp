@@ -1,4 +1,5 @@
 import django
+
 django.setup()
 
 from qcapp.models import *
@@ -17,16 +18,17 @@ requests.packages.urllib3.disable_warnings()
 
 # URL TEMPLATES
 URL_DS_MODEL_FACETS = 'https://%(node)s/esg-search/search?type=Dataset&project=%(project)s&variable=%(variable)s' \
-                   '&cmor_table=%(table)s&time_frequency=%(frequency)s&experiment=%(experiment)s&latest=%(latest)s&distrib=%(distrib)s&' \
-                   'facets=model&format=application%%2Fsolr%%2Bjson'
+                      '&cmor_table=%(table)s&time_frequency=%(frequency)s&experiment=%(experiment)s&latest=%(latest)s&distrib=%(distrib)s&' \
+                      'facets=model&format=application%%2Fsolr%%2Bjson'
 URL_DS_ENSEMBLE_FACETS = 'https://%(node)s/esg-search/search?type=Dataset&project=%(project)s&variable=%(variable)s' \
-                      '&cmor_table=%(table)s&time_frequency=%(frequency)s&model=%(model)s&experiment=%(experiment)s&' \
-                      'latest=%(latest)s&distrib=%(distrib)s&facets=ensemble&format=application%%2Fsolr%%2Bjson'
+                         '&cmor_table=%(table)s&time_frequency=%(frequency)s&model=%(model)s&experiment=%(experiment)s&' \
+                         'latest=%(latest)s&distrib=%(distrib)s&facets=ensemble&format=application%%2Fsolr%%2Bjson'
 URL_FILE_INFO = 'https://%(node)s/esg-search/search?type=File&project=%(project)s&variable=%(variable)s&' \
                 'cmor_table=%(table)s&time_frequency=%(frequency)s&model=%(model)s&experiment=%(experiment)s&' \
                 'ensemble=%(ensemble)s&latest=%(latest)s&distrib=%(distrib)s&format=application%%2Fsolr%%2Bjson&limit=10000'
 ARCHIVE_ROOT = "/badc/cmip5/data/"
 GWSDIR = "/group_workspaces/jasmin/cp4cds1/qc/CFchecks/CF-OUTPUT/"
+
 
 def get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib, latest):
     """
@@ -41,16 +43,16 @@ def get_spec_info(d_spec, project, variable, table, frequency, expts, node, dist
     for experiment in expts:
 
         models, json = esgf_ds_search(URL_DS_MODEL_FACETS, 'model', project, variable, table, frequency, experiment,
-                                '', node, distrib, latest)
+                                      '', node, distrib, latest)
         check_valid_model_names(models)  # Translates some names from ESGF to archive friendly names
 
         for model in models.keys():
 
-            ensembles, json = esgf_ds_search(URL_DS_ENSEMBLE_FACETS, 'ensemble', project, variable, table, frequency, experiment,
-                                              model, node, distrib, latest)
+            ensembles, json = esgf_ds_search(URL_DS_ENSEMBLE_FACETS, 'ensemble', project, variable, table, frequency,
+                                             experiment,
+                                             model, node, distrib, latest)
 
             for ensemble in ensembles.keys():
-
                 # EXTRACT ALL INFORMATION REQUIRED FOR A DATASET RECORD
                 product, institute, realm, version, esgf_ds_id, esgf_node \
                     = extract_ds_info(json["response"]["docs"][0])
@@ -61,7 +63,7 @@ def get_spec_info(d_spec, project, variable, table, frequency, expts, node, dist
                                                       variable=variable, version=version, esgf_ds_id=esgf_ds_id,
                                                       esgf_node=esgf_node)
 
-                #LINK DATASET TO SPEC
+                # LINK DATASET TO SPEC
                 ds.data_spec.add(d_spec)
                 ds.save()
 
@@ -81,7 +83,8 @@ def get_spec_info(d_spec, project, variable, table, frequency, expts, node, dist
     d_spec.save()
 
 
-def esgf_ds_search(search_template, facet_check, project, variable, table, frequency, experiment, model, node, distrib, latest):
+def esgf_ds_search(search_template, facet_check, project, variable, table, frequency, experiment, model, node, distrib,
+                   latest):
     """
     Perform an esgf dataset search using the specified template
 
@@ -114,7 +117,6 @@ def extract_ds_info(json_resp):
 
 def get_all_datafile_info(url_template, ds, project, variable, table, frequency, experiment, model, ensemble,
                           version, node, distrib, latest):
-
     """
     Get all datafile information for a given dataset
 
@@ -126,7 +128,8 @@ def get_all_datafile_info(url_template, ds, project, variable, table, frequency,
     datafiles = json["response"]["docs"]
     for datafile in range(len(datafiles)):
         df = datafiles[datafile]
-        ceda_filepath = df["url"][0].split('|')[0].replace("http://esgf-data1.ceda.ac.uk/thredds/fileServer/esg_dataroot/", ARCHIVE_ROOT)
+        ceda_filepath = df["url"][0].split('|')[0].replace(
+            "http://esgf-data1.ceda.ac.uk/thredds/fileServer/esg_dataroot/", ARCHIVE_ROOT)
         # CHECK FILE IS VALID
         if not os.path.isfile(ceda_filepath):
             with open('cp4cds-file-error.log', 'a') as fe:
@@ -149,7 +152,8 @@ def get_all_datafile_info(url_template, ds, project, variable, table, frequency,
 
         # Create a Datafile record for each file
         newfile, _ = DataFile.objects.get_or_create(dataset=ds, archive_path=ceda_filepath,
-                                                    size=size, sha256_checksum=sha256_checksum, download_url=download_url,
+                                                    size=size, sha256_checksum=sha256_checksum,
+                                                    download_url=download_url,
                                                     tracking_id=tracking_id, variable=variable,
                                                     cf_standard_name=cf_standard_name,
                                                     variable_long_name=variable_long_name,
@@ -181,7 +185,7 @@ def get_no_models_per_expt(d_spec, expts):
         models_by_experiment[experiment] = list(models)
 
     valid_models = check_in_all_models(d_spec, models_by_experiment)
-    #print valid_models
+    # print valid_models
     ############################################################################################################
 
 
@@ -189,7 +193,7 @@ def get_no_models_per_expt(d_spec, expts):
     # CALCULATE DATA VOLUMES FOR ALL VALID MODELS
     d_spec.data_volume = 0.0
     volume = 0.0
-    #Dataset.objects.all().prefetch_related('')
+    # Dataset.objects.all().prefetch_related('')
     for model in valid_models:
         for experiment in expts:
             ds = Dataset.objects.filter(variable=d_spec.variable, cmor_table=d_spec.cmor_table,
@@ -197,10 +201,11 @@ def get_no_models_per_expt(d_spec, expts):
             for d in ds.all():
                 volume += d.datafile_set.all().aggregate(Sum('size')).values()[0]
     d_spec.data_volume = volume / (1024. ** 3)
-#    print d_spec.variable, d_spec.frequency, d_spec.data_volume, len(valid_models)
+    #    print d_spec.variable, d_spec.frequency, d_spec.data_volume, len(valid_models)
     d_spec.save()
     ############################################################################################################
-    #return valid_models
+    # return valid_models
+
 
 def check_in_all_models(d_spec, models_per_experiment):
     """
@@ -237,21 +242,19 @@ def check_valid_model_names(models):
             model = "CESM1-CAM5"
         if model == "CESM1(WACCM)":
             model = "CESM1-WACCM"
-                #print "replaced: ", model
+            # print "replaced: ", model
         if model == "BCC-CSM1.1(m)":
             model = "bccDa-csm1-1-m"
-            #print "replaced: ", model
+            # print "replaced: ", model
         if model == "ACCESS1.0":
             model = "ACCESS1-0"
-            #print "replaced: ", model
+            # print "replaced: ", model
         if model == "ACCESS1.3":
             model = "ACCESS1-3"
         if model == "BCC-CSM1.1":
             model = "bcc-csm1-1"
         if model == "INM-CM4":
             model = "inmcm4"
-
-
 
 
 def get_start_end_times(frequency, fname):
@@ -261,7 +264,7 @@ def get_start_end_times(frequency, fname):
     """
 
     if fname.endswith('.nc'):
-        
+
         ncfile = os.path.basename(fname)
         timestamp = ncfile.strip('.nc').split('_')[-1]
 
@@ -296,196 +299,6 @@ def get_start_end_times(frequency, fname):
     return start_time, end_time
 
 
-def read_cf_checker_output(file, d_file):
-
-    """
-    :param file: File to quality control 
-    (format /badc/cmip5/data/cmip5/output1/
-    <institute>/<model>/<experiment>/<frequency>/<realm>/<table>/<ensemble>/<version>/<variable>/<filename>)
-    :param d_file: associated DataFile record
-    :return: 
-    """
-
-
-
-
-
-
-
-
-def run_cf_checker(qcfile, d_file):
-    """
-    
-    :param qcfile: single file with full CEDA archive path to be checked
-    :param d_file: the DataFile object to link the CF results to
-    
-    :result The results of the CF-Checker are stored in the QCerror and QCchecks tables 
-    
-    Run the CF checker in in-line mode with auto-version of file detection for a single file.
-    The following options are used in the CF-Checker:
-        cfStandardNamesXML=STANDARDNAME, 
-        cfAreaTypesXML=AREATYPES, 
-        version=CFVersion(), 
-        silent=True 
-    
-    
-    """
-
-    
-#    print ""
-#    print ""
-#    print "RUNNING CF CHECKER", qcfile
-#    print ""
-#    print ""
-    STANDARDNAME = '/usr/local/cp4cds-app/cf-checker/cf-standard-name-table.xml'
-    AREATYPES = '/usr/local/cp4cds-app/cf-checker/area-type-table.xml'
-    cf = CFChecker(cfStandardNamesXML=STANDARDNAME, cfAreaTypesXML=AREATYPES, version=CFVersion(), silent=True)
-
-#    start_time = timeit.default_timer()
-
-    try:
-        resp = cf.checker(qcfile)
-
-#    time_taken = timeit.default_timer() - start_time
-#    print "Time taken for a single file CF check is ", time_taken
-
-        error_msgs = []
-        vars = resp.items()[0]
-        for message in vars[1].values():
-            if len(message['FATAL']) > 0:
-                error_msgs.append('FATAL: ' + message['FATAL'][0])
-            if len(message['ERROR']) > 0:
-                error_msgs.append('ERROR: ' + message['ERROR'][0])
-            if len(message['WARN']) > 0:
-                error_msgs.append('WARNING: ' + message['WARN'][0])
-            if len(message['INFO']) > 0:
-                error_msgs.append('INFO: ' + message['INFO'][0])
-
-        gll = resp.items()[1]
-        if gll[1]['FATAL']:
-            error_msgs.append('FATAL: ' + gll[1]['FATAL'][0])
-        if gll[1]['ERROR']:
-            error_msgs.append('ERROR: ' + gll[1]['ERROR'][0])
-        if gll[1]['WARN']:
-            error_msgs.append('WARN: ' + gll[1]['WARN'][0])
-        if gll[1]['INFO']:
-            error_msgs.append('INFO: ' + gll[1]['INFO'][0])
-
-    except:
-        error_msgs = ['FATAL']
-
-    if len(error_msgs) > 0:
-        qc_check_table, _ = QCcheck.objects.get_or_create(file_qc=d_file, qc_check_type='CF')
-
-        for err in error_msgs:
-            qc_err, _ = QCerror.objects.get_or_create(qc_error=err)
-            qc_check_table.qc_error.add(qc_err)
-        qc_check_table.save()
-
-
-def run_ceda_cc(file, d_file, odir):
-    """
-    Run CEDA-CC on a single file with the following options, generating a qcBatch log
-        -p CMIP5
-        -f file
-        --log multi
-        --ld 
-        --cae
-        --blfmode a
-    
-    Output is written to log file directly parsed and (TODO deleted)
-
-    :result: CEDA-CC errors recorded in QCerror
-    """
-
-    print file
-
-    # Run CEDA-CC
-    ceda_cc_file = glob.glob('{0}/*/{1}__qclog_*.txt'.format(odir, file.split('/')[-1][:-3]))
-    error_msgs = []
-
-    if len(ceda_cc_file) == 0:
-        error_msgs.append('File not found %s' % file)
-    else:
-        if not ceda_cc_file[0]:
-
-            cedacc_args = ['-p', 'CMIP5', '-f', file, '--log', 'multi', '--ld', odir, '--cae', '--blfmode', 'a']
-            _ = c4.main(cedacc_args)
-
-        # CEDA-CC filename
-        #ceda_cc_file = glob.glob('{0}/{1}__qclog_*.txt'.format(odir, file.split('/')[-1][:-3]))
-        #odir + '/' + file.split('/')[-1][:-3] + '__qclog_' + time.strftime("%Y%m%d") + '.txt'
-
-
-        # Read in CEDA-CC output
-        with open(ceda_cc_file[0], 'r') as reader:
-            ceda_cc_out = reader.readlines()
-
-        # Identify where CEDA-CC picks up a QC error
-        cedacc_error = re.compile('.*FAILED::.*')
-        cedacc_exception = re.compile('.*Exception.*')
-        cedacc_abort = re.compile('.*aborted.*')
-
-        for line in ceda_cc_out:
-            if cedacc_error.match(line.strip()):
-                error_msgs.append(line)
-            if cedacc_exception.match(line.strip()):
-                error_msgs.append(line)
-            if cedacc_abort.match(line.strip()):
-                error_msgs.append(line)
-
-        # Make a CEDA-CC qc_check table and qc_error tables for all CEDA-CC errors
-
-    if len(error_msgs) > 0:
-        qc_check_table, _ = QCcheck.objects.get_or_create(file_qc=d_file, qc_check_type='CEDA-CC')
-
-        for err in error_msgs:
-            qc_err, _ = QCerror.objects.get_or_create(qc_error=err)
-            qc_check_table.qc_error.add(qc_err)
-        qc_check_table.save()
-
-def perform_qc(project):
-    """
-    Perform the quality control
-    Generate CEDA-CC files and parse output
-    Perform CF-checks
-
-    :return:
-    """
-    data_specs = DataSpecification.objects.filter(datarequesters__requested_by__contains=project)
-    
-    for dspec in data_specs:
-        datasets = dspec.dataset_set.all()
-        for dataset in datasets:
-            dsid = dataset.esgf_ds_id
-            odir = os.path.join('/usr/local/cp4cds-app/ceda-cc-log-files', *dsid.split('.')[2:])
-            if not os.path.isdir(odir):
-                os.makedirs(odir)
-
-            datafiles = dataset.datafile_set.all()
-            for d_file in datafiles:
-                qcfile = str(d_file.archive_path)
-                if qcfile:
-                    print qcfile
-
-                    if not d_file.md5_checksum:
-                        md5 = commands.getoutput('md5sum %s' % qcfile).split(' ')[0]
-                        d_file.md5_checksum = md5
-                    # Run CEDA-CC, including parsing of output and recording of error output
-                    if not QCcheck.objects.filter(file_qc=d_file).filter(qc_check_type='CEDA-CC'):
-                        run_ceda_cc(qcfile, d_file, odir)
-        
-                    # Run CF checker and record error output
-                    if not QCcheck.objects.filter(file_qc=d_file).filter(qc_check_type='CF'):
-                        run_cf_checker(qcfile, d_file)
-
-                    # RECORD SCORES to d_file
-                    #d_file.cf_compliance_score
-                    #d_file.ceda_cc_score
-                    #d_file.file_qc_score
-                    d_file.save()
-
-
 def generate_data_records(project, node, expts, file, distrib, latest):
     """
     Generate data records from csv input
@@ -508,16 +321,19 @@ def generate_data_records(project, node, expts, file, distrib, latest):
             print variable, table, frequency
 
             # Create spec record and link to requester
-            #if DataSpecification.objects.filter(variable=variable, cmor_table=table, frequency=frequency, esgf_data_collected=True):
-            d_spec, _ = DataSpecification.objects.get_or_create(variable=variable, cmor_table=table, frequency=frequency)
+            # if DataSpecification.objects.filter(variable=variable, cmor_table=table, frequency=frequency, esgf_data_collected=True):
+            d_spec, _ = DataSpecification.objects.get_or_create(variable=variable, cmor_table=table,
+                                                                frequency=frequency)
             d_spec.datarequesters.add(d_requester)
             d_spec.save()
             get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib, latest)
         lineno += 1
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     # These constraints will in time be loaded in via csv for multiple projects.
+    # url = "https://172.16.150.171/esg-search/search?type=File&project=CMIP5&variable=tas&cmor_table=Amon&time_frequency=mon&model=HadGEM2-ES&experiment=historical&ensemble=r1i1p1&latest=True&distrib=False&format=application%%2Fsolr%%2Bjson&limit=10000"
+
     project = 'CMIP5'
     node = "172.16.150.171"
     expts = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
@@ -526,10 +342,7 @@ if __name__ == '__main__':
     file = '/usr/local/cp4cds-app/project-specs/cp4cds-dmp_data_request.csv'
     with open('cp4cds-file-error.log', 'w') as fe:
         fe.write('')
-#    file = '/usr/local/cp4cds-app/project-specs/magic_data_request.csv'
-#    file = '/usr/local/cp4cds-app/project-specs/abc4cde_data_request.csv'
+    # file = '/usr/local/cp4cds-app/project-specs/magic_data_request.csv'
+    #    file = '/usr/local/cp4cds-app/project-specs/abc4cde_data_request.csv'
     generate_data_records(project, node, expts, file, distrib, latest)
-#url = "https://172.16.150.171/esg-search/search?type=File&project=CMIP5&variable=tas&cmor_table=Amon&time_frequency=mon&model=HadGEM2-ES&experiment=historical&ensemble=r1i1p1&latest=True&distrib=False&format=application%%2Fsolr%%2Bjson&limit=10000"
-#    project = 'CP4CDS'
-#    perform_qc(project)
 
