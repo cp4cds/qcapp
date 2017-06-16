@@ -6,28 +6,45 @@
 
 {% block contents %}
 
-<h2>Internal Metadata consistency</h2>
-<h3>CEDA-CC report: </h3>
+<h2>QC summary</h2>
 
 
 <table class="table table-hover">
-<thead> <tr> <th>Path</th> <th>Error</th>  </thead>
+<thead> <tr> <th>QC</th> <th>Number of errors</th>  </thead>
 <tbody>
 
-    {% for error in QCerror.objects.all %}
-        {% for check in error.qccheck_set.all %}
-
-            <tr> <th scope=row>{{ check.file_qc.archive_path }}</th> <td>{{ error.qc_error }}</td>
-            </tr>
-
-
-        {% endfor %}
-    {% endfor %}
-
+    <tr> <th scope=row> Global errors </th> <td>{{ qc_errs.global }}</td> </tr>
+    <tr> <th scope=row> Variable errors </th> <td>{{ qc_errs.variable }}</td> </tr>
+    <tr> <th scope=row> Other errors </th> <td>{{ qc_errs.other }}</td> </tr>
 
 
 </tbody>
 
 </table>
+<HR/>
+
+<h2>Details</h2>
+
+<h3>CEDA-CC</h3>
+<a href="{{ filepath }}"> CEDA_CC FILE: </a>
+
+
+<table class="table table-hover">
+<thead> <tr> <th>Error type</th> <th>Error Message</th>  </thead>
+<tbody>
+
+    {% for qcerr in qc_errors %}
+
+    <tr> <th scope=row> {{ qcerr.error_type }} </th> <td>{{ qcerr.error_msg }}</td> </tr>
+
+    {% endfor %}
+
+</tbody>
+
+</table>
+
+
+
+<h3>CF-Checker</h3>
 
 {% endblock %}

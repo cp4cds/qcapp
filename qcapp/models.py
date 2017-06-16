@@ -82,6 +82,7 @@ class DataFile(models.Model):
     variable_units = models.CharField(max_length=20)
     start_time = models.DateField()
     end_time = models.DateField()
+    timeseries = models.BooleanField(default=False, blank=True)
 
     # Datafile QC information
     cf_compliance_score = models.PositiveSmallIntegerField(default=0, blank=True)
@@ -90,15 +91,11 @@ class DataFile(models.Model):
 
 class QCerror(models.Model):
 
-    qc_error = models.CharField(max_length=300)
-
-class QCcheck(models.Model):
-
-    file_qc = models.ForeignKey(DataFile, null=True)
-    qc_error = models.ManyToManyField(QCerror, null=True, blank=True)
-    qc_check_type = models.CharField(max_length=20)
-
-
+    file = models.ForeignKey(DataFile, null=True)
+    check_type = models.CharField(max_length=20, null=True, blank=True)
+    error_type = models.CharField(max_length=20, null=True, blank=True)
+    error_msg = models.CharField(max_length=500, null=True, blank=True)
+    report_filepath = models.CharField(max_length=500, null=True, blank=True)
 
 """
 

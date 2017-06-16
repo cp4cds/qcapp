@@ -115,12 +115,28 @@ def ag_test(request):
 def variable_qc(request):
 
     variable = 'tas'
-    files = DataFile.objects.filter(variable=variable)
-#    cedacc_qc = files.qccheck_set.filter(qc_check_type='CEDA-CC')
+    model = 'FGOALS-g2'
+    files = DataFile.objects.filter(variable=variable, dataset__model=model)
+    first = files[0]
+    qc_errors = first.qcerror_set.all()
 
-#    ds_id = os.path.dirname(file.filepath).replace('/', '.')[1:]
-#    filen = os.path.basename(file.filepath)
-    title = "Variable %s dataset" % variable
+    global_errs = qc_errors.filter(error_type='global')
+    var_errs = qc_errors.filter(error_type='variable')
+    other_errs = qc_errors.filter(error_type='other')
+
+    qc_errs = {'global': global_errs.count(), 'variable': var_errs.count(), 'other': other_errs.count()}
+
+
+    filepath = os.path.join( "/group_workspaces/jasmin/cp4cds1/qc/QCchecks/CEDACC-OUTPUT/LASG-CESS/FGOALS-g2/historical/Amon/v1/",
+                             qc_errors.first().report_filepath)
+
+    filename = first.archive_path
+    ds_id = first.dataset.dataset_id
+    #ds_id = os.path.dirname(file.filepath).replace('/', '.')[1:]
+    #filen = os.path.basename(file.filepath)
+    title = "Variable %s dataset: \n %s \n %s" % (variable, ds_id, os.path.basename(filename))
+
+
 
     return render(request, 'qcapp/variable-qc.html',
-                  {'page_title': title})
+                  {'page_title': title, 'qc_errs': qc_errs, 'filepath': filepath, 'qc_errors': qc_errors})

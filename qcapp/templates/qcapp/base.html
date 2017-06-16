@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="http://getbootstrap.com/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="{% static 'css/qcapp.css' %}" />
 
-    <title>{{ page_title }}</title>
+    <title>{{ page_title}}</title>
 
 </head>
 <body>
@@ -50,7 +50,7 @@
     </nav>
 
     <div class="container-fluid">
-        <H1>{{ page_title|default:"Data requested by CP4CDS" }}</H1>
+        <H1>{{ page_title|linebreaks }}</H1>
 
         {% block contents %}
 
