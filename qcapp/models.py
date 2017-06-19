@@ -89,6 +89,7 @@ class DataFile(models.Model):
     ceda_cc_score = models.PositiveSmallIntegerField(default=0, blank=True)
     file_qc_score = models.PositiveSmallIntegerField(default=0, blank=True)
 
+
 class QCerror(models.Model):
 
     file = models.ForeignKey(DataFile, null=True)
@@ -96,6 +97,11 @@ class QCerror(models.Model):
     error_type = models.CharField(max_length=20, null=True, blank=True)
     error_msg = models.CharField(max_length=500, null=True, blank=True)
     report_filepath = models.CharField(max_length=500, null=True, blank=True)
+
+    def get_qc_report(self):
+        if self.file:
+          return '/group_workspaces/jasmin/cp4cds1/qc/QCchecks/CEDACC-OUTPUT/LASG-CESS/FGOALS-g2/historical/Amon/v1/ ' + self.report_filepath
+
 
 """
 

@@ -25,6 +25,8 @@ from app_functions import *
 import argparse
 import commands
 
+#<a href="{{ filepath }}"> CEDA_CC FILE: </a>
+
 
 #for dataset in Dataset.objects.filter(data_spec__datarequesters__requested_by__contains='CP4CDS'):
 #    datafiles = dataset.datafile_set.all()

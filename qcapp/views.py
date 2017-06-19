@@ -127,16 +127,16 @@ def variable_qc(request):
     qc_errs = {'global': global_errs.count(), 'variable': var_errs.count(), 'other': other_errs.count()}
 
 
-    filepath = os.path.join( "/group_workspaces/jasmin/cp4cds1/qc/QCchecks/CEDACC-OUTPUT/LASG-CESS/FGOALS-g2/historical/Amon/v1/",
-                             qc_errors.first().report_filepath)
-
+#    filepath = os.path.join( "/group_workspaces/jasmin/cp4cds1/qc/QCchecks/CEDACC-OUTPUT/LASG-CESS/FGOALS-g2/historical/Amon/v1/",
+#                             qc_errors.first().report_filepath)
+    filepath = ''
     filename = first.archive_path
     ds_id = first.dataset.dataset_id
     #ds_id = os.path.dirname(file.filepath).replace('/', '.')[1:]
     #filen = os.path.basename(file.filepath)
     title = "Variable %s dataset: \n %s \n %s" % (variable, ds_id, os.path.basename(filename))
 
-
+#    print qc_errors.get_qc_report()
 
     return render(request, 'qcapp/variable-qc.html',
                   {'page_title': title, 'qc_errs': qc_errs, 'filepath': filepath, 'qc_errors': qc_errors})
