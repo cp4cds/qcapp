@@ -134,7 +134,7 @@ def get_all_datafile_info(url_template, ds, project, variable, table, frequency,
         if not os.path.isfile(ceda_filepath):
             with open('cp4cds-file-error.log', 'a') as fe:
                 fe.write("NOT VALID CEDA FILE: %s" % ceda_filepath)
-
+        ncfile = os.path.basename(ceda_filepath)
         start_time, end_time = get_start_end_times(frequency, ceda_filepath)
         size = df["size"]
         fname = df["master_id"]
@@ -151,7 +151,7 @@ def get_all_datafile_info(url_template, ds, project, variable, table, frequency,
         variable_units = df["variable_units"][0].strip()
 
         # Create a Datafile record for each file
-        newfile, _ = DataFile.objects.get_or_create(dataset=ds, archive_path=ceda_filepath,
+        newfile, _ = DataFile.objects.get_or_create(dataset=ds, archive_path=ceda_filepath, ncfile=ncfile,
                                                     size=size, sha256_checksum=sha256_checksum,
                                                     download_url=download_url,
                                                     tracking_id=tracking_id, variable=variable,

@@ -25,6 +25,21 @@ from app_functions import *
 import argparse
 import commands
 
+
+
+
+def add_ncfilename():
+
+    data_specs = DataSpecification.objects.all()
+    for dspec in data_specs:
+        datasets = dspec.dataset_set.all()
+        for dataset in datasets:
+            datafiles = dataset.datafile_set.all()
+            for dfile in datafiles:
+                print dfile.archive_path
+                dfile.ncfile = os.path.basename(dfile.archive_path)
+                dfile.save()
+
 #<a href="{{ filepath }}"> CEDA_CC FILE: </a>
 
 
@@ -47,17 +62,17 @@ import commands
 
 
 
-project = "CP4CDS"
-data_specs = DataSpecification.objects.filter(datarequesters__requested_by__contains=project)
-LOGFILE = '../cp4cds_filelist2.log'
+#project = "CP4CDS"
+#data_specs = DataSpecification.objects.filter(datarequesters__requested_by__contains=project)
+#LOGFILE = '../cp4cds_filelist2.log'
 
-for dspec in data_specs:
-    datasets = dspec.dataset_set.all()
-    for dataset in datasets:
-        #dsid = dataset.esgf_ds_id
-        datafiles = dataset.datafile_set.all()
-        for dfile in datafiles:
-            print dfile.archive_path
+#for dspec in data_specs:
+#    datasets = dspec.dataset_set.all()
+#    for dataset in datasets:
+#        #dsid = dataset.esgf_ds_id
+#        datafiles = dataset.datafile_set.all()
+#        for dfile in datafiles:
+#            print dfile.archive_path
 
 
 
@@ -281,3 +296,7 @@ for var in ocean:
                 print m
         #        print help(m)
 """
+
+if __name__ == '__main__':
+
+    add_ncfilename()

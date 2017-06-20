@@ -133,33 +133,29 @@ def dataset_qc(request, variable):
                   {'page_title': title, 'facets': facets})
 
 
-def file_qc(request):
+def file_qc(request, version, ncfile):
 
-    variable = 'tas'
-    model = 'FGOALS-g2'
-    files = DataFile.objects.filter(variable=variable, dataset__model=model)
-    first = files[0]
-    qc_errors = first.qcerror_set.all()
+    files = DataFile.objects.filter(ncfile=ncfile, dataset__version=version)
+    file = files.first()
+    qc_errors = file.qcerror_set.all()
 
     global_errs = qc_errors.filter(error_type='global')
     var_errs = qc_errors.filter(error_type='variable')
     other_errs = qc_errors.filter(error_type='other')
-
-    qc_errs = {'global': global_errs.count(), 'variable': var_errs.count(), 'other': other_errs.count()}
+    qc_error_counts = {'global': global_errs.count(), 'variable': var_errs.count(), 'other': other_errs.count()}
 
     #    filepath = os.path.join( "/group_workspaces/jasmin/cp4cds1/qc/QCchecks/CEDACC-OUTPUT/LASG-CESS/FGOALS-g2/historical/Amon/v1/",
     #                             qc_errors.first().report_filepath)
-    filepath = ''
-    filename = first.archive_path
-    ds_id = first.dataset.dataset_id
+
     # ds_id = os.path.dirname(file.filepath).replace('/', '.')[1:]
     # filen = os.path.basename(file.filepath)
-    title = "Variable %s dataset: \n %s \n %s" % (variable, ds_id, os.path.basename(filename))
+    # title = "Variable %s dataset: \n %s \n %s" % (variable, ds_id, os.path.basename(filename))
+    title = "Variable quality control summary"
+    dataset_id = file.dataset.dataset_id
+    filename = os.path.basename(file.archive_path)
 
-    #    print qc_errors.get_qc_report()
-
-    return render(request, 'qcapp/file-qc.html',
-                  {'page_title': title, 'qc_errs': qc_errs, 'filepath': filepath, 'qc_errors': qc_errors})
+    return render(request, 'qcapp/file-qc.html', {'page_title': title, 'dataset_id': dataset_id, 'filename': filename,
+                                                  'qc_errors': qc_errors, 'qc_error_counts': qc_error_counts})
 
 
 def variable_timeseries_qc(request):
@@ -167,8 +163,6 @@ def variable_timeseries_qc(request):
     timeseries_datafiles = {}
     for dataset in Dataset.objects.all():
         timeseries_datafiles[Dataset.dataset_id] = dataset.datafile_set.filter(variable='tas', timeseries=True)
-
-
 
     title = "Variable timeseries QC information"
 

@@ -1,10 +1,11 @@
-
 <br>
 <br>
-
 {% extends 'qcapp/base.html' %}
 
 {% block contents %}
+
+<h4>Dataset: {{ dataset_id }} </h4>
+<h4>File: {{ filename }} </h4>
 
 <h2>QC summary</h2>
 
@@ -13,9 +14,9 @@
 <thead> <tr> <th>QC</th> <th>Number of errors</th>  </thead>
 <tbody>
 
-    <tr> <th scope=row> Global errors </th> <td>{{ qc_errs.global }}</td> </tr>
-    <tr> <th scope=row> Variable errors </th> <td>{{ qc_errs.variable }}</td> </tr>
-    <tr> <th scope=row> Other errors </th> <td>{{ qc_errs.other }}</td> </tr>
+    <tr> <th scope=row> Global errors </th> <td>{{ qc_error_counts.global }}</td> </tr>
+    <tr> <th scope=row> Variable errors </th> <td>{{ qc_error_counts.variable }}</td> </tr>
+    <tr> <th scope=row> Other errors </th> <td>{{ qc_error_counts.other }}</td> </tr>
 
 
 </tbody>
@@ -35,9 +36,9 @@
 <thead> <tr> <th>Error type</th> <th>Error Message</th>  </thead>
 <tbody>
 
-    {% for qcerr in qc_errors %}
+    {% for err in qc_errors %}
 
-    <tr> <th scope=row> {{ qcerr.error_type }} </th> <td>{{ qcerr.error_msg }}</td> </tr>
+    <tr> <th scope=row> {{ err.error_type }} </th> <td>{{ err.error_msg }}</td> </tr>
 
     {% endfor %}
 

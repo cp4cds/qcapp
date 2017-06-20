@@ -21,7 +21,7 @@ import qcapp.views
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^documentation/', qcapp.views.documentation),
-    url(r'^file-qc/', qcapp.views.file_qc, name="file-qc"),
+    url(r'^file-qc/(?P<version>\S+)&(?P<ncfile>\S+)', qcapp.views.file_qc, name="file-qc"),
     url(r'^variable-timeseries-qc/', qcapp.views.variable_timeseries_qc, name="variable-timeseries-qc"),
 #    url(r'^variable-qc/', qcapp.views.variable_qc, name="variable-qc"),
     url(r'^data-spec/', qcapp.views.data_spec, name="data-spec"),
