@@ -3,42 +3,23 @@ from django.http import HttpResponse
 
 from qcapp.models import *
 from .models import *
-from app_functions import *
-import os
+from data_availability_functions import *
+from esgf_search_functions import *
+from qc_functions import *
+from timeseries_and_md5s import *
 
+import os, collections
 
-# Create your views here.
-def happy(request, expt):
-    ds = Dataset.objects.filter(experiment=expt).first()
-
-    return HttpResponse("We found a Dataset with these attributes: %s, %s" % (ds.institute, ds.experiment))
-
-def test(request):
-    requestName = Request.objects.first().request_name
-    return HttpResponse("I am a test." + requestName )
-
-def home(request):
-
-    return render(request, 'qcapp/home.html', {'page_title': 'About CP4CDS: Climate Projections for the Climate Data Store'})
 
 def documentation(request):
 
     return render(request, 'qcapp/documentation.html', {'page_title': 'Documentation'})
 
 
-
 def data_spec_model(request):
 
     dataSpec = DataSpecification.objects.filter(datarequesters__requested_by__contains='CP4CDS')
     return render(request, 'qcapp/data-spec-model.html', {'dataSpec': dataSpec})
-
-
-def data_spec_experiment(request):
-
-    dataSpec = DataSpecification.objects.all()
-
-    return render(request, 'qcapp/data-spec-experiment.html', {'dataSpec': dataSpec})
-
 
 
 def data_spec(request):
@@ -64,55 +45,95 @@ def var_qcplot(request, variable):
     dataset = Dataset.objects.filter(variable=variable)
     return render(request, 'qcapp/var-qcplot.html', {'page_title': 'Variable quality control plot','dataset': dataset})
 
-def file_qc(request):
-    
 
-    inst = set([])
-    model = set([])
-    expt = set([])
-    freq = set([])
-    realm = set([])
-    table = set([])
-    ens = set([])
-
-    for i in Dataset.objects.all():
-        inst.add(i.institute)
-        model.add(i.institute)
-        expt.add(i.institute)
-        freq.add(i.institute)
-        realm.add(i.institute)
-        table.add(i.institute)
-        ens.add(i.institute)
-
-    file = DataFile.objects.first()
-#    file = DataFile.objects.filter(institute=ins, model=model, experiment=expt, frequency=freq, realm=realm,
-#                                   cmor_table=table, ensemble=ens)
-    cf_qc = file.qccheck_set.filter(qc_check_type='CF')
-    cedacc_qc = file.qccheck_set.filter(qc_check_type='CEDA-CC')
-
-    ds_id = os.path.dirname(file.filepath).replace('/', '.')[1:]
-    filen = os.path.basename(file.filepath)
-    title = "Dataset: %s File: %s" % (ds_id, filen)
+#def dataset_qc(request, variable):
 
 
-    return render(request, 'qcapp/file-qc.html',
-                  {'page_title': title, 'cf_qc': cf_qc, 'cedacc_qc': cedacc_qc})
-#                   'inst': inst, 'model': model, 'expt': freq, 'realm': realm, 'table': table, 'ens': ens}
-#                  )
+#    inst = set([])
+#    model = set([])
+#    expt = set([])
+#    freq = set([])
+#    realm = set([])
+#    table = set([])
+#    ens = set([])
+
+#    for i in Dataset.objects.all():
+#        inst.add(i.institute)
+#        model.add(i.institute)
+#        expt.add(i.institute)
+#        freq.add(i.institute)
+#        realm.add(i.institute)
+#        table.add(i.institute)
+#        ens.add(i.institute)
+
+#    file = DataFile.objects.first()
+    #    file = DataFile.objects.filter(institute=ins, model=model, experiment=expt, frequency=freq, realm=realm,
+    #                                   cmor_table=table, ensemble=ens)
+#    cf_qc = file.qccheck_set.filter(qc_check_type='CF')
+#    cedacc_qc = file.qccheck_set.filter(qc_check_type='CEDA-CC')
+
+#    ds_id = os.path.dirname(file.filepath).replace('/', '.')[1:]
+#    filen = os.path.basename(file.filepath)
+#    title = "Dataset: %s File: %s" % (ds_id, filen)
+
+#    return render(request, 'qcapp/file-qc.html',
+#                  {'page_title': title, 'cf_qc': cf_qc, 'cedacc_qc': cedacc_qc})
+    #                   'inst': inst, 'model': model, 'expt': freq, 'realm': realm, 'table': table, 'ens': ens}
+    #                  )
+
+
+ #   dataset = Dataset.objects.filter(variable=variable)
+ #   return render(request, 'qcapp/var-qcplot.html', {'page_title': 'Variable quality control plot', 'dataset': dataset, })
+
+
+
+#def variable_qc(request):
+
+#    variable = 'tas'
+#    model = 'FGOALS-g2'
+#    files = DataFile.objects.filter(variable=variable, dataset__model=model)
+#    first = files[0]
+#    qc_errors = first.qcerror_set.all()
+
+#    global_errs = qc_errors.filter(error_type='global')
+#    var_errs = qc_errors.filter(error_type='variable')
+#    other_errs = qc_errors.filter(error_type='other')
+#
+#    qc_errs = {'global': global_errs.count(), 'variable': var_errs.count(), 'other': other_errs.count()}
+
+
+#    filepath = os.path.join( "/group_workspaces/jasmin/cp4cds1/qc/QCchecks/CEDACC-OUTPUT/LASG-CESS/FGOALS-g2/historical/Amon/v1/",
+#                             qc_errors.first().report_filepath)
+#    filepath = ''
+#    filename = first.archive_path
+#    ds_id = first.dataset.dataset_id
+#    #ds_id = os.path.dirname(file.filepath).replace('/', '.')[1:]
+    #filen = os.path.basename(file.filepath)
+#    title = "Variable %s dataset: \n %s \n %s" % (variable, ds_id, os.path.basename(filename))
+
+#    print qc_errors.get_qc_report()
+
+#    return render(request, 'qcapp/variable-qc.html',
+#                  {'page_title': title, 'qc_errs': qc_errs, 'filepath': filepath, 'qc_errors': qc_errors})
+
 
 def dataset_qc(request, variable):
 
-    dataset = Dataset.objects.filter(variable=variable)
-    return render(request, 'qcapp/var-qcplot.html', {'page_title': 'Variable quality control plot', 'dataset': dataset, })
+
+    title = "Dataset QC: %s" % variable
+    facets = collections.OrderedDict()
+    facets['institutes'] = list(Dataset.objects.values_list('institute').distinct())
+    facets['models'] = list(Dataset.objects.values_list('model').distinct())
+    facets['frequencies'] = list(Dataset.objects.values_list('frequency').distinct())
+    facets['realms'] = list(Dataset.objects.values_list('realm').distinct())
+    facets['tables'] = list(Dataset.objects.values_list('cmor_table').distinct())
+    facets['ensembles'] = list(Dataset.objects.values_list('ensemble').distinct())
+
+    return render(request, 'qcapp/dataset-qc.html',
+                  {'page_title': title, 'facets': facets})
 
 
-def ag_test(request):
-    dataSpec = DataSpecification.objects.all()
-    return render(request, 'qcapp/ag-test.html', {'dataSpec': dataSpec,
-                                                  'page_title': 'My great page!!!'})
-
-
-def variable_qc(request):
+def file_qc(request):
 
     variable = 'tas'
     model = 'FGOALS-g2'
@@ -126,17 +147,33 @@ def variable_qc(request):
 
     qc_errs = {'global': global_errs.count(), 'variable': var_errs.count(), 'other': other_errs.count()}
 
-
-#    filepath = os.path.join( "/group_workspaces/jasmin/cp4cds1/qc/QCchecks/CEDACC-OUTPUT/LASG-CESS/FGOALS-g2/historical/Amon/v1/",
-#                             qc_errors.first().report_filepath)
+    #    filepath = os.path.join( "/group_workspaces/jasmin/cp4cds1/qc/QCchecks/CEDACC-OUTPUT/LASG-CESS/FGOALS-g2/historical/Amon/v1/",
+    #                             qc_errors.first().report_filepath)
     filepath = ''
     filename = first.archive_path
     ds_id = first.dataset.dataset_id
-    #ds_id = os.path.dirname(file.filepath).replace('/', '.')[1:]
-    #filen = os.path.basename(file.filepath)
+    # ds_id = os.path.dirname(file.filepath).replace('/', '.')[1:]
+    # filen = os.path.basename(file.filepath)
     title = "Variable %s dataset: \n %s \n %s" % (variable, ds_id, os.path.basename(filename))
 
-#    print qc_errors.get_qc_report()
+    #    print qc_errors.get_qc_report()
 
-    return render(request, 'qcapp/variable-qc.html',
+    return render(request, 'qcapp/file-qc.html',
                   {'page_title': title, 'qc_errs': qc_errs, 'filepath': filepath, 'qc_errors': qc_errors})
+
+
+def variable_timeseries_qc(request):
+
+    timeseries_datafiles = {}
+    for dataset in Dataset.objects.all():
+        timeseries_datafiles[Dataset.dataset_id] = dataset.datafile_set.filter(variable='tas', timeseries=True)
+
+
+
+    title = "Variable timeseries QC information"
+
+    return render(request, 'qcapp/variable-timeseries-qc.html',
+                  {'page_title': title, 'timeseries_datafiles': timeseries_datafiles})
+
+
+

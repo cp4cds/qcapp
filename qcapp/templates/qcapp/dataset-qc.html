@@ -1,0 +1,57 @@
+<br>
+<br>
+{% extends 'qcapp/base.html' %}
+
+{% block contents %}
+
+
+<table class="table table-hover">
+
+<thead> <tr>
+    {% for facet in facets %}
+
+    <th>{{facet|capfirst}}</th>
+    {% endfor %}
+</thead>
+<tbody>
+
+<tr>
+    {% for facet, values in facets.iteritems %}
+    <td>
+        <select id={{facet}}>
+            <option selected disabled>Choose one</option>
+            <option value="all">ALL</option>
+            {% for item in values %}
+                <option value={{item}}>{{item}}</option>
+            {% endfor %}
+        </select>
+    </td>
+    {% endfor %}
+</tr>
+
+</tbody>
+
+</table>
+
+
+{% endblock %}
+<!--
+<p> some text </p>
+<h2>{{ dataset.variable }}</h2>
+
+
+<h3>{{ dataset.institute }} {{ dataset.model }} {{ dataset.experiment }} {{ dataset.frequency }} {{ dataset.realm }}
+{{ dataset.cmor_table }} {{ dataset.ensemble }} {{ dataset.ensemble }} </h3>
+
+<table class="table table-hover">
+<thead> <tr> <th>Dataset id</th>  <th>QC Score</th>  <th> Number of files</th> <th> Number of files with errors</th> <th> Errors</th>  </thead>
+<tbody>
+
+
+
+</tbody>
+
+</table>
+
+
+-->

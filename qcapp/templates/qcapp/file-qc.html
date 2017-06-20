@@ -6,26 +6,45 @@
 
 {% block contents %}
 
-<h2>Internal Metadata consistency</h2>
-<h3>CEDA-CC report: </h3>
+<h2>QC summary</h2>
 
-    {% for qc in cedacc_qc %}
-        {% for err in qc.qcerror_set.all %}
-           <p> {{ err.qc_error }} </p>
-        {% endfor %}
+
+<table class="table table-hover">
+<thead> <tr> <th>QC</th> <th>Number of errors</th>  </thead>
+<tbody>
+
+    <tr> <th scope=row> Global errors </th> <td>{{ qc_errs.global }}</td> </tr>
+    <tr> <th scope=row> Variable errors </th> <td>{{ qc_errs.variable }}</td> </tr>
+    <tr> <th scope=row> Other errors </th> <td>{{ qc_errs.other }}</td> </tr>
+
+
+</tbody>
+
+</table>
+<HR/>
+
+<h2>Details</h2>
+
+<h3>CEDA-CC-NEW</h3>
+
+<a href="/static/test.txt"> Help </a>
+{% load static %}
+<a href="{% static "test.txt" %}"> My file </a>
+
+<table class="table table-hover">
+<thead> <tr> <th>Error type</th> <th>Error Message</th>  </thead>
+<tbody>
+
+    {% for qcerr in qc_errors %}
+
+    <tr> <th scope=row> {{ qcerr.error_type }} </th> <td>{{ qcerr.error_msg }}</td> </tr>
+
     {% endfor %}
 
+</tbody>
 
+</table>
 
-<h2>Climate and Forecast convention compliance</h2>
-<h3>CF-Checker report</h3>
-
-    {% for qc in cf_qc %}
-        {% for err in qc.qcerror_set.all %}
-           <p> {{ err.qc_error }} </p>
-        {% endfor %}
-    {% endfor %}
-
-
+<h3>CF-Checker</h3>
 
 {% endblock %}
