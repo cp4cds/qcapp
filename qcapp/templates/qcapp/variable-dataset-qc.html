@@ -1,0 +1,42 @@
+<br>
+<br>
+{% extends 'qcapp/base.html' %}
+
+{% block contents %}
+
+
+<table class="table table-hover">
+
+<thead> <tr>
+    {% for facet in facets %}
+
+    <th>{{facet|capfirst}}</th>
+    {% endfor %}
+</thead>
+<tbody>
+
+<tr>
+    {% for facet, values in facets.iteritems %}
+    <td>
+        <select id={{facet}}>
+            <option selected disabled>Choose one</option>
+            <option value="all">ALL</option>
+            {% for item in values %}
+                <option value={{item}}>{{item}}</option>
+            {% endfor %}
+        </select>
+    </td>
+    {% endfor %}
+</tr>
+
+</tbody>
+
+</table>
+
+{% for file in error_files %}
+{{ file }} <a href="http://127.0.0.1:8000/file-qc/{{file}}">/a/b/c/d/{{file}}</a> <BR>
+{% endfor %}
+
+
+
+{% endblock %}

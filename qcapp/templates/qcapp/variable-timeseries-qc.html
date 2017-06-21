@@ -1,21 +1,19 @@
-
 <br>
 <br>
-
 {% extends 'qcapp/base.html' %}
 
 {% block contents %}
 
-<h2>QC summary</h2>
-
-
 <table class="table table-hover">
-<thead> <tr> <th>QC</th> <th>Number of errors</th>  </thead>
+<thead>
+    <tr> <th>QC </th> <th>Total Number of errors </th> <th>Number of CEDA-CC errors </th> <th>Number of CF errors </th>
+</thead>
 <tbody>
 
-    <tr> <th scope=row> Global errors </th> <td>{{ qc_errs.global }}</td> </tr>
-    <tr> <th scope=row> Variable errors </th> <td>{{ qc_errs.variable }}</td> </tr>
-    <tr> <th scope=row> Other errors </th> <td>{{ qc_errs.other }}</td> </tr>
+    <tr> <th scope=row> Timeseries completeness </th>  </tr>
+    <tr> <th scope=row> Global errors </th> </tr>
+    <tr> <th scope=row> Variable errors </th> </tr>
+    <tr> <th scope=row> Other errors </th> <td></td> <td></td> <td></td> </tr>
 
 
 </tbody>
@@ -23,25 +21,22 @@
 </table>
 <HR/>
 
-<h2>Details</h2>
-
-<h3>CEDA-CC</h3>
-<a href={{ filepath }}> CEDA-CC FILE </a>
 
 <table class="table table-hover">
-<thead> <tr> <th>Error type</th> <th>Error Message</th>  </thead>
+<thead>
+    <tr> <th>File </th> <th>Global errors </th> <th>Variable errors </th> <th>Other errors </th>
+</thead>
 <tbody>
 
-    {% for qcerr in qc_errors %}
-
-    <tr> <th scope=row> {{ qcerr.error_type }} </th> <td>{{ qcerr.error_msg }}</td> </tr>
-
-    {% endfor %}
+{% for file, errs in timeseries_datafile_errors.iteritems %}
+<tr> <th scope=row> <a href="http://127.0.0.1:8000/file-qc/{{file}}">{{file}}</a> </th>
+        <td> {{ errs.global }} </td> <td> {{ errs.variable }} </td> <td> {{ errs.other }} </td>
+</tr>
+{% endfor %}
 
 </tbody>
 
 </table>
 
-<h3>CF-Checker</h3>
 
 {% endblock %}

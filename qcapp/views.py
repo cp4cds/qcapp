@@ -117,7 +117,7 @@ def var_qcplot(request, variable):
 #                  {'page_title': title, 'qc_errs': qc_errs, 'filepath': filepath, 'qc_errors': qc_errors})
 
 
-def dataset_qc(request, variable):
+def variable_dataset_qc(request, variable):
 
 
     title = "Dataset QC: %s" % variable
@@ -129,20 +129,50 @@ def dataset_qc(request, variable):
     facets['tables'] = list(Dataset.objects.values_list('cmor_table').distinct())
     facets['ensembles'] = list(Dataset.objects.values_list('ensemble').distinct())
 
-    return render(request, 'qcapp/dataset-qc.html',
-                  {'page_title': title, 'facets': facets})
+    error_files = ["zg_Amon_MPI-ESM-LR_rcp85_r1i1p1_220001-220912.nc",
+                   "zg_Amon_MPI-ESM-LR_piControl_r1i1p1_230001-230912.nc"]
+    return render(request, 'qcapp/variable-dataset-qc.html',
+                  {'page_title': title, 'facets': facets, 'error_files': error_files})
 
 
-def file_qc(request, version, ncfile):
+def get_total_qc_errors(qcfile):
+    files = DataFile.objects.filter(ncfile=qcfile)
+    if files > 1:
+        "ERROR"
 
-    files = DataFile.objects.filter(ncfile=ncfile, dataset__version=version)
     file = files.first()
     qc_errors = file.qcerror_set.all()
+    errors = {}
+    errors['global'] = qc_errors.filter(error_type='global').count()
+    errors['variable'] = qc_errors.filter(error_type='variable').count()
+    errors['other'] = qc_errors.filter(error_type='other').count()
 
-    global_errs = qc_errors.filter(error_type='global')
-    var_errs = qc_errors.filter(error_type='variable')
-    other_errs = qc_errors.filter(error_type='other')
-    qc_error_counts = {'global': global_errs.count(), 'variable': var_errs.count(), 'other': other_errs.count()}
+    return errors
+
+def file_qc(request, ncfile):
+
+#    files = DataFile.objects.filter(ncfile=ncfile, dataset__version=version)
+    files = DataFile.objects.filter(ncfile=ncfile)
+    file = files.first()
+    qc_errors = file.qcerror_set.all()
+    qc_cf_errors = file.qcerror_set.filter(check_type='CF')
+    qc_cedacc_errors = file.qcerror_set.filter(check_type='CEDA-CC')
+
+    global_cf_errs = qc_cf_errors.filter(error_type='global')
+    var_cf_errs = qc_cf_errors.filter(error_type='variable')
+    other_cf_errs = qc_cf_errors.filter(error_type='other')
+
+    global_cedacc_errs = qc_cedacc_errors.filter(error_type='global')
+    var_cedacc_errs = qc_cedacc_errors.filter(error_type='variable')
+    other_cedacc_errs = qc_cedacc_errors.filter(error_type='other')
+
+    global_total_errs = qc_errors.filter(error_type='global')
+    var_total_errs = qc_errors.filter(error_type='variable')
+    other_total_errs = qc_errors.filter(error_type='other')
+
+    qc_error_counts = {'cf_global': global_cf_errs.count(), 'cf_variable': var_cf_errs.count(), 'cf_other': other_cf_errs.count(),
+                       'cedacc_global': global_cedacc_errs.count(), 'cedacc_variable': var_cedacc_errs.count(), 'cedacc_other': other_cedacc_errs.count(),
+                       'global': global_total_errs.count(), 'variable': var_total_errs.count(), 'other': other_total_errs.count()}
 
     #    filepath = os.path.join( "/group_workspaces/jasmin/cp4cds1/qc/QCchecks/CEDACC-OUTPUT/LASG-CESS/FGOALS-g2/historical/Amon/v1/",
     #                             qc_errors.first().report_filepath)
@@ -155,19 +185,29 @@ def file_qc(request, version, ncfile):
     filename = os.path.basename(file.archive_path)
 
     return render(request, 'qcapp/file-qc.html', {'page_title': title, 'dataset_id': dataset_id, 'filename': filename,
-                                                  'qc_errors': qc_errors, 'qc_error_counts': qc_error_counts})
+                                                  'qc_cf_errors': qc_cf_errors, 'qc_cedacc_errors': qc_cedacc_errors,
+                                                  'qc_error_counts': qc_error_counts})
 
 
 def variable_timeseries_qc(request):
 
-    timeseries_datafiles = {}
-    for dataset in Dataset.objects.all():
-        timeseries_datafiles[Dataset.dataset_id] = dataset.datafile_set.filter(variable='tas', timeseries=True)
-
     title = "Variable timeseries QC information"
 
+    ncfile = 'zg_Amon_HadGEM2-ES_historical_r1i1p1_185912-188411.nc'
+    var, table, model, expt, ens = ncfile.split('_')[:-1]
+    timeseries_datafile_errors = {}
+
+    for datafile in DataFile.objects.filter(dataset__variable=var, dataset__cmor_table=table, dataset__model=model,
+                                            dataset__experiment=expt, dataset__ensemble=ens, timeseries=True):
+        timeseries_datafile_errors[datafile.ncfile] = get_total_qc_errors(datafile.ncfile)
+
+    #for f in timeseries_datafile_errors:
+    #    for k, e in timeseries_datafile_errors[f].iteritems():
+    # calculate sum totals.
+
+    print timeseries_datafile_errors
     return render(request, 'qcapp/variable-timeseries-qc.html',
-                  {'page_title': title, 'timeseries_datafiles': timeseries_datafiles})
+                  {'page_title': title, 'timeseries_datafile_errors': timeseries_datafile_errors})
 
 
 
