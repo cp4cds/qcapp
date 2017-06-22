@@ -27,6 +27,16 @@ import commands
 
 
 
+def qc_list_test():
+
+    for dataset in Dataset.objects.all():
+        datafiles = dataset.datafile_set.all()
+        for dfile in datafiles:
+            qc_errors = dfile.qcerror_set.all()
+            for error in qc_errors:
+                path = error.file.archive_path
+                file = error.file.ncfile
+
 
 def add_ncfilename():
 
@@ -299,4 +309,5 @@ for var in ocean:
 
 if __name__ == '__main__':
 
-    add_ncfilename()
+    #add_ncfilename()
+    qc_list_test()

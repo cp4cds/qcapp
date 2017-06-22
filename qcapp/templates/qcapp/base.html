@@ -10,6 +10,9 @@
 
     <title>{{ page_title}}</title>
 
+    {% block extrahead %}
+    {% endblock %}
+
 </head>
 <body>
     <nav class="navbar navbar-inverse navbar-fixed-top">
@@ -50,8 +53,9 @@
     </nav>
 
     <div class="container-fluid">
+        {% block title %}
         <H1>{{ page_title|linebreaks }}</H1>
-
+        {% endblock %}
         {% block contents %}
 
         {% endblock %}

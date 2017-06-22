@@ -1,6 +1,19 @@
 <br>
 <br>
 {% extends 'qcapp/base.html' %}
+{% load static %}
+
+{% block extrahead %}{{ block.super }}
+     <script
+  src="https://code.jquery.com/jquery-3.2.1.min.js"
+  integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+  crossorigin="anonymous"></script>
+
+{% endblock %}
+
+{% block title %}
+<h1>Dataset QC: {{page_title}}</h1>
+{% endblock %}
 
 {% block contents %}
 
@@ -18,9 +31,8 @@
 <tr>
     {% for facet, values in facets.iteritems %}
     <td>
-        <select id={{facet}}>
-            <option selected disabled>Choose one</option>
-            <option value="all">All</option>
+        <select class="facet-filter" id={{facet}}>
+            <option value="All">All</option>
             {% for item in values %}
                 <option value={{item}}>{{item}}</option>
             {% endfor %}
@@ -33,10 +45,58 @@
 
 </table>
 
-{% for file in error_files %}
-<a href="http://127.0.0.1:8000/variable-timeseries-qc/{{file}}">{{file}}</a> <BR>
-{% endfor %}
+<form action="{% url 'variable-dataset-qc' page_title %}" method="post">
+    {% csrf_token %}
+    <input value="JUST DO IT" type="submit" class="btn btn-success" id="file_qc_list">
+</form>
+<h2>Files with QC errors</h2>
+
+    {% for error in errors %}
+            <a href="http://127.0.0.1:8000/variable-file-qc/{{error.file.ncfile}}">{{error.file.ncfile}}</a> <BR>
+    {% endfor %}
+
+    <script>
+        $('.facet-filter').change(function () {
+            var institute = $('#institutes').val()
+            var model = $('#models').val()
+            var experiment = $('#experiments').val()
+            var frequency = $('#frequencies').val()
+            var realm = $('#realms').val()
+            var table = $('#tables').val()
+            var ensemble =  $('#ensembles').val()
+            var target = "/facet-filter/" + institute + '/' + model + '/' + experiment + '/' + frequency + '/' +
+                        realm + '/' + table + '/' + ensemble
+            $.get(target, function (data) {
+                console.log(JSON.stringify(data))
+            })
+        })
 
 
+//        $('#file_qc_list').click(function () {
+//            var target = "/file-qc-list/"
+//            $.get(target, function (data) {
+//                for (i=0; i is <data.length; i++){};
+//
+//            })
+//        })
+
+
+        //    $('#models').change(function () {
+//        var val = $(this).val()
+//    })
+//    $('#frequencies').change(function () {
+//        var val = $(this).val()
+//    })
+//    $('#realms').change(function () {
+//        var val = $(this).val()
+//    })
+//    $('#tables').change(function () {
+//        var val = $(this).val()
+//    })
+//    $('#ensembles').change(function () {
+//        var val = $(this).val()
+//    })
+
+    </script>
 
 {% endblock %}

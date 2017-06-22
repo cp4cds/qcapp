@@ -178,6 +178,18 @@ def sum_timeseries_qc_errors(ts):
 
     return total_errors
 
+def get_list_of_qc_files():
+
+    for dataset in Dataset.objects.all():
+        datafiles = dataset.datafile_set.all()
+        for dfile in datafiles:
+            qc_errors = dfile.qcerror_set.all()
+            for error in qc_errors:
+                path = error.file.archive_path
+                file = error.file.ncfile
+
+
+
 if __name__ == '__main__':
     # These constraints will in time be loaded in via csv for multiple projects.
     project = 'CMIP5'

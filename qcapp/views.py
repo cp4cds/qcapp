@@ -40,23 +40,30 @@ def variable_summary_qc(request):
 def variable_dataset_qc(request, variable):
 
 
-    title = "Dataset QC: %s" % variable
+    title = variable
     facets = collections.OrderedDict()
     facets['institutes'] = [str(x[0]).strip() for x in Dataset.objects.values_list('institute').distinct()]
     facets['models'] = [str(x[0]).strip() for x in Dataset.objects.values_list('model').distinct()]
+    facets['experiments'] = [str(x[0]).strip() for x in Dataset.objects.values_list('experiment').distinct()]
     facets['frequencies'] = [str(x[0]).strip() for x in Dataset.objects.values_list('frequency').distinct()]
     facets['realms'] = [str(x[0]).strip() for x in Dataset.objects.values_list('realm').distinct()]
     facets['tables'] = [str(x[0]).strip() for x in Dataset.objects.values_list('cmor_table').distinct()]
     facets['ensembles'] = [str(x[0]).strip() for x in Dataset.objects.values_list('ensemble').distinct()]
 
+    errors = []
+    if request.POST:
+        for ds in Dataset.objects.filter(variable=variable):
+            for df in ds.datafile_set.all():
+                for error in df.qcerror_set.all().exclude(error_msg__contains="ERROR (4)"):
+                    errors.append(error)
 
 
-    error_files = ["zg_Amon_MPI-ESM-LR_rcp85_r1i1p1_220001-220912.nc",
-                   "zg_Amon_MPI-ESM-LR_piControl_r1i1p1_230001-230912.nc",
-                   "tsice_OImon_inmcm4_historical_r1i1p1_185001-200512.nc",
-                   "zos_Omon_ACCESS1-3_rcp45_r1i1p1_200601-210012.nc"]
+#    error_files = ["zg_Amon_MPI-ESM-LR_rcp85_r1i1p1_220001-220912.nc",
+#                   "zg_Amon_MPI-ESM-LR_piControl_r1i1p1_230001-230912.nc",
+#                   "tsice_OImon_inmcm4_historical_r1i1p1_185001-200512.nc",
+#                   "zos_Omon_ACCESS1-3_rcp45_r1i1p1_200601-210012.nc"]
     return render(request, 'qcapp/variable-dataset-qc.html',
-                  {'page_title': title, 'facets': facets, 'error_files': error_files})
+                  {'page_title': title, 'facets': facets, 'errors': errors})
 
 
 def get_total_qc_errors(qcfile):
@@ -173,3 +180,43 @@ def variable_timeseries_qc(request):
                        'qc_error_counts': qc_error_counts})
 
 
+def facet_filter(request, institutes, models, experiments, frequencies, realms, tables, ensembles):
+
+    if request.is_ajax():
+        print institutes, models, experiments, frequencies, realms, tables, ensembles
+        facets = collections.OrderedDict()
+
+
+        all_facets = Dataset.objects.all()
+        if institutes != 'All':
+            all_facets.filter(institute=institutes)
+        if models != 'All':
+            all_facets.filter(model=models)
+        if experiments != 'All':
+            all_facets.filter(experiment=experiments)
+        if frequencies != 'All':
+            all_facets.filter(frequency=frequencies)
+        if realms != 'All':
+            all_facets.filter(realm=realms)
+        if tables != 'All':
+            all_facets.filter(cmor_table=tables)
+        if ensembles != 'All':
+            all_facets.filter(ensemble=ensembles)
+        # THIS IS NOT BEHAVING
+        print all_facets.values('realm')
+
+        facets['institutes'] = [str(x[0]).strip()
+                                for x in all_facets.values_list('institute')]
+        facets['models'] = [str(x[0]).strip()
+                                for x in all_facets.values_list('model')]
+        facets['frequencies'] = [str(x[0]).strip()
+                                for x in all_facets.values_list('frequency')]
+        facets['realms'] = [str(x[0]).strip()
+                                for x in all_facets.values_list('realm')]
+        facets['tables'] = [str(x[0]).strip()
+                                for x in all_facets.values_list('cmor_table')]
+        facets['ensembles'] = [str(x[0]).strip()
+                                for x in all_facets.values_list('ensemble')]
+        filtered_data = json.dumps(facets)
+        print filtered_data#
+        return HttpResponse(filtered_data, content_type='application/json')
