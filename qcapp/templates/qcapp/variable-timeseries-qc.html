@@ -6,14 +6,14 @@
 
 <table class="table table-hover">
 <thead>
-    <tr> <th>QC </th> <th>Total Number of errors </th> <th>Number of CEDA-CC errors </th> <th>Number of CF errors </th>
+    <tr> <th> </th> <th>Total Number of errors </th>
 </thead>
 <tbody>
 
     <tr> <th scope=row> Timeseries completeness </th>  </tr>
-    <tr> <th scope=row> Global errors </th> </tr>
-    <tr> <th scope=row> Variable errors </th> </tr>
-    <tr> <th scope=row> Other errors </th> <td></td> <td></td> <td></td> </tr>
+    <tr> <th scope=row> Global errors </th>  <td> {{ total_errors.global }} </td> </tr>
+    <tr> <th scope=row> Variable errors </th>  <td> {{ total_errors.variable }} </td> </tr>
+    <tr> <th scope=row> Other errors </th> <td>{{ total_errors.other }}</td>  </tr>
 
 
 </tbody>
@@ -28,7 +28,7 @@
 </thead>
 <tbody>
 
-{% for file, errs in timeseries_datafile_errors.iteritems %}
+{% for file, errs in timeseries_df_errors.iteritems %}
 <tr> <th scope=row> <a href="http://127.0.0.1:8000/file-qc/{{file}}">{{file}}</a> </th>
         <td> {{ errs.global }} </td> <td> {{ errs.variable }} </td> <td> {{ errs.other }} </td>
 </tr>

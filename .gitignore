@@ -2,6 +2,7 @@ qcproj/settings_local.py
 *.pyc
 amapDraft.txt
 *.log
+OUTPUT-LOGS/
 
 db.sqlite*
 cccc*

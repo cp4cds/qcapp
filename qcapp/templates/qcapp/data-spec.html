@@ -31,7 +31,7 @@
 
     {% for var in dataSpec %}
 
-    <tr> <th scope=row>{{ var.variable }}</th> <td>{{ var.variable_long_name }}</td> <td>{{ var.cmor_table }}</td>
+    <tr> <th scope=row><a href="http://127.0.0.1:8000/variable-dataset-qc/{{var.variable}}">{{var.variable}}</a> </th> <td>{{ var.variable_long_name }}</td> <td>{{ var.cmor_table }}</td>
         <td>{{ var.frequency }}</td> <td>{{ var.number_of_models }}</td> <td>{{ var.data_volume|floatformat:2 }}</td>
     </tr>
 

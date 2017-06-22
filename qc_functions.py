@@ -146,6 +146,38 @@ def read_qc_results(project):
                 read_cf_files(d_file, qcfile)
 
 
+def get_total_qc_errors(qcfile):
+    files = DataFile.objects.filter(ncfile=qcfile)
+    if files > 1:
+        "ERROR"
+
+    file = files.first()
+    qc_errors = file.qcerror_set.all()
+    errors = {}
+    errors['global'] = qc_errors.filter(error_type='global').count()
+    errors['variable'] = qc_errors.filter(error_type='variable').count()
+    errors['other'] = qc_errors.filter(error_type='other').count()
+
+    return errors
+
+def sum_timeseries_qc_errors(ts):
+    """
+    Input is of the format of a dictionary of dictonary e.g.
+    {'filename': {'global': 0, 'variable': 1, 'other', 1}}
+    :param ts: 
+    :return: 
+    """
+
+    total_errors = {'global': 0, 'variable': 0, 'other': 0}
+    for file, errs in ts.iteritems():
+        total_errors['global'] += errs['global']
+    for file, errs in ts.iteritems():
+        total_errors['variable'] += errs['variable']
+    for file, errs in ts.iteritems():
+        total_errors['other'] += errs['other']
+
+    return total_errors
+
 if __name__ == '__main__':
     # These constraints will in time be loaded in via csv for multiple projects.
     project = 'CMIP5'
