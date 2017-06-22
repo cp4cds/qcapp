@@ -8,7 +8,7 @@ from esgf_search_functions import *
 from qc_functions import *
 from timeseries_and_md5s import *
 
-import os, collections
+import os, collections, json
 
 
 def documentation(request):
@@ -42,12 +42,14 @@ def variable_dataset_qc(request, variable):
 
     title = "Dataset QC: %s" % variable
     facets = collections.OrderedDict()
-    facets['institutes'] = list(Dataset.objects.values_list('institute').distinct())
-    facets['models'] = list(Dataset.objects.values_list('model').distinct())
-    facets['frequencies'] = list(Dataset.objects.values_list('frequency').distinct())
-    facets['realms'] = list(Dataset.objects.values_list('realm').distinct())
-    facets['tables'] = list(Dataset.objects.values_list('cmor_table').distinct())
-    facets['ensembles'] = list(Dataset.objects.values_list('ensemble').distinct())
+    facets['institutes'] = [str(x[0]).strip() for x in Dataset.objects.values_list('institute').distinct()]
+    facets['models'] = [str(x[0]).strip() for x in Dataset.objects.values_list('model').distinct()]
+    facets['frequencies'] = [str(x[0]).strip() for x in Dataset.objects.values_list('frequency').distinct()]
+    facets['realms'] = [str(x[0]).strip() for x in Dataset.objects.values_list('realm').distinct()]
+    facets['tables'] = [str(x[0]).strip() for x in Dataset.objects.values_list('cmor_table').distinct()]
+    facets['ensembles'] = [str(x[0]).strip() for x in Dataset.objects.values_list('ensemble').distinct()]
+
+
 
     error_files = ["zg_Amon_MPI-ESM-LR_rcp85_r1i1p1_220001-220912.nc",
                    "zg_Amon_MPI-ESM-LR_piControl_r1i1p1_230001-230912.nc",
@@ -116,7 +118,7 @@ def variable_timeseries_qc(request):
     title = "Variable timeseries QC information"
 
     ncfile = 'tos_Omon_GFDL-ESM2M_rcp45_r1i1p1_201601-202012.nc'
-    ncfile = 'tsice_OImon_inmcm4_historical_r1i1p1_185001-200512.nc'
+#    ncfile = 'tsice_OImon_inmcm4_historical_r1i1p1_185001-200512.nc'
 #    ncfile = 'zos_Omon_ACCESS1-3_rcp45_r1i1p1_200601-210012.nc'
     var, table, model, expt, ens = ncfile.split('_')[:-1]
     timeseries_df_errors = {}
