@@ -29,7 +29,7 @@
 <tbody>
 
 {% for file, errs in timeseries_df_errors.iteritems %}
-<tr> <th scope=row> <a href="http://127.0.0.1:8000/file-qc/{{file}}">{{file}}</a> </th>
+<tr> <th scope=row> <a href="http://127.0.0.1:8000/variable-file-qc/{{file}}">{{file}}</a> </th>
         <td> {{ errs.global }} </td> <td> {{ errs.variable }} </td> <td> {{ errs.other }} </td>
 </tr>
 {% endfor %}

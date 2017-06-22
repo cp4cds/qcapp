@@ -1,0 +1,28 @@
+<br>
+<br>
+
+
+
+{% extends 'qcapp/base.html' %}
+
+{% block contents %}
+
+<table class="table table-hover">
+<thead> <tr> <th>Variable</th> <th>Long Name</th> <th>CMOR table</th> <th>Frequency</th> <th>QC score</th> </thead>
+<tbody>
+
+    {% for var in dataSpec %}
+
+    <tr> <th scope=row><a href="http://127.0.0.1:8000/variable-dataset-qc/{{var.variable}}">{{var.variable}}</a>
+        </th> <td>{{ var.variable_long_name }}</td> <td>{{ var.cmor_table }}</td>
+        <td>{{ var.frequency }}</td> <td></td>
+    </tr>
+
+    {% endfor %}
+
+</tbody>
+
+</table>
+
+
+{% endblock %}

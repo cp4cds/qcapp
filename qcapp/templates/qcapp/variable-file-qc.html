@@ -1,0 +1,59 @@
+<br>
+<br>
+{% extends 'qcapp/base.html' %}
+
+{% block contents %}
+
+<h4>Dataset: {{ dataset_id }} </h4>
+<h4>File: {{ filename }} </h4>
+
+<table class="table table-hover">
+<thead>
+    <tr> <th>QC</th> <th>Total Number of errors</th> <th>Number of CEDA-CC errors (<a href="https://test/a.txt"> Full report </a>) </th> <th>Number of CF errors (<a href="https://static/a.txt"> Full report </a>)</th>
+</thead>
+<tbody>
+
+    <tr> <th scope=row> Global errors </th> <td>{{ qc_error_counts.global }}</td> <td>{{ qc_error_counts.cedacc_global }}</td> <td>{{ qc_error_counts.cf_global }}</td> </tr>
+    <tr> <th scope=row> Variable errors </th> <td>{{ qc_error_counts.variable }}</td> <td>{{ qc_error_counts.cedacc_variable }}</td> <td>{{ qc_error_counts.cf_variable }}</td> </tr>
+    <tr> <th scope=row> Other errors </th> <td>{{ qc_error_counts.other }}</td> <td>{{ qc_error_counts.cedacc_other }}</td> <td>{{ qc_error_counts.cf_other }}</td> </tr>
+
+
+</tbody>
+
+</table>
+<HR/>
+
+<h3>CEDA-CC:</h3>
+
+<table class="table table-hover">
+<thead> <tr> <th>Error type</th> <th>Error Message</th>  </thead>
+<tbody>
+
+    {% for err in qc_cedacc_errors %}
+
+    <tr> <th scope=row> {{ err.error_type }} </th> <td>{{ err.error_msg }}</td> </tr>
+
+    {% endfor %}
+
+</tbody>
+
+</table>
+
+<h3>CF-Checker:</h3>
+
+<table class="table table-hover">
+<thead> <tr> <th>Error type</th> <th>Error Message</th>  </thead>
+<tbody>
+
+    {% for err in qc_cf_errors %}
+
+    <tr> <th scope=row> {{ err.error_type }} </th> <td>{{ err.error_msg }}</td> </tr>
+
+    {% endfor %}
+
+</tbody>
+
+</table>
+
+
+{% endblock %}
