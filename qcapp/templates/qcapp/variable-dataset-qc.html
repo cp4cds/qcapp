@@ -52,7 +52,7 @@
 <h2>Files with QC errors</h2>
 
     {% for error in errors %}
-            <a href="http://127.0.0.1:8000/variable-file-qc/{{error.file.ncfile}}">{{error.file.ncfile}}</a> <BR>
+            <a href="http://127.0.0.1:8000/variable-qc/{{error.file.ncfile}}">{{error.file.ncfile}}</a> <BR>
     {% endfor %}
 
     <script>
