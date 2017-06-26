@@ -160,23 +160,30 @@ def get_total_qc_errors(qcfile):
 
     return errors
 
-def sum_timeseries_qc_errors(ts):
+def max_timeseries_qc_errors(ts):
     """
     Input is of the format of a dictionary of dictonary e.g.
     {'filename': {'global': 0, 'variable': 1, 'other', 1}}
-    :param ts: 
-    :return: 
+    :param ts:
+    :return:
     """
 
-    total_errors = {'global': 0, 'variable': 0, 'other': 0}
+    max_errors = {'global': 0, 'variable': 0, 'other': 0}
+    gerrs = []
+    verrs = []
+    oerrs = []
     for file, errs in ts.iteritems():
-        total_errors['global'] += errs['global']
+        gerrs.append(errs['global'])
+    max_errors['global'] = max(gerrs)
     for file, errs in ts.iteritems():
-        total_errors['variable'] += errs['variable']
+        verrs.append(errs['variable'])
+    max_errors['variable'] = max(verrs)
     for file, errs in ts.iteritems():
-        total_errors['other'] += errs['other']
+        oerrs.append(errs['other'])
+    max_errors['other'] = max(oerrs)
 
-    return total_errors
+    return max_errors
+
 
 def get_list_of_qc_files():
 

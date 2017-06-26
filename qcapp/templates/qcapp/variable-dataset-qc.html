@@ -51,9 +51,29 @@
 </form>
 <h2>Files with QC errors</h2>
 
+
+<table class="table table-hover">
+<thead>
+ <tr> <th>File</th> <th>Max global errors</th> <th>Max variable errors</th> <th>Max other errors</th> </tr>
+</thead>
+<tbody>
+
     {% for error in errors %}
-            <a href="http://127.0.0.1:8000/variable-qc/{{error.file.ncfile}}">{{error.file.ncfile}}</a> <BR>
+       <tr>
+           <th><a href="http://127.0.0.1:8000/variable-qc/{{error.file.ncfile}}">{{error.file.ncfile}}</a></th>
+           <th></th><th></th><th></th>
+        <!--{% for err in max_errors %}-->
+           <!--<th></th> {{ err.global }} <th> {{ err.variable }} </th> {{ err.other }} <th></th>-->
+        <!--{% endfor %}-->
+       </tr>
     {% endfor %}
+
+</tbody>
+
+</table>
+
+
+
 
     <script>
         $('.facet-filter').change(function () {

@@ -10,6 +10,7 @@ from timeseries_and_md5s import *
 
 import os, collections, json
 
+GWSDIR = "qcapp/cp4cds_gws_qc/"
 
 def documentation(request):
 
@@ -51,17 +52,30 @@ def variable_dataset_qc(request, variable):
     facets['ensembles'] = [str(x[0]).strip() for x in Dataset.objects.values_list('ensemble').distinct()]
 
     errors = []
+    timeseries_df_errors = {}
+    max_errors = {}
     if request.POST:
         for ds in Dataset.objects.filter(variable=variable):
             for df in ds.datafile_set.all():
+                # ncfile = df.ncfile
+                # errors.append(ncfile)
+                # var, table, model, expt, ens = ncfile.split('_')[:-1]
+                # for datafile in DataFile.objects.filter(dataset__variable=var, dataset__cmor_table=table,
+                #                                         dataset__model=model,
+                #                                         dataset__experiment=expt, dataset__ensemble=ens,
+                #                                         timeseries=True):
+                #     timeseries_df_errors[datafile.ncfile] = get_total_qc_errors(datafile.ncfile)
+                #     max_errors = max_timeseries_qc_errors(timeseries_df_errors)
+                #     print max_errors
                 for error in df.qcerror_set.all().exclude(error_msg__contains="ERROR (4)"):
-                    errors.append(error)
+                 errors.append(error)
 
 
-#    error_files = ["zg_Amon_MPI-ESM-LR_rcp85_r1i1p1_220001-220912.nc",
-#                   "zg_Amon_MPI-ESM-LR_piControl_r1i1p1_230001-230912.nc",
-#                   "tsice_OImon_inmcm4_historical_r1i1p1_185001-200512.nc",
-#                   "zos_Omon_ACCESS1-3_rcp45_r1i1p1_200601-210012.nc"]
+    print "I'm done"
+    # error_files = ["zg_Amon_MPI-ESM-LR_rcp85_r1i1p1_220001-220912.nc",
+    #                "zg_Amon_MPI-ESM-LR_piControl_r1i1p1_230001-230912.nc",
+    #                "tsice_OImon_inmcm4_historical_r1i1p1_185001-200512.nc",
+    #                "zos_Omon_ACCESS1-3_rcp45_r1i1p1_200601-210012.nc"]
     return render(request, 'qcapp/variable-dataset-qc.html',
                   {'page_title': title, 'facets': facets, 'errors': errors})
 
@@ -75,7 +89,7 @@ def get_total_qc_errors(qcfile):
     qc_errors = file.qcerror_set.all()
     errors = {}
     errors['global'] = qc_errors.filter(error_type='global').count()
-    errors['variable'] = qc_errors.filter(error_type='variable').count()
+    errors['variable'] = qc_errors.filter(error_type='variable').exclude(error_msg__contains="ERROR (4)").count()
     errors['other'] = qc_errors.filter(error_type='other').exclude(error_msg__contains="ERROR (4)").count()
 
     return errors
@@ -93,11 +107,11 @@ def variable_qc(request, ncfile):
         for datafile in DataFile.objects.filter(dataset__variable=var, dataset__cmor_table=table, dataset__model=model,
                                                 dataset__experiment=expt, dataset__ensemble=ens, timeseries=True):
             timeseries_df_errors[datafile.ncfile] = get_total_qc_errors(datafile.ncfile)
-            total_errors = sum_timeseries_qc_errors(timeseries_df_errors)
+            max_errors = max_timeseries_qc_errors(timeseries_df_errors)
 
         return render(request, 'qcapp/variable-timeseries-qc.html',
                       {'page_title': title, 'timeseries_df_errors': timeseries_df_errors,
-                       'total_errors': total_errors})
+                       'max_errors': max_errors})
 
     else:
         print "not timeseries dataset"
@@ -126,13 +140,22 @@ def variable_qc(request, ncfile):
                            'other': other_total_errs.count()}
 
         title = "Variable quality control summary"
-        dataset_id = file.dataset.dataset_id
         filename = os.path.basename(file.archive_path)
+        dataset_id = file.dataset.dataset_id
+        dataset_id = dataset_id.replace('1.0', '1-0').replace('1.3', '1-3').replace('1.1', '1-1').\
+            replace('1.m', '1-m').replace('CM2.1', 'CM2p1')
+        cmip, output, institute, model, expt, freq, realm, table, ens, var, version = dataset_id.split('.')
+
+        version = 'v' + version
+        cf_file = os.path.join(GWSDIR, 'CF-OUTPUT', institute, model, expt, table, version,
+                               ncfile.replace('.nc', '.cf-log.txt'))
+        cc_file = os.path.join(GWSDIR, 'CEDACC-OUTPUT', institute, model, expt, table, version,
+                               ncfile.replace('.nc', '__qclog_20170616.txt'))
 
         return render(request, 'qcapp/variable-file-qc.html',
                       {'page_title': title, 'dataset_id': dataset_id, 'filename': filename,
                        'qc_cf_errors': qc_cf_errors, 'qc_cedacc_errors': qc_cedacc_errors,
-                       'qc_error_counts': qc_error_counts})
+                       'qc_error_counts': qc_error_counts, 'cf_file': cf_file, 'cc_file': cc_file})
 
 
 def variable_file_qc(request, ncfile):
@@ -162,36 +185,37 @@ def variable_file_qc(request, ncfile):
     title = "Variable quality control summary"
     dataset_id = file.dataset.dataset_id
     filename = os.path.basename(file.archive_path)
+    dataset_id = dataset_id.replace('1.0', '1-0').replace('1.3', '1-3').replace('1.1', '1-1').\
+        replace('1.m', '1-m').replace('CM2.1', 'CM2p1')
+    cmip, output, institute, model, expt, freq, realm, table, ens, var, version = dataset_id.split('.')
+
+    version = 'v' + version
+    cf_file = os.path.join(GWSDIR, 'CF-OUTPUT', institute, model, expt, table, version,
+                             ncfile.replace('.nc', '.cf-log.txt'))
+    cc_file = os.path.join(GWSDIR, 'CEDACC-OUTPUT', institute, model, expt, table, version,
+                            ncfile.replace('.nc', '__qclog_20170616.txt'))
 
     return render(request, 'qcapp/variable-file-qc.html', {'page_title': title, 'dataset_id': dataset_id, 'filename': filename,
                                                   'qc_cf_errors': qc_cf_errors, 'qc_cedacc_errors': qc_cedacc_errors,
-                                                  'qc_error_counts': qc_error_counts})
+                                                  'qc_error_counts': qc_error_counts, 'cf_file': cf_file, 'cc_file': cc_file})
+
 
 
 def variable_timeseries_qc(request, ncfile):
 
-    title = "Variable timeseries QC information"
 
+    title = "Variable timeseries QC information"
     var, table, model, expt, ens = ncfile.split('_')[:-1]
     timeseries_df_errors = {}
 
     for datafile in DataFile.objects.filter(dataset__variable=var, dataset__cmor_table=table, dataset__model=model,
                                             dataset__experiment=expt, dataset__ensemble=ens, timeseries=True):
         timeseries_df_errors[datafile.ncfile] = get_total_qc_errors(datafile.ncfile)
-        total_errors = sum_timeseries_qc_errors(timeseries_df_errors)
+        max_errors = max_timeseries_qc_errors(timeseries_df_errors)
 
-        return render(request, 'qcapp/variable-timeseries-qc.html',
-                      {'page_title': title, 'timeseries_df_errors': timeseries_df_errors, 'total_errors': total_errors})
-
-        title = "Variable quality control summary"
-        dataset_id = file.dataset.dataset_id
-        filename = os.path.basename(file.archive_path)
-
-        return render(request, 'qcapp/variable-file-qc.html',
-                      {'page_title': title, 'dataset_id': dataset_id, 'filename': filename,
-                       'qc_cf_errors': qc_cf_errors, 'qc_cedacc_errors': qc_cedacc_errors,
-                       'qc_error_counts': qc_error_counts})
-
+    return render(request, 'qcapp/variable-timeseries-qc.html',
+                  {'page_title': title, 'timeseries_df_errors': timeseries_df_errors,
+                   'max_errors': max_errors})
 
 def facet_filter(request, institutes, models, experiments, frequencies, realms, tables, ensembles):
 

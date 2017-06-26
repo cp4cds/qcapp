@@ -103,5 +103,9 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.10/howto/static-files/
-STATICFILES_DIRS = [os.path.join("/usr/local/cp4cds-app/qcapp/static/", "test")]
+STATICFILES_DIRS = [os.path.join(BASE_DIR, "static"),
+                    os.path.join(BASE_DIR, "static/qcapp"),
+                    os.path.join(BASE_DIR, "static/qcapp/cp4cds_gws_qc/CF-OUTPUT"),
+                    os.path.join(BASE_DIR, "static/qcapp/cp4cds_gws_qc/CEDACC-OUTPUT"),
+                    ]
 STATIC_URL = '/static/'
