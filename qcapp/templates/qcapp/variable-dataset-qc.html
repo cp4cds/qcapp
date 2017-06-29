@@ -54,13 +54,23 @@
 
 <table class="table table-hover">
 <thead>
- <tr> <th>File</th> <th>Max global errors</th> <th>Max variable errors</th> <th>Max other errors</th> </tr>
+ <tr> <th>Dataset</th> <th>Max global errors</th> <th>Max variable errors</th> <th>Max other errors</th> </tr>
 </thead>
 <tbody>
 
-    {% for error in errors %}
+    {% for error in unique_dataset %}
        <tr>
-           <th><a href="http://127.0.0.1:8000/variable-qc/{{error.file.ncfile}}">{{error.file.ncfile}}</a></th>
+           <!--<th><a href="http://127.0.0.1:8000/variable-qc/{{error.file.ncfile}}">-->
+               <!--{{error.file.dataset.institute}} {{error.file.dataset.model}} {{error.file.dataset.experiment}}-->
+               <!--{{error.file.dataset.frequency}} {{error.file.dataset.realm}} {{error.file.dataset.cmor_table}}-->
+               <!--{{error.file.dataset.ensemble}}-->
+                <!--</a>-->
+           <!--</th>-->
+           <th>
+               <a href="http://127.0.0.1:8000/variable-qc/{{error}}">
+               {{ error }}
+               </a>
+           </th>
            <th></th><th></th><th></th>
         <!--{% for err in max_errors %}-->
            <!--<th></th> {{ err.global }} <th> {{ err.variable }} </th> {{ err.other }} <th></th>-->
@@ -77,15 +87,9 @@
 
     <script>
         $('.facet-filter').change(function () {
-            var institute = $('#institutes').val()
             var model = $('#models').val()
             var experiment = $('#experiments').val()
-            var frequency = $('#frequencies').val()
-            var realm = $('#realms').val()
-            var table = $('#tables').val()
-            var ensemble =  $('#ensembles').val()
-            var target = "/facet-filter/" + institute + '/' + model + '/' + experiment + '/' + frequency + '/' +
-                        realm + '/' + table + '/' + ensemble
+            var target = "/facet-filter/" + model + '/' + experiment
             $.get(target, function (data) {
                 console.log(JSON.stringify(data))
             })

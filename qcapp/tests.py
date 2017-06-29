@@ -41,7 +41,8 @@ def qc_set_max_test():
     for datafile in DataFile.objects.filter(dataset__variable=var, dataset__cmor_table=table, dataset__model=model,
                                             dataset__experiment=expt, dataset__ensemble=ens, timeseries=True):
         timeseries_df_errors[datafile.ncfile] = get_total_qc_errors(datafile.ncfile)
-        max_errors = max_timeseries_qc_errors(timeseries_df_errors)
+
+    max_errors = max_timeseries_qc_errors(timeseries_df_errors)
 
     print max_errors
 
@@ -54,31 +55,25 @@ def max_timeseries_qc_errors(ts):
     """
 
     max_errors = {'global': 0, 'variable': 0, 'other': 0}
-    gerrs = []
-    verrs = []
-    oerrs = []
-    for file, errs in ts.iteritems():
-        gerrs.append(errs['global'])
-    max_errors['global'] = max(gerrs)
-    for file, errs in ts.iteritems():
-        verrs.append(errs['variable'])
-    max_errors['variable'] += errs['variable']
-    for file, errs in ts.iteritems():
-        oerrs.append(errs['other'])
-    max_errors['other'] += errs['other']
+
+    for key in ['global', 'variable', 'other']:
+        errors = []
+        for file, errs in ts.iteritems():
+            errors.append(errs[key])
+        max_errors[key] = max(errors)
 
     return max_errors
 
 def get_total_qc_errors(qcfile):
     files = DataFile.objects.filter(ncfile=qcfile)
     if files > 1:
-        "ERROR"
+       raise Exception("Length of files %s must be 1" % qcfile)
 
     file = files.first()
     qc_errors = file.qcerror_set.all()
     errors = {}
     errors['global'] = qc_errors.filter(error_type='global').count()
-    errors['variable'] = qc_errors.filter(error_type='variable').count()
+    errors['variable'] = qc_errors.filter(error_type='variable').exclude(error_msg__contains="ERROR (4)").count()
     errors['other'] = qc_errors.filter(error_type='other').exclude(error_msg__contains="ERROR (4)").count()
 
     return errors

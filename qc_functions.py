@@ -145,21 +145,6 @@ def read_qc_results(project):
 
                 read_cf_files(d_file, qcfile)
 
-
-def get_total_qc_errors(qcfile):
-    files = DataFile.objects.filter(ncfile=qcfile)
-    if files > 1:
-        "ERROR"
-
-    file = files.first()
-    qc_errors = file.qcerror_set.all()
-    errors = {}
-    errors['global'] = qc_errors.filter(error_type='global').count()
-    errors['variable'] = qc_errors.filter(error_type='variable').count()
-    errors['other'] = qc_errors.filter(error_type='other').count()
-
-    return errors
-
 def max_timeseries_qc_errors(ts):
     """
     Input is of the format of a dictionary of dictonary e.g.
@@ -169,20 +154,29 @@ def max_timeseries_qc_errors(ts):
     """
 
     max_errors = {'global': 0, 'variable': 0, 'other': 0}
-    gerrs = []
-    verrs = []
-    oerrs = []
-    for file, errs in ts.iteritems():
-        gerrs.append(errs['global'])
-    max_errors['global'] = max(gerrs)
-    for file, errs in ts.iteritems():
-        verrs.append(errs['variable'])
-    max_errors['variable'] = max(verrs)
-    for file, errs in ts.iteritems():
-        oerrs.append(errs['other'])
-    max_errors['other'] = max(oerrs)
+
+    for key in ['global', 'variable', 'other']:
+        errors = []
+        for file, errs in ts.iteritems():
+            errors.append(errs[key])
+        max_errors[key] = max(errors)
 
     return max_errors
+
+def get_total_qc_errors(qcfile):
+    files = DataFile.objects.filter(ncfile=qcfile)
+    # if files != 1:
+    #    raise Exception("Length of files %s must not be greater than 1, length is %s: " % (qcfile, len(files)))
+
+    file = files.first()
+    qc_errors = file.qcerror_set.all()
+    errors = {}
+    errors['global'] = qc_errors.filter(error_type='global').count()
+    errors['variable'] = qc_errors.filter(error_type='variable').exclude(error_msg__contains="ERROR (4)").count()
+    errors['other'] = qc_errors.filter(error_type='other').exclude(error_msg__contains="ERROR (4)").count()
+
+    return errors
+
 
 
 def get_list_of_qc_files():

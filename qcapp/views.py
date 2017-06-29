@@ -43,17 +43,20 @@ def variable_dataset_qc(request, variable):
 
     title = variable
     facets = collections.OrderedDict()
-    facets['institutes'] = [str(x[0]).strip() for x in Dataset.objects.values_list('institute').distinct()]
     facets['models'] = [str(x[0]).strip() for x in Dataset.objects.values_list('model').distinct()]
     facets['experiments'] = [str(x[0]).strip() for x in Dataset.objects.values_list('experiment').distinct()]
-    facets['frequencies'] = [str(x[0]).strip() for x in Dataset.objects.values_list('frequency').distinct()]
-    facets['realms'] = [str(x[0]).strip() for x in Dataset.objects.values_list('realm').distinct()]
-    facets['tables'] = [str(x[0]).strip() for x in Dataset.objects.values_list('cmor_table').distinct()]
-    facets['ensembles'] = [str(x[0]).strip() for x in Dataset.objects.values_list('ensemble').distinct()]
-
+    # facets['institutes'] = [str(x[0]).strip() for x in Dataset.objects.values_list('institute').distinct()]
+    # facets['frequencies'] = [str(x[0]).strip() for x in Dataset.objects.values_list('frequency').distinct()]
+    # facets['realms'] = [str(x[0]).strip() for x in Dataset.objects.values_list('realm').distinct()]
+    # facets['tables'] = [str(x[0]).strip() for x in Dataset.objects.values_list('cmor_table').distinct()]
+    # facets['ensembles'] = [str(x[0]).strip() for x in Dataset.objects.values_list('ensemble').distinct()]
+    #
     errors = []
+    error_files = {}
     timeseries_df_errors = {}
     max_errors = {}
+    unique_dataset = set()
+    error_info = {}
     if request.POST:
         for ds in Dataset.objects.filter(variable=variable):
             for df in ds.datafile_set.all():
@@ -68,31 +71,49 @@ def variable_dataset_qc(request, variable):
                 #     max_errors = max_timeseries_qc_errors(timeseries_df_errors)
                 #     print max_errors
                 for error in df.qcerror_set.all().exclude(error_msg__contains="ERROR (4)"):
-                 errors.append(error)
+                    ncfile = error.file.ncfile
+                    errors.append(error)
+                    unique_dataset.add('.'.join(ncfile.split('_')[:-1]))
+                    # error_info['.'.join(ncfile.split('_')[:-1])].append(error)
+                    # error_info['.'.join(ncfile.split('_')[:-1])] = errors
+                    # error_files[error.file.ncfile] = errors
+                    # ncfile = error.file.ncfile
+                    # var, table, model, expt, ens = ncfile.split('_')[:-1]
+
+                    # for datafile in DataFile.objects.filter(dataset__variable=var, dataset__cmor_table=table, dataset__model=model,
+                    #                                         dataset__experiment=expt, dataset__ensemble=ens, timeseries=True):
+                    #
+                    #     print datafile.ncfile
+                    #     timeseries_df_errors[datafile.ncfile] = get_total_qc_errors(datafile.ncfile)
+                    #     max_errors = max_timeseries_qc_errors(timeseries_df_errors)
+
+
+    # for dataset in unique_dataset:
+    #     var, table, model, expt, ens = dataset.split('.')
+
+
+
+    # for error in errors:
+    #     ncfile = error.file.ncfile
+        # var, table, model, expt, ens = ncfile.split('_')[:-1]
+        # for datafile in DataFile.objects.filter(dataset__variable=var, dataset__cmor_table=table, dataset__model=model,
+        #                                         dataset__experiment=expt, dataset__ensemble=ens, timeseries=True):
+
+
+            # timeseries_df_errors[datafile.ncfile] = get_total_qc_errors(datafile.ncfile)
+            # max_errors = max_timeseries_qc_errors(timeseries_df_errors)
+
 
 
     print "I'm done"
+    return render(request, 'qcapp/variable-dataset-qc.html',
+                  {'page_title': title, 'facets': facets, 'unique_dataset': unique_dataset})
+
     # error_files = ["zg_Amon_MPI-ESM-LR_rcp85_r1i1p1_220001-220912.nc",
     #                "zg_Amon_MPI-ESM-LR_piControl_r1i1p1_230001-230912.nc",
     #                "tsice_OImon_inmcm4_historical_r1i1p1_185001-200512.nc",
     #                "zos_Omon_ACCESS1-3_rcp45_r1i1p1_200601-210012.nc"]
-    return render(request, 'qcapp/variable-dataset-qc.html',
-                  {'page_title': title, 'facets': facets, 'errors': errors})
 
-
-def get_total_qc_errors(qcfile):
-    files = DataFile.objects.filter(ncfile=qcfile)
-    if files > 1:
-        "ERROR"
-
-    file = files.first()
-    qc_errors = file.qcerror_set.all()
-    errors = {}
-    errors['global'] = qc_errors.filter(error_type='global').count()
-    errors['variable'] = qc_errors.filter(error_type='variable').exclude(error_msg__contains="ERROR (4)").count()
-    errors['other'] = qc_errors.filter(error_type='other').exclude(error_msg__contains="ERROR (4)").count()
-
-    return errors
 
 
 def variable_qc(request, ncfile):
@@ -107,7 +128,7 @@ def variable_qc(request, ncfile):
         for datafile in DataFile.objects.filter(dataset__variable=var, dataset__cmor_table=table, dataset__model=model,
                                                 dataset__experiment=expt, dataset__ensemble=ens, timeseries=True):
             timeseries_df_errors[datafile.ncfile] = get_total_qc_errors(datafile.ncfile)
-            max_errors = max_timeseries_qc_errors(timeseries_df_errors)
+        max_errors = max_timeseries_qc_errors(timeseries_df_errors)
 
         return render(request, 'qcapp/variable-timeseries-qc.html',
                       {'page_title': title, 'timeseries_df_errors': timeseries_df_errors,
@@ -217,43 +238,25 @@ def variable_timeseries_qc(request, ncfile):
                   {'page_title': title, 'timeseries_df_errors': timeseries_df_errors,
                    'max_errors': max_errors})
 
-def facet_filter(request, institutes, models, experiments, frequencies, realms, tables, ensembles):
+# def facet_filter(request, institutes, models, experiments, frequencies, realms, tables, ensembles):
+def facet_filter(request, models, experiments):
 
     if request.is_ajax():
-        print institutes, models, experiments, frequencies, realms, tables, ensembles
+        print models, experiments
         facets = collections.OrderedDict()
 
-
         all_facets = Dataset.objects.all()
-        if institutes != 'All':
-            all_facets.filter(institute=institutes)
         if models != 'All':
             all_facets.filter(model=models)
         if experiments != 'All':
             all_facets.filter(experiment=experiments)
-        if frequencies != 'All':
-            all_facets.filter(frequency=frequencies)
-        if realms != 'All':
-            all_facets.filter(realm=realms)
-        if tables != 'All':
-            all_facets.filter(cmor_table=tables)
-        if ensembles != 'All':
-            all_facets.filter(ensemble=ensembles)
         # THIS IS NOT BEHAVING
         print all_facets.values('realm')
 
-        facets['institutes'] = [str(x[0]).strip()
-                                for x in all_facets.values_list('institute')]
         facets['models'] = [str(x[0]).strip()
                                 for x in all_facets.values_list('model')]
-        facets['frequencies'] = [str(x[0]).strip()
-                                for x in all_facets.values_list('frequency')]
-        facets['realms'] = [str(x[0]).strip()
-                                for x in all_facets.values_list('realm')]
-        facets['tables'] = [str(x[0]).strip()
-                                for x in all_facets.values_list('cmor_table')]
-        facets['ensembles'] = [str(x[0]).strip()
-                                for x in all_facets.values_list('ensemble')]
+        facets['experiments'] = [str(x[0]).strip()
+                                for x in all_facets.values_list('experiment')]
         filtered_data = json.dumps(facets)
         print filtered_data#
         return HttpResponse(filtered_data, content_type='application/json')
