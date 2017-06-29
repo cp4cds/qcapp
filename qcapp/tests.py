@@ -27,6 +27,16 @@ import commands
 
 
 
+def get_valid_models():
+
+    institutes = [str(x[0]).strip() for x in Dataset.objects.values_list('institute').distinct()]
+    valid_models_for_institute = {}
+    for ins in institutes:
+        valid_models_for_institute[ins] = [str(x[0]).strip() for x in  Dataset.objects.filter(institute=ins).values_list('model').distinct()]
+
+    for ins, model in valid_models_for_institute.iteritems():
+         print ins, model
+
 def qc_set_max_test():
 
     ncfile = 'psl_Amon_FGOALS-g2_historical_r2i1p1_190001-190912.nc'
@@ -248,8 +258,8 @@ if __name__ == '__main__':
 
     # add_ncfilename()
     # qc_list_test()
-    qc_set_max_test()
-
+    # qc_set_max_test()
+    get_valid_models()
 
 
 

@@ -17,39 +17,47 @@
 
 {% block contents %}
 
-
-<table class="table table-hover">
-
-<thead> <tr>
-    {% for facet in facets %}
-
-    <th>{{facet|capfirst}}</th>
-    {% endfor %}
-</thead>
-<tbody>
-
-<tr>
-    {% for facet, values in facets.iteritems %}
-    <td>
-        <select class="facet-filter" id={{facet}}>
-            <option value="All">All</option>
-            {% for item in values %}
-                <option value={{item}}>{{item}}</option>
-            {% endfor %}
-        </select>
-    </td>
-    {% endfor %}
-</tr>
-
-</tbody>
-
-</table>
-
 <form action="{% url 'variable-dataset-qc' page_title %}" method="post">
     {% csrf_token %}
-    <input value="JUST DO IT" type="submit" class="btn btn-success" id="file_qc_list">
+
+
+    <table class="table table-hover">
+
+        <thead>
+        <tr>
+            {% for facet in facets %}
+
+            <th>{{facet|capfirst}}</th>
+            {% endfor %}
+        </thead>
+        <tbody>
+
+        <tr>
+            {% for facet, values in facets.iteritems %}
+            <td>
+                <select class="facet-filter" id={{facet}} name="{{facet}}">
+                    <!--somewhere here set the default width using css-->
+                    <option value="All">All</option>
+                    {% for item in values %}
+                    <option value={{item}}>{{item}}</option>
+                    <!--change only {{item}} to display institute+model-->
+                    {% endfor %}
+                </select>
+            </td>
+            {% endfor %}
+        </tr>
+
+        </tbody>
+
+    </table>
+
+    <input value="Get results" type="submit" class="btn btn-success" id="file_qc_list">
+    <button type="button" class="btn btn-info" id="clear_filters"> Reset all filters</button>
 </form>
-<h2>Files with QC errors</h2>
+
+
+
+<h2>Datasets with QC errors  </h2>
 
 
 <table class="table table-hover">
@@ -58,7 +66,7 @@
 </thead>
 <tbody>
 
-    {% for error in unique_dataset %}
+    {% for ds, error in errors.iteritems %}
        <tr>
            <!--<th><a href="http://127.0.0.1:8000/variable-qc/{{error.file.ncfile}}">-->
                <!--{{error.file.dataset.institute}} {{error.file.dataset.model}} {{error.file.dataset.experiment}}-->
@@ -67,8 +75,8 @@
                 <!--</a>-->
            <!--</th>-->
            <th>
-               <a href="http://127.0.0.1:8000/variable-qc/{{error}}">
-               {{ error }}
+               <a href="http://127.0.0.1:8000/variable-qc/{{error.0.file.ncfile}}">
+               {{ ds }}
                </a>
            </th>
            <th></th><th></th><th></th>
@@ -91,35 +99,43 @@
             var experiment = $('#experiments').val()
             var target = "/facet-filter/" + model + '/' + experiment
             $.get(target, function (data) {
-                console.log(JSON.stringify(data))
+                // Handle data from server and populate dropdown menus
+                // Declare vars
+                var i,j
+                var model_list
+                var experiment_list
+
+                // Initialise innerHTML strings for dropdown with All option
+                model_list = "<option value='All'>All</option>"
+                experiment_list = "<option value='All'>All</option>"
+
+                // Loop JSON to build html strings
+                for (i=0; i<data.models.length; i++){
+                    model_list = model_list.concat("<option value=" + data.models[i] + ">" + data.models[i] + "</option>")
+                }
+                for (j=0; j<data.experiments.length; j++){
+                    experiment_list = experiment_list.concat("<option value=" + data.experiments[j] + ">" + data.experiments[j] + "</option>")
+                }
+
+                // Populate selection dropdowns
+                $('#models').html(model_list)
+                $('#experiments').html(experiment_list)
+
+                // Choose selected value
+                $('#models').val(model)
+                $('#experiments').val(experiment)
+
+
             })
         })
 
-
-//        $('#file_qc_list').click(function () {
-//            var target = "/file-qc-list/"
-//            $.get(target, function (data) {
-//                for (i=0; i is <data.length; i++){};
-//
-//            })
-//        })
+        $('#clear_filters').click(function () {
+            $('#models').val('All').trigger('change')
+            $('#experiments').val('All').trigger('change')
+        })
 
 
-        //    $('#models').change(function () {
-//        var val = $(this).val()
-//    })
-//    $('#frequencies').change(function () {
-//        var val = $(this).val()
-//    })
-//    $('#realms').change(function () {
-//        var val = $(this).val()
-//    })
-//    $('#tables').change(function () {
-//        var val = $(this).val()
-//    })
-//    $('#ensembles').change(function () {
-//        var val = $(this).val()
-//    })
+
 
     </script>
 
