@@ -17,7 +17,7 @@
 
 {% block contents %}
 
-<form action="{% url 'variable-dataset-qc' page_title %}" method="post">
+<form action="{% url 'variable-dataset-qc' variable %}" method="post">
     {% csrf_token %}
 
 
@@ -37,11 +37,13 @@
             <td>
                 <select class="facet-filter" id={{facet}} name="{{facet}}">
                     <!--somewhere here set the default width using css-->
+                    <!--NEED TO ONLY DISPLAY BELOW IF NO SELECTION HAS BEEN MADE-->
                     <option value="All">All</option>
+
                     {% for item in values %}
                     <option value={{item}}>{{item}}</option>
-                    <!--change only {{item}} to display institute+model-->
                     {% endfor %}
+
                 </select>
             </td>
             {% endfor %}
@@ -57,8 +59,9 @@
 
 
 
-<h2>Datasets with QC errors  </h2>
+<h2>Datasets with QC errors: {{errors|length}}</h2>
 
+<!--<h3>Model: {{ facets.model }}</h3> <h3>Experiment {{ facets.experiment }}</h3>-->
 
 <table class="table table-hover">
 <thead>
@@ -68,12 +71,6 @@
 
     {% for ds, error in errors.iteritems %}
        <tr>
-           <!--<th><a href="http://127.0.0.1:8000/variable-qc/{{error.file.ncfile}}">-->
-               <!--{{error.file.dataset.institute}} {{error.file.dataset.model}} {{error.file.dataset.experiment}}-->
-               <!--{{error.file.dataset.frequency}} {{error.file.dataset.realm}} {{error.file.dataset.cmor_table}}-->
-               <!--{{error.file.dataset.ensemble}}-->
-                <!--</a>-->
-           <!--</th>-->
            <th>
                <a href="http://127.0.0.1:8000/variable-qc/{{error.0.file.ncfile}}">
                {{ ds }}
@@ -95,8 +92,8 @@
 
     <script>
         $('.facet-filter').change(function () {
-            var model = $('#models').val()
-            var experiment = $('#experiments').val()
+            var model = $('#model').val()
+            var experiment = $('#experiment').val()
             var target = "/facet-filter/" + model + '/' + experiment
             $.get(target, function (data) {
                 // Handle data from server and populate dropdown menus
@@ -106,32 +103,32 @@
                 var experiment_list
 
                 // Initialise innerHTML strings for dropdown with All option
-                model_list = "<option value='All'>All</option>"
-                experiment_list = "<option value='All'>All</option>"
+                model_list = "<option value='All'> All </option>"
+                experiment_list = "<option value='All'> All </option>"
 
                 // Loop JSON to build html strings
-                for (i=0; i<data.models.length; i++){
-                    model_list = model_list.concat("<option value=" + data.models[i] + ">" + data.models[i] + "</option>")
+                for (i=0; i<data.model.length; i++){
+                    model_list = model_list.concat("<option value=" + data.model[i] + ">" + data.model[i] + "</option>")
                 }
-                for (j=0; j<data.experiments.length; j++){
-                    experiment_list = experiment_list.concat("<option value=" + data.experiments[j] + ">" + data.experiments[j] + "</option>")
+                for (j=0; j<data.experiment.length; j++){
+                    experiment_list = experiment_list.concat("<option value=" + data.experiment[j] + ">" + data.experiment[j] + "</option>")
                 }
 
                 // Populate selection dropdowns
-                $('#models').html(model_list)
-                $('#experiments').html(experiment_list)
+                $('#model').html(model_list)
+                $('#experiment').html(experiment_list)
 
                 // Choose selected value
-                $('#models').val(model)
-                $('#experiments').val(experiment)
+                $('#model').val(model)
+                $('#experiment').val(experiment)
 
 
             })
         })
 
         $('#clear_filters').click(function () {
-            $('#models').val('All').trigger('change')
-            $('#experiments').val('All').trigger('change')
+            $('#model').val('All').trigger('change')
+            $('#experiment').val('All').trigger('change')
         })
 
 

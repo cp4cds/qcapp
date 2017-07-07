@@ -11,6 +11,7 @@ from timeseries_and_md5s import *
 import os, collections, json
 
 GWSDIR = "qcapp/cp4cds_gws_qc/"
+FACETS_LIST = ['model', 'experiment']
 
 def documentation(request):
 
@@ -42,12 +43,14 @@ def variable_dataset_qc(request, variable):
 
 
     # PAGE TITLE
-    title = variable
+    title = DataFile.objects.filter(variable=variable).first().variable_long_name
 
     # FACETS FOR FILTERING ON
     facets = collections.OrderedDict()
-    facets['models'] = [str(x[0]).strip() for x in Dataset.objects.values_list('model').distinct()]
-    facets['experiments'] = [str(x[0]).strip() for x in Dataset.objects.values_list('experiment').distinct()]
+
+
+    for f in FACETS_LIST:
+        facets[f] = [str(x[0]).strip() for x in Dataset.objects.values_list(f).distinct()]
     # facets['institutes'] = [str(x[0]).strip() for x in Dataset.objects.values_list('institute').distinct()]
     # facets['frequencies'] = [str(x[0]).strip() for x in Dataset.objects.values_list('frequency').distinct()]
     # facets['realms'] = [str(x[0]).strip() for x in Dataset.objects.values_list('realm').distinct()]
@@ -63,39 +66,43 @@ def variable_dataset_qc(request, variable):
     # SET UP POST REQUEST
     if request.POST:
 
-        # FILTER
-        #
-        # all_facets = Dataset.objects.all()
-        # if request.POST['models'] != 'All':
-        #
-        #     all_facets = all_facets.filter(model=models)
-        # if request.POST['experiments'] != 'All':
-        #     all_facets = all_facets.filter(experiment=experiments)
-        # # THIS IS NOT BEHAVING
-        # facets['models'] = [str(x[0]).strip()
-        #                         for x in all_facets.values_list('model').distinct()]
-        # facets['experiments'] = [str(x[0]).strip()
-        #                         for x in all_facets.values_list('experiment').distinct()]
-
+        all_facets = Dataset.objects.all()
+        if request.POST['model'] != 'All':
+            all_facets = all_facets.filter(model=request.POST['model'])
+        if request.POST['experiment'] != 'All':
+            all_facets = all_facets.filter(experiment=request.POST['experiment'])
+        for f in FACETS_LIST:
+            facets[f] = [str(x[0]).strip() for x in all_facets.values_list(f).distinct()]
 
         get_errors = Dataset.objects.filter(variable=variable)
-        if request.POST['models'] != 'All':
-            get_errors = get_errors.filter(model=request.POST['models'])
-        if request.POST['experiments'] != 'All':
-            get_errors = get_errors.filter(experiment=request.POST['experiments'])
+        if request.POST['model'] != 'All':
+            get_errors = get_errors.filter(model=request.POST['model'])
+        if request.POST['experiment'] != 'All':
+            get_errors = get_errors.filter(experiment=request.POST['experiment'])
 
         for ds in get_errors:
             for df in ds.datafile_set.all():
                 for error in df.qcerror_set.all().exclude(error_msg__contains="ERROR (4)"):
-                    ncfile = error.file.ncfile
-                    if not '.'.join(ncfile.split('_')[:-1]) in errors:
-                        errors['.'.join(ncfile.split('_')[:-1])] = [error]
+
+                    ins = error.file.dataset.institute
+                    model = error.file.dataset.model
+                    expt = error.file.dataset.experiment
+                    freq = error.file.dataset.frequency
+                    realm = error.file.dataset.realm
+                    table = error.file.dataset.cmor_table
+                    ensemble = error.file.dataset.ensemble
+                    ds_id = '    '.join([ins, model, expt, freq, realm, table, ensemble])
+
+                    if not ds_id in errors:
+                        errors[ds_id] = [error]
                     else:
-                        errors['.'.join(ncfile.split('_')[:-1])].append(error)
+                        errors[ds_id].append(error)
 
-
+    print "FACETS"
+    print "---------"
+    print facets
     return render(request, 'qcapp/variable-dataset-qc.html',
-                  {'page_title': title, 'facets': facets, 'errors': errors})
+                  {'page_title': title, 'variable':variable, 'facets': facets, 'errors': errors})
 
 
 def variable_qc(request, ncfile):
@@ -223,23 +230,21 @@ def variable_timeseries_qc(request, ncfile):
                   {'page_title': title, 'timeseries_df_errors': timeseries_df_errors,
                    'max_errors': max_errors})
 
-# def facet_filter(request, institutes, models, experiments, frequencies, realms, tables, ensembles):
+# def facet_filter(request, institutes, model, experiment, frequencies, realms, tables, ensembles):
 
-def facet_filter(request, models, experiments):
+def facet_filter(request, model, experiment):
 
     if request.is_ajax():
         facets = collections.OrderedDict()
 
         all_facets = Dataset.objects.all()
-        if models != 'All':
-            print models
-            all_facets = all_facets.filter(model=models)
-        if experiments != 'All':
-            print experiments
-            all_facets = all_facets.filter(experiment=experiments)
-        facets['models'] = [str(x[0]).strip()
-                            for x in all_facets.values_list('model').distinct()]
-        facets['experiments'] = [str(x[0]).strip()
-                                 for x in all_facets.values_list('experiment').distinct()]
+        if model != 'All':
+            all_facets = all_facets.filter(model=model)
+        if experiment != 'All':
+            all_facets = all_facets.filter(experiment=experiment)
+
+        for f in FACETS_LIST:
+            facets[f] = [str(x[0]).strip() for x in all_facets.values_list(f).distinct()]
+
         filtered_data = json.dumps(facets)
         return HttpResponse(filtered_data, content_type='application/json')
