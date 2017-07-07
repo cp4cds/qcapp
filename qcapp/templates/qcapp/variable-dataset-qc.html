@@ -59,24 +59,24 @@
 
 
 
-<h2>Datasets with QC errors: {{errors|length}}</h2>
+<h2>Datasets with QC errors ( {{errors|length}} )</h2>
 
 <!--<h3>Model: {{ facets.model }}</h3> <h3>Experiment {{ facets.experiment }}</h3>-->
 
 <table class="table table-hover">
 <thead>
- <tr> <th>Dataset</th> <th>Max global errors</th> <th>Max variable errors</th> <th>Max other errors</th> </tr>
+<tr> <th>Dataset</th> <th>No. of files in dataset</th> <th> QC Score </th> <th>Max global errors</th> <th>Max variable errors</th> <th>Max other errors</th> </tr>
 </thead>
 <tbody>
 
     {% for ds, error in errors.iteritems %}
        <tr>
            <th>
-               <a href="http://127.0.0.1:8000/variable-qc/{{error.0.file.ncfile}}">
+               <a href="http://127.0.0.1:8000/variable-qc/{{error.5.file.ncfile}}">
                {{ ds }}
                </a>
            </th>
-           <th></th><th></th><th></th>
+           <th> {{ error.0 }} </th> <th> {{ error.4 }} </th> <th>{{ error.1 }} </th> <th>{{ error.2 }} </th> <th>{{ error.3 }}</th>
         <!--{% for err in max_errors %}-->
            <!--<th></th> {{ err.global }} <th> {{ err.variable }} </th> {{ err.other }} <th></th>-->
         <!--{% endfor %}-->

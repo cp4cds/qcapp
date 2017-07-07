@@ -62,7 +62,7 @@ def variable_dataset_qc(request, variable):
     errors = {}
     timeseries_df_errors = {}
     max_errors = {}
-
+    num_dfs = {}
     # SET UP POST REQUEST
     if request.POST:
 
@@ -82,6 +82,13 @@ def variable_dataset_qc(request, variable):
 
         for ds in get_errors:
             for df in ds.datafile_set.all():
+                gbl_err_count = df.qcerror_set.all().exclude(error_msg__contains="ERROR (4)").\
+                                                     filter(error_type='variable').count()
+                var_err_count = df.qcerror_set.all().exclude(error_msg__contains="ERROR (4)").\
+                                                     filter(error_type='variable').count()
+                oth_err_count = df.qcerror_set.all().exclude(error_msg__contains="ERROR (4)").\
+                                                     filter(error_type='variable').count()
+
                 for error in df.qcerror_set.all().exclude(error_msg__contains="ERROR (4)"):
 
                     ins = error.file.dataset.institute
@@ -98,11 +105,35 @@ def variable_dataset_qc(request, variable):
                     else:
                         errors[ds_id].append(error)
 
-    print "FACETS"
-    print "---------"
-    print facets
+
+                    num_dfs = DataFile.objects.filter(dataset__variable=variable, dataset__institute=ins, dataset__model=model,
+                                                      dataset__experiment=expt, dataset__frequency=freq, dataset__realm=realm,
+                                                      dataset__cmor_table=table, dataset__ensemble=ensemble, timeseries=True).count()
+                    if num_dfs == 0:
+                        num_dfs = 1
+                    errors[ds_id].insert(0, num_dfs)
+                    errors[ds_id].insert(1, gbl_err_count)
+                    errors[ds_id].insert(2, var_err_count)
+                    errors[ds_id].insert(3, oth_err_count)
+                    qc_score = max(errors[ds_id][1:4])
+                    errors[ds_id].insert(4, qc_score)
+
+                    # timeseries_df_errors = {}
+                    # if DataFile.objects.filter(ncfile=ncfile).first().timeseries == True:
+                    #
+                    #     title = "Variable timeseries QC information"
+                    #     var, table, model, expt, ens = ncfile.split('_')[:-1]
+                    #     timeseries_df_errors = {}
+                    #
+                    #     for datafile in DataFile.objects.filter(dataset__variable=variable, dataset__cmor_table=table, dataset__model=model,
+                    #                                             dataset__experiment=experiment, dataset__ensemble=ensemble, timeseries=True):
+                    #         timeseries_df_errors[datafile.ncfile] = get_total_qc_errors(datafile.ncfile)
+                    #
+                    #     max_errors = max_timeseries_qc_errors(timeseries_df_errors)
+                    #
+
     return render(request, 'qcapp/variable-dataset-qc.html',
-                  {'page_title': title, 'variable':variable, 'facets': facets, 'errors': errors})
+                  {'page_title': title, 'variable': variable, 'facets': facets, 'errors': errors, 'num_dfs': num_dfs})
 
 
 def variable_qc(request, ncfile):
@@ -117,10 +148,8 @@ def variable_qc(request, ncfile):
         for datafile in DataFile.objects.filter(dataset__variable=var, dataset__cmor_table=table, dataset__model=model,
                                                 dataset__experiment=expt, dataset__ensemble=ens, timeseries=True):
             timeseries_df_errors[datafile.ncfile] = get_total_qc_errors(datafile.ncfile)
-        max_errors = max_timeseries_qc_errors(timeseries_df_errors)
 
-        for file, errs in timeseries_df_errors.iteritems():
-            print file
+        max_errors = max_timeseries_qc_errors(timeseries_df_errors)
 
         return render(request, 'qcapp/variable-timeseries-qc.html',
                       {'page_title': title, 'timeseries_df_errors': timeseries_df_errors,
