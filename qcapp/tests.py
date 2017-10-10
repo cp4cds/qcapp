@@ -20,12 +20,104 @@ import pdb
 from django.shortcuts import render
 from django.http import HttpResponse
 
+from esgf_search_functions import *
 from qcapp.models import *
 from app_functions import *
 import argparse
 import commands
 
 
+
+def check_latest_datasets():
+    log_file = '/usr/local/cp4cds-app/qcapp/qcapp/latest-datafiles.log'
+    log_file = '/usr/local/cp4cds-app/qcapp/qcapp/latest-datafiles-3.log'
+    if not os.path.isfile(log_file):
+        with open(log_file, 'w') as fw:
+            fw.write('')
+
+    node = "172.16.150.171"
+    project = "CMIP5"
+    latest = True
+    distrib = True
+    replica = False
+
+    URL_TEMPLATE = 'https://%(node)s/esg-search/search?type=File&project=%(project)s&' \
+                   'institute=%(institute)s&' \
+                   'model=%(model)s&' \
+                   'experiment=%(experiment)s&' \
+                   'time_frequency=%(frequency)s&' \
+                   'cmor_table=%(table)s&' \
+                   'ensemble=%(ensemble)s&' \
+                   'variable=%(variable)s&' \
+                   'latest=%(latest)s&distrib=%(distrib)s&replica=%(replica)s&' \
+                   'format=application%%2Fsolr%%2Bjson&limit=10000'
+    
+    
+    for df in DataFile.objects.all():
+
+        # institute = "NOAA-GFDL"
+        # model = "GFDL-CM2.1"
+        # experiment = "historical"
+        # frequency = "mon"
+        # realm = "atmos"
+        # table = "Amon"
+        # ensemble = "r7i1p1"
+        # start_time = datetime.date(2001,1,1)
+        # end_time = datetime.date(2005,12,31)
+        # variable = "tas"
+
+        institute = df.dataset.institute
+        model = df.dataset.model
+        experiment = df.dataset.experiment
+        frequency = df.dataset.frequency
+        table = df.dataset.cmor_table
+        ensemble = df.dataset.ensemble
+        #start_time, end_time = get_start_end_times(frequency, os.path.basename(df.archive_path))
+        variable = df.variable
+
+        # df = DataFile.objects.filter(dataset__institute=institute, dataset__model=model,
+        #                              dataset__experiment=experiment, dataset__frequency=frequency, dataset__realm=realm,
+        #                              dataset__cmor_table=table, dataset__ensemble=ensemble,
+        #                              start_time=start_time, variable=variable)
+        #
+        # if df.count() == 1: df = df.first()
+
+        url = URL_TEMPLATE % vars()
+        resp = requests.get(url, verify=False)
+        json = resp.json()
+        try:
+            for resp in range(len(json["response"]["docs"])):
+                json_resp = json["response"]["docs"][resp]
+                if json_resp["title"] == os.path.basename(df.archive_path):
+                    id = json_resp["id"].strip()
+                    checksum = json_resp["checksum"][0].strip()
+                    checksum_type = json_resp["checksum_type"][0].strip()
+                    datanode = id.split('|')[1]
+                    dataset_id = id.split('|')[0]
+                    version = dataset_id.split('.')[-3]
+        except IndexError:
+            with open(log_file, 'a') as fe:
+                fe.write("NO URL RESPONSE: %s \n" % url)
+
+        if checksum_type == "MD5":
+            file_checksum = df.md5_checksum
+        else:
+            file_checksum = df.sha256_checksum
+
+        if checksum == '' or df.sha256_checksum == '':
+            with open(log_file, 'a') as fe:
+                fe.write("MISSING CHECKSUMS: %s, %s, %s \n" % (id, variable, datanode))
+        elif checksum == file_checksum:
+            with open(log_file, 'a') as fe:
+                fe.write("MATCH: %s, %s, %s \n" % (id, variable, datanode))
+                fe.write("      LATEST CHECKSUM: %s \n" % checksum)
+                fe.write("      CEDA CHECKSUM  : %s \n" % file_checksum)
+
+        else:
+            with open(log_file, 'a') as fe:
+                fe.write("FAIL: %s, %s, %s \n" % (id, variable, datanode))
+                fe.write("      LATEST CHECKSUM: %s \n" % checksum)
+                fe.write("      CEDA CHECKSUM  : %s \n" % file_checksum)
 
 def get_valid_models():
 
@@ -259,8 +351,8 @@ if __name__ == '__main__':
     # add_ncfilename()
     # qc_list_test()
     # qc_set_max_test()
-    get_valid_models()
-
+    # get_valid_models()
+    check_latest_datasets()
 
 
 

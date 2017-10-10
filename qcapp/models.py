@@ -10,6 +10,9 @@ class DataRequester(models.Model):
     """
     requested_by = models.CharField(max_length=20)
 
+    def __str__(self):
+        return self.requested_by
+
 class DataSpecification(models.Model):
     """
     The data specification
@@ -24,6 +27,8 @@ class DataSpecification(models.Model):
     number_of_models = models.IntegerField(default=0)
     data_volume = models.FloatField(blank=True, null=True)
 
+    def __str__(self):
+        return self.variable_long_name
 
 
 class Dataset(models.Model):
@@ -64,6 +69,9 @@ class Dataset(models.Model):
         self.dataset_id = dataset_id
         super(Dataset, self).save(*args, **kwargs)
 
+    def __str__(self):
+        return self.dataset_id
+
 
 class DataFile(models.Model):
     """
@@ -90,6 +98,8 @@ class DataFile(models.Model):
     ceda_cc_score = models.PositiveSmallIntegerField(default=0, blank=True)
     file_qc_score = models.PositiveSmallIntegerField(default=0, blank=True)
 
+    def __str__(self):
+        return self.archive_path
 
 class QCerror(models.Model):
 
@@ -98,6 +108,9 @@ class QCerror(models.Model):
     error_type = models.CharField(max_length=20, null=True, blank=True)
     error_msg = models.CharField(max_length=500, null=True, blank=True)
     report_filepath = models.CharField(max_length=500, null=True, blank=True)
+
+    def __str__(self):
+        return self.report_filepath
 
 """
 

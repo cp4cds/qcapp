@@ -1,22 +1,25 @@
+
 import django
-
 django.setup()
-
 from qcapp.models import *
 from django.db.models import Count, Max, Min, Sum, Avg
-
 import collections, os, timeit, datetime, time, re, glob
 import commands
+import hashlib
 import requests, itertools
-
 from ceda_cc import c4
 from cfchecker.cfchecks import CFVersion, CFChecker, STANDARDNAME, AREATYPES, newest_version
-
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
+
 
 requests.packages.urllib3.disable_warnings()
 
 # URL TEMPLATES
+# These constraints will in time be loaded in via csv for multiple projects.
+# url = "https://172.16.150.171/esg-search/search?type=File&project=CMIP5&variable=tas&cmor_table=Amon&
+# time_frequency=mon&model=HadGEM2-ES&experiment=historical&ensemble=r1i1p1&latest=True&distrib=False&
+# format=application%%2Fsolr%%2Bjson&limit=10000"
+
 URL_DS_MODEL_FACETS = 'https://%(node)s/esg-search/search?type=Dataset&project=%(project)s&variable=%(variable)s' \
                       '&cmor_table=%(table)s&time_frequency=%(frequency)s&experiment=%(experiment)s&latest=%(latest)s&distrib=%(distrib)s&' \
                       'facets=model&format=application%%2Fsolr%%2Bjson'
@@ -30,7 +33,8 @@ ARCHIVE_ROOT = "/badc/cmip5/data/"
 GWSDIR = "/group_workspaces/jasmin/cp4cds1/qc/CFchecks/CF-OUTPUT/"
 
 
-def get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib, latest):
+
+def get_spec_info(dSpec, project, variable, table, frequency, expts, node, distrib, latest, debug):
     """
     Uses ESGF RESTful API to query ESGF and writes information for a given variable, table and frequency
     to the dataset and datafile models.
@@ -42,55 +46,57 @@ def get_spec_info(d_spec, project, variable, table, frequency, expts, node, dist
     """
     for experiment in expts:
 
-        models, json = esgf_ds_search(URL_DS_MODEL_FACETS, 'model', project, variable, table, frequency, experiment,
-                                      '', node, distrib, latest)
-        check_valid_model_names(models)  # Translates some names from ESGF to archive friendly names
+        if debug: print experiment
+
+        # Get a dictionary of models that match a given search criteria
+        models, json = esgf_ds_search(URL_DS_MODEL_FACETS, 'model', project, variable, table, frequency,
+                                      experiment, '', node, distrib, latest)
+
+        # Translates some names from ESGF to archive friendly names
+        # models = check_valid_model_names(models)
 
         for model in models.keys():
 
+            # Get a dictionary of ensemble members that match a given search criteria
             ensembles, json = esgf_ds_search(URL_DS_ENSEMBLE_FACETS, 'ensemble', project, variable, table, frequency,
-                                             experiment,
-                                             model, node, distrib, latest)
+                                             experiment, model, node, distrib, latest)
 
             for ensemble in ensembles.keys():
-                # EXTRACT ALL INFORMATION REQUIRED FOR A DATASET RECORD
-                product, institute, realm, version, esgf_ds_id, esgf_node \
-                    = extract_ds_info(json["response"]["docs"][0])
-                # MAKE A DATASET RECORD
+
+                # For each ensemble member extract the dataset information from ESGF json record
+                product, institute, realm, version, esgf_ds_id, esgf_node = extract_ds_info(json["response"]["docs"][0])
+
+                # Make the dataset record
                 ds, _ = Dataset.objects.get_or_create(project=project, product=product, institute=institute,
                                                       model=model, experiment=experiment, frequency=frequency,
                                                       realm=realm, cmor_table=table, ensemble=ensemble,
                                                       variable=variable, version=version, esgf_ds_id=esgf_ds_id,
                                                       esgf_node=esgf_node)
 
-                # LINK DATASET TO SPEC
-                ds.data_spec.add(d_spec)
+                # Link this to the DataSpecification table
+                ds.data_spec.add(dSpec)
                 ds.save()
 
-                # GET ALL FILES INFORMATION RELATED TO DATASET
+                # Get all files information for a given dataset
+
                 ceda_filepath, start_time, end_time, size, sha256_checksum, tracking_id, download_url, \
                 variable_long_name, cf_standard_name, variable_units = \
                     get_all_datafile_info(URL_FILE_INFO, ds, project, variable, table, frequency,
-                                          experiment, model, ensemble, version, node, distrib, latest)
+                                          experiment, model, ensemble, version, node, distrib, latest, debug)
 
-                # ADD VARIABLE LONG NAME TO SPECIFICATION
-                d_spec.variable_long_name = variable_long_name
-                d_spec.save()
-
-                ds.exists = True
-                ds.save()
-    d_spec.esgf_data_collected = True
-    d_spec.save()
+                # Add variable long name to specification
+                dSpec.variable_long_name = variable_long_name
+                dSpec.save()
 
 
 def esgf_ds_search(search_template, facet_check, project, variable, table, frequency, experiment, model, node, distrib,
                    latest):
     """
     Perform an esgf dataset search using the specified template
-
     :return: dictionary of facets
     """
     url = search_template % vars()
+    print url
     resp = requests.get(url, verify=False)
     json = resp.json()
     result = json["facet_counts"]["facet_fields"][facet_check]
@@ -116,7 +122,7 @@ def extract_ds_info(json_resp):
 
 
 def get_all_datafile_info(url_template, ds, project, variable, table, frequency, experiment, model, ensemble,
-                          version, node, distrib, latest):
+                          version, node, distrib, latest, debug):
     """
     Get all datafile information for a given dataset
 
@@ -126,14 +132,19 @@ def get_all_datafile_info(url_template, ds, project, variable, table, frequency,
     resp = requests.get(url, verify=False)
     json = resp.json()
     datafiles = json["response"]["docs"]
+
     for datafile in range(len(datafiles)):
         df = datafiles[datafile]
         ceda_filepath = df["url"][0].split('|')[0].replace(
             "http://esgf-data1.ceda.ac.uk/thredds/fileServer/esg_dataroot/", ARCHIVE_ROOT)
-        # CHECK FILE IS VALID
+
+        # Check file exists at ceda
+        if debug: print ceda_filepath
         if not os.path.isfile(ceda_filepath):
-            with open('cp4cds-file-error.log', 'a') as fe:
-                fe.write("NOT VALID CEDA FILE: %s" % ceda_filepath)
+            print "FILE DOES NOT EXIST AT CEDA:: ", ceda_filepath
+            # with open('cp4cds-file-error.log', 'a') as fe:
+            #     fe.write("NOT VALID CEDA FILE: %s" % ceda_filepath)
+        md5_checksum = commands.getoutput('md5sum ' + file).split(' ')[0]
         ncfile = os.path.basename(ceda_filepath)
         start_time, end_time = get_start_end_times(frequency, ceda_filepath)
         size = df["size"]
@@ -151,15 +162,24 @@ def get_all_datafile_info(url_template, ds, project, variable, table, frequency,
         variable_units = df["variable_units"][0].strip()
 
         # Create a Datafile record for each file
-        newfile, _ = DataFile.objects.get_or_create(dataset=ds, archive_path=ceda_filepath, ncfile=ncfile,
-                                                    size=size, sha256_checksum=sha256_checksum,
+        newfile, _ = DataFile.objects.get_or_create(dataset=ds,
+                                                    archive_path=ceda_filepath,
+                                                    ncfile=ncfile,
+                                                    size=size,
+                                                    sha256_checksum=sha256_checksum,
+                                                    md5_checksum=md5_checksum,
+                                                    tracking_id=tracking_id,
                                                     download_url=download_url,
-                                                    tracking_id=tracking_id, variable=variable,
-                                                    cf_standard_name=cf_standard_name,
+                                                    variable=variable,
                                                     variable_long_name=variable_long_name,
-                                                    variable_units=variable_units, start_time=start_time,
-                                                    end_time=end_time)
+                                                    cf_standard_name=cf_standard_name,
+                                                    variable_units=variable_units,
+                                                    start_time=start_time,
+                                                    end_time=end_time
+                                                    )
 
+    # if debug: print ceda_filepath, start_time, end_time, size, sha256_checksum, tracking_id, download_url, \
+    #        variable_long_name, cf_standard_name, variable_units
     return ceda_filepath, start_time, end_time, size, sha256_checksum, tracking_id, download_url, \
            variable_long_name, cf_standard_name, variable_units
 
@@ -169,25 +189,23 @@ def check_valid_model_names(models):
     Modify invalid model names
     :return:
     """
-    for model in models:
-        if model == "CESM1(CAM5)":
-            model = "CESM1-CAM5"
-        if model == "CESM1(WACCM)":
-            model = "CESM1-WACCM"
-            # print "replaced: ", model
-        if model == "BCC-CSM1.1(m)":
-            model = "bccDa-csm1-1-m"
-            # print "replaced: ", model
-        if model == "ACCESS1.0":
-            model = "ACCESS1-0"
-            # print "replaced: ", model
-        if model == "ACCESS1.3":
-            model = "ACCESS1-3"
-        if model == "BCC-CSM1.1":
-            model = "bcc-csm1-1"
-        if model == "INM-CM4":
-            model = "inmcm4"
+    valid_model_dict = {"CESM1(CAM5)": "CESM1-CAM5",
+                        "CESM1(BGC)": "CESM1-BGC",
+                        "CESM1(WACCM)": "CESM1-WACCM",
+                        "CESM1(FASTCHEM)": "CESM1-FASTCHEM",
+                        "BCC-CSM1.1(m)": "bccDa-csm1-1-m",
+                        "ACCESS1.0": "ACCESS1-0",
+                        "ACCESS1.3": "ACCESS1-3",
+                        "BCC-CSM1.1": "bcc-csm1-1",
+                        "INM-CM4": "inmcm4"}
 
+    for model in models.keys():
+
+        if model in valid_model_dict.keys():
+            models[valid_model_dict[model]] = models[model]
+            models.pop(model)
+
+    return models
 
 def get_start_end_times(frequency, fname):
     """
@@ -231,7 +249,7 @@ def get_start_end_times(frequency, fname):
     return start_time, end_time
 
 
-def generate_data_records(project, node, expts, file, distrib, latest):
+def generate_data_records(project, node, expts, file, distrib, latest, debug):
     """
     Generate data records from csv input
     :return:
@@ -243,38 +261,43 @@ def generate_data_records(project, node, expts, file, distrib, latest):
     for line in data:
         if lineno == 0:
             requester = line.split(',')[0].strip()
-            print requester
-            d_requester, _ = DataRequester.objects.get_or_create(requested_by=requester)
+            if debug: print requester
 
         if lineno > 1:
             variable = line.split(',')[0].strip()
             table = line.split(',')[1].strip()
             frequency = line.split(',')[2].strip()
-            print variable, table, frequency
+            if debug: print variable, table, frequency
 
-            # Create spec record and link to requester
-            # if DataSpecification.objects.filter(variable=variable, cmor_table=table, frequency=frequency, esgf_data_collected=True):
-            d_spec, _ = DataSpecification.objects.get_or_create(variable=variable, cmor_table=table,
-                                                                frequency=frequency)
-            d_spec.datarequesters.add(d_requester)
-            d_spec.save()
-            get_spec_info(d_spec, project, variable, table, frequency, expts, node, distrib, latest)
+            # Add requester and request to tables and link up
+            dRequester, _ = DataRequester.objects.get_or_create(requested_by=requester)
+            dSpec, _ = DataSpecification.objects.get_or_create(variable=variable, cmor_table=table, frequency=frequency)
+            dSpec.datarequesters.add(dRequester)
+            dSpec.save()
+
+            # Search ESGF
+            get_spec_info(dSpec, project, variable, table, frequency, expts, node, distrib, latest, debug)
+
         lineno += 1
 
 
 if __name__ == '__main__':
-    # These constraints will in time be loaded in via csv for multiple projects.
-    # url = "https://172.16.150.171/esg-search/search?type=File&project=CMIP5&variable=tas&cmor_table=Amon&time_frequency=mon&model=HadGEM2-ES&experiment=historical&ensemble=r1i1p1&latest=True&distrib=False&format=application%%2Fsolr%%2Bjson&limit=10000"
 
     project = 'CMIP5'
     node = "172.16.150.171"
     expts = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
+    expts = ['rcp26']
     distrib = False
     latest = True
-    file = '/usr/local/cp4cds-app/project-specs/cp4cds-dmp_data_request.csv'
+
+    request_dir = "/usr/local/cp4cds-app/project-specs/"
+    file = os.path.join(request_dir, 'top-priority.csv')
+    # file = 'cp4cds-dmp_data_request.csv'
+    # file = 'magic_data_request.csv'
+    # file = 'abc4cde_data_request.csv'
+
     with open('cp4cds-file-error.log', 'w') as fe:
         fe.write('')
-    # file = '/usr/local/cp4cds-app/project-specs/magic_data_request.csv'
-    #    file = '/usr/local/cp4cds-app/project-specs/abc4cde_data_request.csv'
-    generate_data_records(project, node, expts, file, distrib, latest)
+
+    generate_data_records(project, node, expts, file, distrib, latest, debug=True)
 
