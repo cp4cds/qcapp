@@ -31,7 +31,7 @@ URL_FILE_INFO = 'https://%(node)s/esg-search/search?type=File&project=%(project)
                 'ensemble=%(ensemble)s&latest=%(latest)s&distrib=%(distrib)s&format=application%%2Fsolr%%2Bjson&limit=10000'
 ARCHIVE_ROOT = "/badc/cmip5/data/"
 GWSDIR = "/group_workspaces/jasmin/cp4cds1/qc/CFchecks/CF-OUTPUT/"
-
+NO_FILE_LOG= 'cp4cds-nofile-error.log'
 
 
 def get_spec_info(dSpec, project, variable, table, frequency, expts, node, distrib, latest, debug):
@@ -141,9 +141,9 @@ def get_all_datafile_info(url_template, ds, project, variable, table, frequency,
         if debug: print ceda_filepath
         if not os.path.isfile(ceda_filepath):
             print "FILE DOES NOT EXIST AT CEDA:: ", ceda_filepath
-            # with open('cp4cds-file-error.log', 'a') as fe:
-            #     fe.write("NOT VALID CEDA FILE: %s" % ceda_filepath)
-        md5_checksum = commands.getoutput('md5sum ' + file).split(' ')[0]
+            with open(NO_FILE_LOG, 'a') as fe:
+                fe.write("NOT VALID CEDA FILE: %s" % ceda_filepath)
+        md5_checksum = commands.getoutput('md5sum ' + ceda_filepath).split(' ')[0]
         ncfile = os.path.basename(ceda_filepath)
         start_time, end_time = get_start_end_times(frequency, ceda_filepath)
         size = df["size"]
@@ -189,8 +189,7 @@ def is_latest_version(project, variable, table, frequency, experiment, model, en
 
     distrib_test = True
     replica_test = False
-
-    print node, project, model, experiment, frequency, table, variable, latest, distrib_test, replica_test
+    version = "v" + version
 
     URL_LATEST_TEMPLATE = 'https://%(node)s/esg-search/search?type=File&project=%(project)s&' \
                           'model=%(model)s&' \
@@ -203,7 +202,6 @@ def is_latest_version(project, variable, table, frequency, experiment, model, en
                           'format=application%%2Fsolr%%2Bjson&limit=10000'
 
     url = URL_LATEST_TEMPLATE % vars()
-    print url
     resp = requests.get(url, verify=False)
     json = resp.json()
     if len(json["response"]["docs"]) == 0:
@@ -213,27 +211,31 @@ def is_latest_version(project, variable, table, frequency, experiment, model, en
 
     for resp in range(len(json["response"]["docs"])):
         json_resp = json["response"]["docs"][resp]
-        if json_resp["title"] == os.path.basename(df.archive_path):
+        if json_resp["title"] == os.path.basename(archive_path):
             id = json_resp["id"].strip()
             checksum = json_resp["checksum"][0].strip()
             checksum_type = json_resp["checksum_type"][0].strip()
             datanode = id.split('|')[1]
             dataset_id = id.split('|')[0]
-            version = dataset_id.split('.')[-3]
+            latest_version = dataset_id.split('.')[-3]
 
-    if checksum_type == "MD5":
-        checksum_match = checksum == md5_checksum
-    else:
-        checksum_match = checksum == sha256_checksum
+            if checksum_type == "MD5":
+                checksum_match = checksum == md5_checksum
+            else:
+                checksum_match = checksum == sha256_checksum
 
-    if checksum_match:
-        uptodate = True
-        uptodateNotes = ""
-        return uptodate, uptodateNotes
-    else:
-        uptodate = False
-        uptodateNotes = "Out of date, reason unknown"
-        return uptodate, uptodateNotes
+            if checksum_match:
+                uptodate = True
+                uptodateNotes = ""
+                return uptodate, uptodateNotes
+            else:
+                uptodate = False
+                if latest_version != version:
+                    uptodateNotes = "SUPERSEDED?: Versions don't match. Old version: %s, latest version %s" % (version, latest_version)
+                    return uptodate, uptodateNotes
+                else:
+                    uptodateNotes = "UNKNOWN: Checksums don't match unknown reason"
+                    return uptodate, uptodateNotes
 
 
 
@@ -349,6 +351,8 @@ if __name__ == '__main__':
     # file = 'magic_data_request.csv'
     # file = 'abc4cde_data_request.csv'
 
+    if os.path.isfile(NO_FILE_LOG):
+        os.remove(NO_FILE_LOG)
     with open('cp4cds-file-error.log', 'w') as fe:
         fe.write('')
 
