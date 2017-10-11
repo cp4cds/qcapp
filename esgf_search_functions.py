@@ -96,7 +96,6 @@ def esgf_ds_search(search_template, facet_check, project, variable, table, frequ
     :return: dictionary of facets
     """
     url = search_template % vars()
-    print url
     resp = requests.get(url, verify=False)
     json = resp.json()
     result = json["facet_counts"]["facet_fields"][facet_check]
@@ -149,17 +148,15 @@ def get_all_datafile_info(url_template, ds, project, variable, table, frequency,
         start_time, end_time = get_start_end_times(frequency, ceda_filepath)
         size = df["size"]
         fname = df["master_id"]
-
-        try:
-            sha256_checksum = df["checksum"][0].strip()
-        except AttributeError:
-            sha256_checksum = ''
-
+        sha256_checksum = df["checksum"][0].strip()
         tracking_id = df["tracking_id"][0].strip()
         download_url = df["url"][0].strip()
         variable_long_name = df["variable_long_name"][0].strip()
         cf_standard_name = df["cf_standard_name"][0].strip()
         variable_units = df["variable_units"][0].strip()
+
+        uptodate, uptodateNotes = is_latest_version(project, variable, table, frequency, experiment, model, ensemble,
+                                                    version, node, latest, ceda_filepath, md5_checksum, sha256_checksum, debug)
 
         # Create a Datafile record for each file
         newfile, _ = DataFile.objects.get_or_create(dataset=ds,
@@ -175,13 +172,69 @@ def get_all_datafile_info(url_template, ds, project, variable, table, frequency,
                                                     cf_standard_name=cf_standard_name,
                                                     variable_units=variable_units,
                                                     start_time=start_time,
-                                                    end_time=end_time
+                                                    end_time=end_time,
+                                                    up_to_date=uptodate,
+                                                    up_to_date_note=uptodateNotes
                                                     )
 
     # if debug: print ceda_filepath, start_time, end_time, size, sha256_checksum, tracking_id, download_url, \
     #        variable_long_name, cf_standard_name, variable_units
+
     return ceda_filepath, start_time, end_time, size, sha256_checksum, tracking_id, download_url, \
            variable_long_name, cf_standard_name, variable_units
+
+def is_latest_version(project, variable, table, frequency, experiment, model, ensemble, version, node, latest,
+                      archive_path, md5_checksum, sha256_checksum, debug):
+
+
+    distrib_test = True
+    replica_test = False
+
+    print node, project, model, experiment, frequency, table, variable, latest, distrib_test, replica_test
+
+    URL_LATEST_TEMPLATE = 'https://%(node)s/esg-search/search?type=File&project=%(project)s&' \
+                          'model=%(model)s&' \
+                          'experiment=%(experiment)s&' \
+                          'time_frequency=%(frequency)s&' \
+                          'cmor_table=%(table)s&' \
+                          'ensemble=%(ensemble)s&' \
+                          'variable=%(variable)s&' \
+                          'latest=%(latest)s&distrib=%(distrib_test)s&replica=%(replica_test)s&' \
+                          'format=application%%2Fsolr%%2Bjson&limit=10000'
+
+    url = URL_LATEST_TEMPLATE % vars()
+    print url
+    resp = requests.get(url, verify=False)
+    json = resp.json()
+    if len(json["response"]["docs"]) == 0:
+        uptodate = False
+        uptodateNotes = "RETRACTED? NO URL RESPONSE: %s" % url
+        return uptodate, uptodateNotes
+
+    for resp in range(len(json["response"]["docs"])):
+        json_resp = json["response"]["docs"][resp]
+        if json_resp["title"] == os.path.basename(df.archive_path):
+            id = json_resp["id"].strip()
+            checksum = json_resp["checksum"][0].strip()
+            checksum_type = json_resp["checksum_type"][0].strip()
+            datanode = id.split('|')[1]
+            dataset_id = id.split('|')[0]
+            version = dataset_id.split('.')[-3]
+
+    if checksum_type == "MD5":
+        checksum_match = checksum == md5_checksum
+    else:
+        checksum_match = checksum == sha256_checksum
+
+    if checksum_match:
+        uptodate = True
+        uptodateNotes = ""
+        return uptodate, uptodateNotes
+    else:
+        uptodate = False
+        uptodateNotes = "Out of date, reason unknown"
+        return uptodate, uptodateNotes
+
 
 
 def check_valid_model_names(models):
