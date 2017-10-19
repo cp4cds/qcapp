@@ -31,7 +31,7 @@ URL_FILE_INFO = 'https://%(node)s/esg-search/search?type=File&project=%(project)
                 'ensemble=%(ensemble)s&latest=%(latest)s&distrib=%(distrib)s&format=application%%2Fsolr%%2Bjson&limit=10000'
 ARCHIVE_ROOT = "/badc/cmip5/data/"
 GWSDIR = "/group_workspaces/jasmin/cp4cds1/qc/CFchecks/CF-OUTPUT/"
-NO_FILE_LOG= 'cp4cds-nofile-error.log'
+NO_FILE_LOG = 'cp4cds-nofile-error.log'
 
 
 def get_spec_info(dSpec, project, variable, table, frequency, expts, node, distrib, latest, debug):
@@ -137,55 +137,61 @@ def get_all_datafile_info(url_template, ds, project, variable, table, frequency,
         ceda_filepath = df["url"][0].split('|')[0].replace(
             "http://esgf-data1.ceda.ac.uk/thredds/fileServer/esg_dataroot/", ARCHIVE_ROOT)
 
-        # Check file exists at ceda
-        if debug: print ceda_filepath
-        if not os.path.isfile(ceda_filepath):
-            print "FILE DOES NOT EXIST AT CEDA:: ", ceda_filepath
-            with open(NO_FILE_LOG, 'a') as fe:
-                fe.write("NOT VALID CEDA FILE: %s" % ceda_filepath)
-        md5_checksum = commands.getoutput('md5sum ' + ceda_filepath).split(' ')[0]
-        ncfile = os.path.basename(ceda_filepath)
-        start_time, end_time = get_start_end_times(frequency, ceda_filepath)
-        size = df["size"]
-        fname = df["master_id"]
-        sha256_checksum = df["checksum"][0].strip()
-        tracking_id = df["tracking_id"][0].strip()
-        download_url = df["url"][0].strip()
-        variable_long_name = df["variable_long_name"][0].strip()
-        cf_standard_name = df["cf_standard_name"][0].strip()
-        variable_units = df["variable_units"][0].strip()
+        if not os.path.basename(ceda_filepath).endswith(".nc"):
+            pass
+        else:
+            # Check file exists at ceda
+            if debug: print ceda_filepath
+            if not os.path.isfile(ceda_filepath):
+                if debug: print "FILE DOES NOT EXIST AT CEDA:: ", ceda_filepath
+                with open(NO_FILE_LOG, 'a') as fe:
+                    fe.write("NOT VALID CEDA FILE: %s" % ceda_filepath)
+            md5_checksum = commands.getoutput('md5sum ' + ceda_filepath).split(' ')[0]
+            ncfile = os.path.basename(ceda_filepath)
+            start_time, end_time = get_start_end_times(frequency, ceda_filepath)
+            size = df["size"]
+            fname = df["master_id"]
+            sha256_checksum = df["checksum"][0].strip()
+            tracking_id = df["tracking_id"][0].strip()
+            download_url = df["url"][0].strip()
+            variable_long_name = df["variable_long_name"][0].strip()
+            cf_standard_name = df["cf_standard_name"][0].strip()
+            variable_units = df["variable_units"][0].strip()
 
-        uptodate, uptodateNotes = is_latest_version(project, variable, table, frequency, experiment, model, ensemble,
-                                                    version, node, latest, ceda_filepath, md5_checksum, sha256_checksum, debug)
+            uptodate, uptodateNotes = is_latest_version(project, variable, table, frequency, experiment, model, ensemble,
+                                                        version, node, latest, ceda_filepath, md5_checksum, sha256_checksum, debug)
 
-        # Create a Datafile record for each file
-        newfile, _ = DataFile.objects.get_or_create(dataset=ds,
-                                                    archive_path=ceda_filepath,
-                                                    ncfile=ncfile,
-                                                    size=size,
-                                                    sha256_checksum=sha256_checksum,
-                                                    md5_checksum=md5_checksum,
-                                                    tracking_id=tracking_id,
-                                                    download_url=download_url,
-                                                    variable=variable,
-                                                    variable_long_name=variable_long_name,
-                                                    cf_standard_name=cf_standard_name,
-                                                    variable_units=variable_units,
-                                                    start_time=start_time,
-                                                    end_time=end_time,
-                                                    up_to_date=uptodate,
-                                                    up_to_date_note=uptodateNotes
-                                                    )
+            isTimeseries = is_timeseries(ceda_filepath, debug)
 
-    # if debug: print ceda_filepath, start_time, end_time, size, sha256_checksum, tracking_id, download_url, \
-    #        variable_long_name, cf_standard_name, variable_units
+            # Create a Datafile record for each file
+            newfile, _ = DataFile.objects.get_or_create(dataset=ds,
+                                                        archive_path=ceda_filepath,
+                                                        ncfile=ncfile,
+                                                        size=size,
+                                                        sha256_checksum=sha256_checksum,
+                                                        md5_checksum=md5_checksum,
+                                                        tracking_id=tracking_id,
+                                                        download_url=download_url,
+                                                        variable=variable,
+                                                        variable_long_name=variable_long_name,
+                                                        cf_standard_name=cf_standard_name,
+                                                        variable_units=variable_units,
+                                                        start_time=start_time,
+                                                        end_time=end_time,
+                                                        timeseries=isTimeseries,
+                                                        up_to_date=uptodate,
+                                                        up_to_date_note=uptodateNotes
+                                                        )
 
-    return ceda_filepath, start_time, end_time, size, sha256_checksum, tracking_id, download_url, \
-           variable_long_name, cf_standard_name, variable_units
+        # if debug: print ceda_filepath, start_time, end_time, size, sha256_checksum, tracking_id, download_url, \
+        #        variable_long_name, cf_standard_name, variable_units
+
+        return ceda_filepath, start_time, end_time, size, sha256_checksum, tracking_id, download_url, \
+               variable_long_name, cf_standard_name, variable_units
+
 
 def is_latest_version(project, variable, table, frequency, experiment, model, ensemble, version, node, latest,
                       archive_path, md5_checksum, sha256_checksum, debug):
-
 
     distrib_test = True
     replica_test = False
@@ -201,42 +207,65 @@ def is_latest_version(project, variable, table, frequency, experiment, model, en
                           'latest=%(latest)s&distrib=%(distrib_test)s&replica=%(replica_test)s&' \
                           'format=application%%2Fsolr%%2Bjson&limit=10000'
 
+
     url = URL_LATEST_TEMPLATE % vars()
+    if debug: print url
     resp = requests.get(url, verify=False)
     json = resp.json()
-    if len(json["response"]["docs"]) == 0:
+
+    if json["response"]["numFound"] == 0:
         uptodate = False
-        uptodateNotes = "RETRACTED? NO URL RESPONSE: %s" % url
+        uptodateNotes = "NO URL RESPONSE: %s" % url
         return uptodate, uptodateNotes
 
-    for resp in range(len(json["response"]["docs"])):
-        json_resp = json["response"]["docs"][resp]
-        if json_resp["title"] == os.path.basename(archive_path):
-            id = json_resp["id"].strip()
-            checksum = json_resp["checksum"][0].strip()
-            checksum_type = json_resp["checksum_type"][0].strip()
-            datanode = id.split('|')[1]
-            dataset_id = id.split('|')[0]
-            latest_version = dataset_id.split('.')[-3]
+    else:
 
-            if checksum_type == "MD5":
-                checksum_match = checksum == md5_checksum
-            else:
-                checksum_match = checksum == sha256_checksum
+        for resp in range(json["response"]["numFound"]):
+            json_resp = json["response"]["docs"][resp]
 
-            if checksum_match:
-                uptodate = True
-                uptodateNotes = ""
-                return uptodate, uptodateNotes
-            else:
-                uptodate = False
-                if latest_version != version:
-                    uptodateNotes = "SUPERSEDED?: Versions don't match. Old version: %s, latest version %s" % (version, latest_version)
+            if json_resp["title"] == os.path.basename(archive_path):
+                id = json_resp["id"].strip()
+                checksum = json_resp["checksum"][0].strip()
+                checksum_type = json_resp["checksum_type"][0].strip()
+                datanode = id.split('|')[1]
+                dataset_id = id.split('|')[0]
+                latest_version = dataset_id.split('.')[-3]
+
+                if checksum_type == "MD5":
+                    checksum_match = checksum == md5_checksum
+                else:
+                    checksum_match = checksum == sha256_checksum
+
+                if checksum_match:
+                    uptodate = True
+                    uptodateNotes = "UP TO DATE"
                     return uptodate, uptodateNotes
                 else:
-                    uptodateNotes = "UNKNOWN: Checksums don't match unknown reason"
-                    return uptodate, uptodateNotes
+                    uptodate = False
+                    if latest_version != version:
+                        uptodateNotes = "SUPERSEDED?: Versions don't match. Old version: %s, latest version %s" % (version, latest_version)
+                        return uptodate, uptodateNotes
+                    else:
+                        uptodateNotes = "UNKNOWN: Checksums don't match unknown reason"
+                        return uptodate, uptodateNotes
+            else:
+                uptodate = False
+                uptodateNotes = "NO MATCHING FILE FOUND, e.g. nc != nc4, versions don't match"
+                return uptodate, uptodateNotes
 
+
+def is_timeseries(filepath, debug):
+
+    if os.path.isdir(os.path.dirname(filepath)):
+
+        if len(os.listdir(os.path.dirname(filepath))) > 1:
+           ts = True
+        else:
+           ts = False
+    else:
+        ts = None
+
+    return ts
 
 
 def check_valid_model_names(models):
@@ -341,13 +370,13 @@ if __name__ == '__main__':
     project = 'CMIP5'
     node = "172.16.150.171"
     expts = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
-    expts = ['rcp26']
+    expts = ['historical']
     distrib = False
     latest = True
 
     request_dir = "/usr/local/cp4cds-app/project-specs/"
     file = os.path.join(request_dir, 'top-priority.csv')
-    # file = 'cp4cds-dmp_data_request.csv'
+    # file = os.path.join(request_dir, 'cp4cds-dmp_data_request.csv')
     # file = 'magic_data_request.csv'
     # file = 'abc4cde_data_request.csv'
 

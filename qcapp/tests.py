@@ -27,6 +27,30 @@ import argparse
 import commands
 
 
+def endswith():
+    files = [
+             "/badc/cmip5/data/cmip5/output1/MOHC/HadCM3/historical/mon/atmos/Amon/r8i1p1/v20110905/tas/tas_Amon_HadCM3_historical_r8i1p1_195912-198411.nc4",
+             "/badc/cmip5/data/cmip5/output1/MOHC/HadCM3/historical/mon/atmos/Amon/r8i1p1/v20110905/tas/tas_Amon_HadCM3_historical_r8i1p1_190912-193411.nc",
+             "/badc/cmip5/data/cmip5/output1/MOHC/HadCM3/historical/mon/atmos/Amon/r8i1p1/v20110905/tas/tas_Amon_HadCM3_historical_r8i1p1_188412-190911.nc",
+             "/badc/cmip5/data/cmip5/output1/MOHC/HadCM3/historical/mon/atmos/Amon/r8i1p1/v20110905/tas/tas_Amon_HadCM3_historical_r8i1p1_198412-200512.nc",
+            ]
+
+    for file in files:
+        res = is_ceda_file(file)
+        print res
+
+
+def is_ceda_file(file):
+
+    if not os.path.basename(file).endswith(".nc"):
+        pass
+    else:
+        if os.path.isfile(file):
+            result = True
+        else:
+            result = False
+
+        return result
 
 def check_latest_datasets():
     log_file = '/usr/local/cp4cds-app/qcapp/qcapp/latest-datafiles.log'
@@ -352,8 +376,8 @@ if __name__ == '__main__':
     # qc_list_test()
     # qc_set_max_test()
     # get_valid_models()
-    check_latest_datasets()
-
+    # check_latest_datasets()
+    endswith()
 
 
 
