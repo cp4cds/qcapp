@@ -370,7 +370,7 @@ if __name__ == '__main__':
     project = 'CMIP5'
     node = "172.16.150.171"
     expts = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
-    expts = ['historical']
+#    expts = ['historical']
     distrib = False
     latest = True
 
@@ -379,11 +379,12 @@ if __name__ == '__main__':
     # file = os.path.join(request_dir, 'cp4cds-dmp_data_request.csv')
     # file = 'magic_data_request.csv'
     # file = 'abc4cde_data_request.csv'
+    file = "cp4cds_data_requirements.log"
 
     if os.path.isfile(NO_FILE_LOG):
         os.remove(NO_FILE_LOG)
     with open('cp4cds-file-error.log', 'w') as fe:
         fe.write('')
 
-    generate_data_records(project, node, expts, file, distrib, latest, debug=True)
+    generate_data_records(project, node, expts, file, distrib, latest, debug=False)
 
