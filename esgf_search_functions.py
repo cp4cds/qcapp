@@ -371,7 +371,7 @@ if __name__ == '__main__':
     node = "172.16.150.171"
     node = "esgf-index1.ceda.ac.uk"
     expts = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
-    # expts = ['rcp26']
+    expts = ['rcp26']
     distrib = False
     latest = True
 
@@ -380,13 +380,13 @@ if __name__ == '__main__':
     # file = os.path.join(request_dir, 'cp4cds-dmp_data_request.csv')
     # file = 'magic_data_request.csv'
     # file = 'abc4cde_data_request.csv'
-    file = "cp4cds_data_requirements.log"
-    # file = "cp4cds_priority_data_requirements.log"
+    # file = "cp4cds_data_requirements.log"
+    file = "cp4cds_priority_data_requirements.log"
 
     if os.path.isfile(NO_FILE_LOG):
         os.remove(NO_FILE_LOG)
     with open('cp4cds-file-error.log', 'w') as fe:
         fe.write('')
 
-    generate_data_records(project, node, expts, file, distrib, latest, debug=False)
+    generate_data_records(project, node, expts, file, distrib, latest, debug=True)
 
