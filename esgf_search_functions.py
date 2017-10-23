@@ -11,27 +11,8 @@ from ceda_cc import c4
 from cfchecker.cfchecks import CFVersion, CFChecker, STANDARDNAME, AREATYPES, newest_version
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-
+from qc_settings import *
 requests.packages.urllib3.disable_warnings()
-
-# URL TEMPLATES
-# These constraints will in time be loaded in via csv for multiple projects.
-# url = "https://172.16.150.171/esg-search/search?type=File&project=CMIP5&variable=tas&cmor_table=Amon&
-# time_frequency=mon&model=HadGEM2-ES&experiment=historical&ensemble=r1i1p1&latest=True&distrib=False&
-# format=application%%2Fsolr%%2Bjson&limit=10000"
-
-URL_DS_MODEL_FACETS = 'https://%(node)s/esg-search/search?type=Dataset&project=%(project)s&variable=%(variable)s' \
-                      '&cmor_table=%(table)s&time_frequency=%(frequency)s&experiment=%(experiment)s&latest=%(latest)s&distrib=%(distrib)s&' \
-                      'facets=model&format=application%%2Fsolr%%2Bjson'
-URL_DS_ENSEMBLE_FACETS = 'https://%(node)s/esg-search/search?type=Dataset&project=%(project)s&variable=%(variable)s' \
-                         '&cmor_table=%(table)s&time_frequency=%(frequency)s&model=%(model)s&experiment=%(experiment)s&' \
-                         'latest=%(latest)s&distrib=%(distrib)s&facets=ensemble&format=application%%2Fsolr%%2Bjson'
-URL_FILE_INFO = 'https://%(node)s/esg-search/search?type=File&project=%(project)s&variable=%(variable)s&' \
-                'cmor_table=%(table)s&time_frequency=%(frequency)s&model=%(model)s&experiment=%(experiment)s&' \
-                'ensemble=%(ensemble)s&latest=%(latest)s&distrib=%(distrib)s&format=application%%2Fsolr%%2Bjson&limit=10000'
-ARCHIVE_ROOT = "/badc/cmip5/data/"
-GWSDIR = "/group_workspaces/jasmin/cp4cds1/qc/CFchecks/CF-OUTPUT/"
-NO_FILE_LOG = 'cp4cds-nofile-error.log'
 
 
 def get_spec_info(dSpec, project, variable, table, frequency, expts, node, distrib, latest, debug):
@@ -197,16 +178,6 @@ def is_latest_version(project, variable, table, frequency, experiment, model, en
     replica_test = False
     version = "v" + version
 
-    URL_LATEST_TEMPLATE = 'https://%(node)s/esg-search/search?type=File&project=%(project)s&' \
-                          'model=%(model)s&' \
-                          'experiment=%(experiment)s&' \
-                          'time_frequency=%(frequency)s&' \
-                          'cmor_table=%(table)s&' \
-                          'ensemble=%(ensemble)s&' \
-                          'variable=%(variable)s&' \
-                          'latest=%(latest)s&distrib=%(distrib_test)s&replica=%(replica_test)s&' \
-                          'format=application%%2Fsolr%%2Bjson&limit=10000'
-
 
     url = URL_LATEST_TEMPLATE % vars()
     if debug: print url
@@ -368,7 +339,7 @@ def generate_data_records(project, node, expts, file, distrib, latest, debug):
 if __name__ == '__main__':
 
     project = 'CMIP5'
-    node = "172.16.150.171"
+#    node = "172.16.150.171"
     node = "esgf-index1.ceda.ac.uk"
     expts = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
     expts = ['rcp26']
