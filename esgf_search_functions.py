@@ -1,20 +1,5 @@
 
-import django
-django.setup()
-from qcapp.models import *
-from django.db.models import Count, Max, Min, Sum, Avg
-import collections, os, timeit, datetime, time, re, glob
-import commands
-import hashlib
-import requests, itertools
-from ceda_cc import c4
-from cfchecker.cfchecks import CFVersion, CFChecker, STANDARDNAME, AREATYPES, newest_version
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
-
 from qc_settings import *
-requests.packages.urllib3.disable_warnings()
-
-
 
 def is_latest_version(project, variable, table, frequency, experiment, model, ensemble, version, node, latest,
                       archive_path, md5_checksum, sha256_checksum, debug):
@@ -143,7 +128,7 @@ def esgf_ds_search(search_template, facet_check, project, variable, table, frequ
     return result, json
 
 
-def create_datafile_records(project, node, expts, distrib, latest, debug):
+def create_datafile_records(node, distrib, latest, debug):
 
     for ds in Dataset.objects.all():
         variable = ds.variable
@@ -208,7 +193,7 @@ def create_datafile_records(project, node, expts, distrib, latest, debug):
                                                             )
 
 
-def create_dataset_records(project, node, expts, debug):
+def create_dataset_records(expts, node, debug):
     """
 
     :return:
@@ -217,7 +202,6 @@ def create_dataset_records(project, node, expts, debug):
     latest = True
 
     for spec in DataSpecification.objects.all():
-
         variable = spec.variable
         table = spec.cmor_table
         frequency = spec.frequency
@@ -301,22 +285,147 @@ def create_dataspec_records(project, node, expts, file, debug):
 
         lineno += 1
 
-
 def make_no_file_log(NO_FILE_LOG):
     if os.path.isfile(NO_FILE_LOG):
         os.remove(NO_FILE_LOG)
     with open(NO_FILE_LOG, 'w') as fe:
         fe.write('')
 
+
+def run_ceda_cc(debug):
+
+    for df in DataFile.objects.all():
+        file = df.archive_path
+        if debug: print file
+
+        institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
+        cedacc_odir = os.path.join(CEDACC_DIR, model, experiment, table)
+
+        if not os.path.exists(cedacc_odir):
+            os.makedirs(cedacc_odir)
+        cedacc_args = ['-p', 'CMIP5', '-f', file, '--log', 'multi', '--ld', cedacc_odir, '--cae', '--blfmode', 'a']
+        run_cedacc = c4.main(cedacc_args)
+
+#
+# def parse_ceda_cc(debug):
+#
+#     checkType = "CEDA-CC"
+#
+#     for df in DataFile.objects.all():
+#         file = df.archive_path
+#         temporal_range = file.split("_")[-1].strip(".nc").split("_")[0]
+#         institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
+#         log_dir = os.path.join(CEDACC_DIR, model, experiment, table)
+#         file_list = os.listdir(log_dir)
+#
+#
+#         file_base = "_".join([variable, table, model, experiment, ensemble])
+#         file_pattern = re.compile(file_base + "_" + temporal_range + "__qclog_\d+\.txt")
+#
+#        # for ceda_cc_file in file_list:
+#             if file_pattern.match(ceda_cc_file):
+#                 if debug: print ceda_cc_file
+#                 with open(os.path.join(log_dir, file), 'r') as fr:
+#                     ceda_cc_out = fr.readlines()
+#
+#                 # Identify where CEDA-CC picks up a QC error
+#                 cedacc_global_error = re.compile('.*global.*FAILED::.*')
+#                 cedacc_variable_error = re.compile('.*variable.*FAILED::.*')
+#                 cedacc_other_error = re.compile('.*filename.*FAILED::.*')
+#                 cedacc_exception = re.compile('.*Exception.*')
+#                 cedacc_abort = re.compile('.*aborted.*')
+#
+#                 for line in ceda_cc_out:
+#                     if cedacc_global_error.match(line.strip()):
+#                         make_qc_err_record(dfile, checkType, "global", line, os.path.join(log_dir, file))
+#                     if cedacc_variable_error.match(line.strip()):
+#                         make_qc_err_record(dfile, checkType, "variable", line, os.path.join(log_dir, file))
+#                     if cedacc_other_error.match(line.strip()):
+#                         make_qc_err_record(dfile, checkType, "other", line, os.path.join(log_dir, file))
+#                     if cedacc_exception.match(line.strip()):
+#                         make_qc_err_record(dfile, checkType, "fatal", line, os.path.join(log_dir, file))
+#                     if cedacc_abort.match(line.strip()):
+#                         make_qc_err_record(dfile, checkType, "fatal", line, os.path.join(log_dir, file))
+#
+
+def run_cf_checker(debug):
+
+    for df in DataFile.objects.all():
+        file = df.archive_path
+        if debug: print file
+
+        institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
+        cf_odir = os.path.join(CF_DIR, model, experiment, table)
+
+        if not os.path.exists(cf_odir):
+            os.makedirs(cf_odir)
+
+        cf_out_file = os.path.join(cf_odir, ncfile.replace(".nc", ".cf-log.txt"))
+        cf_err_file = os.path.join(cf_odir, ncfile.replace(".nc", ".cf-err.txt"))
+
+        run_cmd = ["cf-checker", "-v", "auto", file]
+        cf_out = open(cf_out_file, "w")
+        cf_err = open(cf_err_file, "w")
+        call(run_cmd, stdout=cf_out, stderr=cf_err)
+        cf_out.close()
+        cf_err.close()
+
+
+def parse_cf_checker(debug):
+
+    checkType = "CF"
+
+    for df in DataFile.objects.all():
+        file = df.archive_path
+        temporal_range = file.split("_")[-1].strip(".nc").split("_")[0]
+        institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
+        log_dir = os.path.join(CF_DIR, model, experiment, table)
+        file_list = os.listdir(log_dir)
+
+
+        file_list = os.listdir(log_dir)
+        file_base = "_".join([variable, table, model, experiment, ensemble])
+        file_pattern = re.compile(file_base + "_" + temporal_range + ".cf-log.txt")
+
+        for file in file_list:
+            if file_pattern.match(file):
+                with open(os.path.join(log_dir, file), 'r') as fr:
+                    cf_out = fr.readlines()
+
+                # Identify where CF picks up a QC error
+
+                cf_global_error = re.compile('.*ERROR.*(global|Global|Convention).*')
+                cf_variable_error = re.compile('.*ERROR.*(units|cell).*(?!.*(time|boundary|coordinate)).*variable.*')
+                cf_other_error = re.compile('.*ERROR.*(bound|Boundary|grid|coordinate|dimension).*')
+                cf_abort = re.compile('.*suffix.*')
+
+                regexlist = [(cf_global_error, "global"),
+                             (cf_variable_error, "variable"),
+                             (cf_other_error, "other"),
+                             (cf_abort, "fatal")]
+
+                for line in cf_out:
+                    for regex, label in regexlist:
+                        if regex.match(line.strip()):
+                            make_qc_err_record(df, checkType, label, line, os.path.join(log_dir, file))
+
+
+def make_qc_err_record(dfile, checkType, errorType, errorMessage, filepath):
+
+    qc_err, _ = QCerror.objects.get_or_create(
+                    file=dfile, check_type=checkType, error_type=errorType,
+                    error_msg=errorMessage, report_filepath=filepath)
+
+
 if __name__ == '__main__':
 
 
-    project = 'CMIP5'
+
 #    node = "172.16.150.171"
     node = "esgf-index1.ceda.ac.uk"
     expts = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
     expts = ['rcp26']
-    debug = False
+    debug = True
     distrib = False
     latest = True
 
@@ -328,7 +437,10 @@ if __name__ == '__main__':
     # file = "cp4cds_data_requirements.log"
     file = "cp4cds_priority_data_requirements.log"
 
-    make_no_file_log(NO_FILE_LOG)
-    create_dataspec_records(project, node, expts, file, debug=debug)
-    create_dataset_records(project, node, expts, debug=debug)
-    create_datafile_records(project, node, expts, distrib, latest, debug=debug)
+    # make_no_file_log(NO_FILE_LOG)
+    # create_dataspec_records(project, node, expts, file, debug=debug)
+    # create_dataset_records(expts, node, debug=debug)
+    # create_datafile_records(node, distrib, latest, debug=debug)
+    # run_ceda_cc(debug)
+    # parse_ceda_cc(debug)
+    run_cf_checker(debug)
