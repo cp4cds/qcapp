@@ -38,7 +38,7 @@ class Dataset(models.Model):
     data_spec = models.ManyToManyField(DataSpecification, blank=True)
 
     exists = models.BooleanField(default=False)
-    project = models.CharField(max_length=30, default="cmip5")
+    project = models.CharField(max_length=30, default="CMIP5")
     product = models.CharField(max_length=20)
     institute = models.CharField(max_length=30)
     model = models.CharField(max_length=20)

@@ -3,6 +3,7 @@ qcproj/settings_local.py
 amapDraft.txt
 *.log
 OUTPUT-LOGS/
+lotus-logs/
 
 db.sqlite*
 cccc*
