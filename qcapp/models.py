@@ -51,7 +51,7 @@ class Dataset(models.Model):
     start_time = models.DateField(blank=True, null=True)
     end_time = models.DateField(blank=True, null=True)
     variable = models.CharField(max_length=20)
-    esgf_ds_id = models.CharField(max_length=200, blank=True)
+    esgf_drs = models.CharField(max_length=200, blank=True)
     esgf_node = models.CharField(max_length=80, blank=True)
 
     # TO DO WHEN QC IS COMPLETE

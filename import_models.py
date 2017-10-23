@@ -15,5 +15,9 @@ from esgf_search_functions import *
 from qc_functions import *
 from timeseries_and_md5s import *
 print "Counts..."
-print "Dataset:", Dataset.objects.count()
-print "DataFile:", DataFile.objects.count()
+
+print "DataRequesters: ", DataRequester.objects.count()
+print "DataSpecification: ", DataSpecification.objects.count()
+print "Dataset: ", Dataset.objects.count()
+print "DataFile: ", DataFile.objects.count()
+print "QCerror: ", QCerror.objects.count()
