@@ -1,5 +1,6 @@
 
 from qc_settings import *
+
 project = 'CMIP5'
 
 
@@ -222,7 +223,7 @@ def create_dataset_records(expts, node, debug):
                 ensembles, json = esgf_ds_search(URL_DS_ENSEMBLE_FACETS, 'ensemble', project, variable, table, frequency,
                                                  experiment, model, node, distrib, latest, debug)
 
-                for dset in range(json["response"]["numFound"]):
+                for dset in range(len(json["response"]["docs"])):
 
                     dataset = json["response"]["docs"][dset]
 
@@ -365,7 +366,7 @@ def run_cf_checker(debug):
         cf_out_file = os.path.join(cf_odir, ncfile.replace(".nc", ".cf-log.txt"))
         cf_err_file = os.path.join(cf_odir, ncfile.replace(".nc", ".cf-err.txt"))
 
-        run_cmd = ["cf-checker", "-v", "auto", file]
+        run_cmd = ["cf-checker", "-a", AREATABLE, "-s", STDNAMETABLE, "-v", "auto", file]
         cf_out = open(cf_out_file, "w")
         cf_err = open(cf_err_file, "w")
         call(run_cmd, stdout=cf_out, stderr=cf_err)
@@ -421,6 +422,12 @@ def make_qc_err_record(dfile, checkType, errorType, errorMessage, filepath):
                                               )
 
 
+def generate_filelist():
+
+    with open("cp4cds-files.log", 'w') as fw:
+        for df in DataFiles.objects.all():
+            fw.writelines([df.archive_path, "\n"])
+
 if __name__ == '__main__':
 
 
@@ -428,8 +435,7 @@ if __name__ == '__main__':
 #    node = "172.16.150.171"
     node = "esgf-index1.ceda.ac.uk"
     expts = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
-    expts = ['historical']
-    debug = True
+    debug = False
     distrib = False
     latest = True
 
@@ -438,14 +444,14 @@ if __name__ == '__main__':
     # file = os.path.join(request_dir, 'cp4cds-dmp_data_request.csv')
     # file = 'magic_data_request.csv'
     # file = 'abc4cde_data_request.csv'
-    # file = "cp4cds_data_requirements.log"
-    file = "cp4cds_priority_data_requirements.log"
+    file = "cp4cds_data_requirements.log"
+    # file = "cp4cds_priority_data_requirements.log"
 
     make_no_file_log(NO_FILE_LOG)
     create_dataspec_records(project, node, expts, file, debug=debug)
     create_dataset_records(expts, node, debug=debug)
     create_datafile_records(node, distrib, latest, debug=debug)
-    run_ceda_cc(debug)
-    parse_ceda_cc(debug)
-    run_cf_checker(debug)
-    parse_cf_checker(debug)
+    # run_ceda_cc(debug)
+    # parse_ceda_cc(debug)
+    # run_cf_checker(debug)
+    # parse_cf_checker(debug)
