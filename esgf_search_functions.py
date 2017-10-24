@@ -131,9 +131,9 @@ def esgf_ds_search(search_template, facet_check, project, variable, table, frequ
     return result, json
 
 
-def create_datafile_records(node, distrib, latest, debug):
+def create_datafile_records(expt, node, distrib, latest, debug):
 
-    for ds in Dataset.objects.all():
+    for ds in Dataset.objects.filter(experiment=expt):
         variable = ds.variable
         table = ds.cmor_table
         frequency = ds.frequency
@@ -143,7 +143,11 @@ def create_datafile_records(node, distrib, latest, debug):
         version = ds.version
         project = ds.project
 
+        if debug: print variable, table, frequency, experiment, model, ensemble, version, project
+
         url = URL_FILE_INFO % vars()
+        if debug: print url
+
         resp = requests.get(url, verify=False)
         json = resp.json()
         datafiles = json["response"]["docs"]
@@ -170,12 +174,12 @@ def create_datafile_records(node, distrib, latest, debug):
                     sha256_checksum = df["checksum"][0].strip()
                 else: sha256_checksum = ""
 
-                uptodate, uptodateNotes = is_latest_version(project, variable, table, frequency, experiment, model, ensemble,
-                                                            version, node, latest, ceda_filepath, md5_checksum, sha256_checksum,
-                                                            debug)
-
-                isTimeseries = is_timeseries(ceda_filepath, debug)
-
+                # uptodate, uptodateNotes = is_latest_version(project, variable, table, frequency, experiment, model, ensemble,
+                #                                             version, node, latest, ceda_filepath, md5_checksum, sha256_checksum,
+                #                                             debug)
+                #
+                # isTimeseries = is_timeseries(ceda_filepath, debug)
+                #
                 # Create a Datafile record for each file
                 newfile, _ = DataFile.objects.get_or_create(dataset=ds,
                                                             archive_path=ceda_filepath,
@@ -190,11 +194,11 @@ def create_datafile_records(node, distrib, latest, debug):
                                                             cf_standard_name=df["cf_standard_name"][0].strip(),
                                                             variable_units=df["variable_units"][0].strip(),
                                                             start_time=start_time,
-                                                            end_time=end_time,
-                                                            timeseries=isTimeseries,
-                                                            up_to_date=uptodate,
-                                                            up_to_date_note=uptodateNotes
-                                                            )
+                                                            end_time=end_time)
+                                                            # timeseries=isTimeseries,
+                                                            # up_to_date=uptodate,
+                                                            # up_to_date_note=uptodateNotes
+                                                            # )
 
 
 def create_dataset_records(expts, node, debug):
@@ -444,8 +448,10 @@ if __name__ == '__main__':
 
 #    node = "172.16.150.171"
     node = "esgf-index1.ceda.ac.uk"
-    expts = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
-    debug = False
+    # expts = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
+
+    expts =['historical']
+    debug = True
     distrib = False
     latest = True
 
@@ -457,10 +463,10 @@ if __name__ == '__main__':
     file = "ancil_files/cp4cds_data_requirements.txt"
     # file = "ancil_files/cp4cds_priority_data_requirements.txt"
 
-    make_no_file_log(NO_FILE_LOG)
-    create_dataspec_records(node, expts, file, debug=debug)
-    create_dataset_records(expts, node, debug=debug)
-    create_datafile_records(node, distrib, latest, debug=debug)
+    # make_no_file_log(NO_FILE_LOG)
+    # create_dataspec_records(node, expts, file, debug=debug)
+    # create_dataset_records(expts, node, debug=debug)
+    create_datafile_records(expts, node, distrib, latest, debug=debug)
     # run_ceda_cc(debug)
     # parse_ceda_cc(debug)
     # run_cf_checker(debug)
