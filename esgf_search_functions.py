@@ -422,15 +422,17 @@ def make_qc_err_record(dfile, checkType, errorType, errorMessage, filepath):
                                               )
 
 
-def generate_filelist():
+def generate_filelist(FILELIST):
 
-    with open("cp4cds-files.log", 'w') as fw:
+    with open(FILELIST, 'w') as fw:
         for df in DataFiles.objects.all():
             fw.writelines([df.archive_path, "\n"])
 
 if __name__ == '__main__':
 
-
+    """
+    Global variables and settings are defined in qc_settings.py
+    """
 
 #    node = "172.16.150.171"
     node = "esgf-index1.ceda.ac.uk"
@@ -444,8 +446,8 @@ if __name__ == '__main__':
     # file = os.path.join(request_dir, 'cp4cds-dmp_data_request.csv')
     # file = 'magic_data_request.csv'
     # file = 'abc4cde_data_request.csv'
-    file = "cp4cds_data_requirements.log"
-    # file = "cp4cds_priority_data_requirements.log"
+    file = "ancil_files/cp4cds_data_requirements.txt"
+    # file = "ancil_files/cp4cds_priority_data_requirements.txt"
 
     make_no_file_log(NO_FILE_LOG)
     create_dataspec_records(project, node, expts, file, debug=debug)

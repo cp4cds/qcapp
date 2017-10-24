@@ -4,6 +4,8 @@ amapDraft.txt
 *.log
 OUTPUT-LOGS/
 lotus-logs/
+log_dir/
+
 
 db.sqlite*
 cccc*
