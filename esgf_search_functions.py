@@ -1,11 +1,27 @@
 
-from qc_settings import *
 
+import django
+django.setup()
+from qcapp.models import *
+
+import collections, os, timeit, datetime, time, re, glob
+import commands
+import hashlib
+import requests, itertools
+from subprocess import call
+from sys import argv
+from ceda_cc import c4
+from cfchecker.cfchecks import CFVersion, CFChecker, newest_version
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+
+from django.db.models import Count, Max, Min, Sum, Avg
+requests.packages.urllib3.disable_warnings()
+from qc_settings import *
 project = 'CMIP5'
 
 
 def is_latest_version(project, variable, table, frequency, experiment, model, ensemble, version, node, latest,
-                      archive_path, md5_checksum, sha256_checksum, debug):
+                      archive_path, md5_checksum, sha256_checksum):
 
     distrib_latest = True
     replica_latest = False
@@ -13,7 +29,7 @@ def is_latest_version(project, variable, table, frequency, experiment, model, en
 
 
     url = URL_LATEST_TEMPLATE % vars()
-    if debug: print url
+    if DEBUG:  print url
     resp = requests.get(url, verify=False)
     json = resp.json()
 
@@ -59,7 +75,7 @@ def is_latest_version(project, variable, table, frequency, experiment, model, en
                 return uptodate, uptodateNotes
 
 
-def is_timeseries(filepath, debug):
+def is_timeseries(filepath):
 
     if os.path.isdir(os.path.dirname(filepath)):
 
@@ -116,13 +132,13 @@ def get_start_end_times(frequency, fname):
 
 
 def esgf_ds_search(search_template, facet_check, project, variable, table, frequency, experiment, model, node, distrib,
-                   latest, debug):
+                   latest):
     """
     Perform an esgf dataset search using the specified template
     :return: dictionary of facets
     """
     url = search_template % vars()
-    if debug: print "DS SEARCH URL:: \n", url
+    if DEBUG:  print "DS SEARCH URL:: \n", url
     resp = requests.get(url, verify=False)
     json = resp.json()
     result = json["facet_counts"]["facet_fields"][facet_check]
@@ -131,7 +147,7 @@ def esgf_ds_search(search_template, facet_check, project, variable, table, frequ
     return result, json
 
 
-def create_datafile_records(expt, node, distrib, latest, debug):
+def create_datafile_records(expt, node, distrib, latest):
 
     for ds in Dataset.objects.filter(experiment=expt):
         variable = ds.variable
@@ -143,10 +159,10 @@ def create_datafile_records(expt, node, distrib, latest, debug):
         version = ds.version
         project = ds.project
 
-        if debug: print variable, table, frequency, experiment, model, ensemble, version, project
+        if DEBUG: print variable, table, frequency, experiment, model, ensemble, version, project
 
         url = URL_FILE_INFO % vars()
-        if debug: print url
+        if DEBUG: print url
 
         resp = requests.get(url, verify=False)
         json = resp.json()
@@ -161,9 +177,9 @@ def create_datafile_records(expt, node, distrib, latest, debug):
                 pass
             else:
                 # Check file exists at ceda
-                if debug: print ceda_filepath
+                if DEBUG:  print ceda_filepath
                 if not os.path.isfile(ceda_filepath):
-                    if debug: print "FILE DOES NOT EXIST AT CEDA:: ", ceda_filepath
+                    if DEBUG:  print "FILE DOES NOT EXIST AT CEDA:: ", ceda_filepath
                     with open(NO_FILE_LOG, 'a') as fe:
                         fe.write("NOT VALID CEDA FILE: %s" % ceda_filepath)
 
@@ -175,10 +191,9 @@ def create_datafile_records(expt, node, distrib, latest, debug):
                 else: sha256_checksum = ""
 
                 # uptodate, uptodateNotes = is_latest_version(project, variable, table, frequency, experiment, model, ensemble,
-                #                                             version, node, latest, ceda_filepath, md5_checksum, sha256_checksum,
-                #                                             debug)
+                #                                             version, node, latest, ceda_filepath, md5_checksum, sha256_checksum)
                 #
-                # isTimeseries = is_timeseries(ceda_filepath, debug)
+                # isTimeseries = is_timeseries(ceda_filepath)
                 #
                 # Create a Datafile record for each file
                 newfile, _ = DataFile.objects.get_or_create(dataset=ds,
@@ -201,7 +216,7 @@ def create_datafile_records(expt, node, distrib, latest, debug):
                                                             # )
 
 
-def create_dataset_records(expts, node, debug):
+def create_dataset_records(expts, node):
     """
 
     :return:
@@ -215,23 +230,23 @@ def create_dataset_records(expts, node, debug):
         frequency = spec.frequency
 
         for experiment in expts:
-            if debug: print experiment
+            if DEBUG:  print experiment
 
             # Get a dictionary of models that match a given search criteria
             models, json = esgf_ds_search(URL_DS_MODEL_FACETS, 'model', project, variable, table, frequency,
-                                          experiment, '', node, distrib, latest, debug)
+                                          experiment, '', node, distrib, latest)
 
             for model in models.keys():
 
                 # Get a dictionary of ensemble members that match a given search criteria
                 ensembles, json = esgf_ds_search(URL_DS_ENSEMBLE_FACETS, 'ensemble', project, variable, table, frequency,
-                                                 experiment, model, node, distrib, latest, debug)
+                                                 experiment, model, node, distrib, latest)
 
                 for dset in range(len(json["response"]["docs"])):
 
                     dataset = json["response"]["docs"][dset]
 
-                    if debug:
+                    if DEBUG: 
                         print project, dataset["product"][0].strip(), dataset["institute"][0].strip(), model, \
                               experiment, frequency, dataset["realm"][0].strip(), table, dataset["ensemble"][0].strip(), \
                               variable, dataset["version"].strip()
@@ -257,7 +272,7 @@ def create_dataset_records(expts, node, debug):
                     ds.save()
 
 
-def create_dataspec_records(node, expts, file, debug):
+def create_dataspec_records(node, expts, file):
     """
     Generate all data specification records from csv input for a given project
 
@@ -277,13 +292,13 @@ def create_dataspec_records(node, expts, file, debug):
 
         if lineno == 0:
             requester = line.split(',')[0].strip()
-            if debug: print requester
+            if DEBUG:  print requester
 
         if lineno > 1:
             variable = line.split(',')[0].strip()
             table = line.split(',')[1].strip()
             frequency = line.split(',')[2].strip()
-            if debug: print variable, table, frequency
+            if DEBUG:  print variable, table, frequency
 
             # Add requester and request to tables and link up
             dRequester, _ = DataRequester.objects.get_or_create(requested_by=requester)
@@ -300,11 +315,11 @@ def make_no_file_log(NO_FILE_LOG):
         fe.write('')
 
 
-def run_ceda_cc(debug):
+def run_ceda_cc():
 
     for df in DataFile.objects.all():
         file = df.archive_path
-        if debug: print file
+        if DEBUG:  print file
 
         institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
         cedacc_odir = os.path.join(CEDACC_DIR, model, experiment, table)
@@ -323,7 +338,7 @@ def run_ceda_cc(debug):
             res = call[mv_cmd]
 
 
-def parse_ceda_cc(debug):
+def parse_ceda_cc():
 
     checkType = "CEDA-CC"
 
@@ -339,7 +354,7 @@ def parse_ceda_cc(debug):
 
         for logfile in log_dir_files:
             if ceda_cc_file_pattern.match(logfile):
-                if debug: print logfile
+                if DEBUG:  print logfile
                 with open(os.path.join(log_dir, logfile), 'r') as fr:
                     ceda_cc_out = fr.readlines()
 
@@ -363,11 +378,11 @@ def parse_ceda_cc(debug):
                         make_qc_err_record(df, checkType, "fatal", line, os.path.join(log_dir, logfile))
 
 
-def run_cf_checker(debug):
+def run_cf_checker():
 
     for df in DataFile.objects.all():
         file = df.archive_path
-        if debug: print file
+        if DEBUG:  print file
 
         institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
         cf_odir = os.path.join(CF_DIR, model, experiment, table)
@@ -386,7 +401,7 @@ def run_cf_checker(debug):
         cf_err.close()
 
 
-def parse_cf_checker(debug):
+def parse_cf_checker():
 
     checkType = "CF"
 
@@ -402,7 +417,7 @@ def parse_cf_checker(debug):
 
         for logfile in log_dir_files:
             if cf_file_pattern.match(logfile):
-                if debug: print logfile
+                if DEBUG:  print logfile
                 with open(os.path.join(log_dir, logfile), 'r') as fr:
                     cf_out = fr.readlines()
 
@@ -447,13 +462,10 @@ if __name__ == '__main__':
     """
 
 #    node = "172.16.150.171"
-    node = "esgf-index1.ceda.ac.uk"
+
     # expts = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
 
-    expts =['historical']
-    debug = True
-    distrib = False
-    latest = True
+
 
     # request_dir = "/usr/local/cp4cds-app/project-specs/"
     # file = os.path.join(request_dir, 'top-priority.csv')
@@ -464,10 +476,17 @@ if __name__ == '__main__':
     # file = "ancil_files/cp4cds_priority_data_requirements.txt"
 
     # make_no_file_log(NO_FILE_LOG)
-    # create_dataspec_records(node, expts, file, debug=debug)
-    # create_dataset_records(expts, node, debug=debug)
-    create_datafile_records(expts, node, distrib, latest, debug=debug)
-    # run_ceda_cc(debug)
-    # parse_ceda_cc(debug)
-    # run_cf_checker(debug)
-    # parse_cf_checker(debug)
+    # create_dataspec_records(node, expts, file)
+    # create_dataset_records(expts, node)
+
+    expt ='rcp85'
+    node = "esgf-index1.ceda.ac.uk"
+    distrib = False
+    latest = True
+
+    create_datafile_records(expt, node, distrib, latest)
+
+    # run_ceda_cc()
+    # parse_ceda_cc()
+    # run_cf_checker()
+    # parse_cf_checker()
