@@ -253,7 +253,7 @@ def create_dataset_records(expts, node, debug):
                     ds.save()
 
 
-def create_dataspec_records(project, node, expts, file, debug):
+def create_dataspec_records(node, expts, file, debug):
     """
     Generate all data specification records from csv input for a given project
 
@@ -309,6 +309,14 @@ def run_ceda_cc(debug):
             os.makedirs(cedacc_odir)
         cedacc_args = ['-p', 'CMIP5', '-f', file, '--log', 'multi', '--ld', cedacc_odir, '--cae', '--blfmode', 'a']
         run_cedacc = c4.main(cedacc_args)
+
+        # Tidy up; move ceda-cc output files to a log_dir
+        cedacc_ofiles = ["cccc_atMapLog.txt",
+                         "Rec.json",
+                         "Rec.txt"]
+        for f in cedacc_ofiles:
+            mv_cmd = ['mv', f, 'log_dir/']
+            res = call[mv_cmd]
 
 
 def parse_ceda_cc(debug):
@@ -450,7 +458,7 @@ if __name__ == '__main__':
     # file = "ancil_files/cp4cds_priority_data_requirements.txt"
 
     make_no_file_log(NO_FILE_LOG)
-    create_dataspec_records(project, node, expts, file, debug=debug)
+    create_dataspec_records(node, expts, file, debug=debug)
     create_dataset_records(expts, node, debug=debug)
     create_datafile_records(node, distrib, latest, debug=debug)
     # run_ceda_cc(debug)
