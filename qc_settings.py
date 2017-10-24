@@ -11,6 +11,7 @@ import commands
 import hashlib
 import requests, itertools
 from subprocess import call
+from sys import argv
 from ceda_cc import c4
 from cfchecker.cfchecks import CFVersion, CFChecker, newest_version
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -25,7 +26,7 @@ CEDACC_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CEDACC-OUTPUT/"
 CF_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CF-OUTPUT/"
 AREATABLE = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/area-type-table.xml"
 STDNAMETABLE = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/cf-standard-name-table.xml"
-
+FILELIST = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/ancil_filescp4cds-files.txt"
 
 
 URL_DS_MODEL_FACETS = 'https://%(node)s/esg-search/' \
