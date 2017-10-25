@@ -9,6 +9,11 @@ experiments = ['rcp45']
 file = "ancil_files/cp4cds_data_requirements.txt"
 #file = "ancil_files/cp4cds_priority_data_requirements.txt"
 
+if os.path.isfile(NO_FILE_LOG):
+    os.remove(NO_FILE_LOG)
+with open(NO_FILE_LOG, 'w') as fe:
+    fe.write('')
+
 
 with open(file, 'r') as reader:
     data = reader.readlines()
@@ -27,9 +32,8 @@ for line in data:
         if DEBUG: print variable, table, frequency
 
         for experiment in experiments:
-
+            if DEBUG: print experiment, variable, table, frequency
             lotus_cmd = ['./submit-lotus.sh', variable, table, frequency, experiment]
-            print lotus_cmd
             res = call(lotus_cmd)
 
     lineno += 1

@@ -7,17 +7,19 @@
 
 ARCHIVE_ROOT = "/badc/cmip5/data/"
 GWSDIR = "/group_workspaces/jasmin/cp4cds1/qc/CFchecks/CF-OUTPUT/"
-NO_FILE_LOG = 'cp4cds_nofile_error.log'
+NO_FILE_LOG = 'log_dir/cp4cds_nofile_error.log'
 CEDACC_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CEDACC-OUTPUT/"
 CF_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CF-OUTPUT/"
 AREATABLE = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/area-type-table.xml"
 STDNAMETABLE = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/cf-standard-name-table.xml"
 FILELIST = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/ancil_filescp4cds-files.txt"
-DEBUG = True
+DEBUG = False
 #expts = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
+#    node = "172.16.150.171"
 node = "esgf-index1.ceda.ac.uk"
 distrib = False
 latest = True
+requester = "CP4CDS"
 
 URL_DS_MODEL_FACETS = 'https://%(node)s/esg-search/' \
                       'search?type=Dataset&' \

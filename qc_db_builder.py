@@ -186,10 +186,6 @@ def create_datafile_records(var, freq, table, expt, node, distrib, latest):
                     sha256_checksum = df["checksum"][0].strip()
                 else: sha256_checksum = ""
 
-                uptodate, uptodateNotes = is_latest_version(project, variable, table, frequency, experiment, model,
-                                                            ensemble, version, node, latest, ceda_filepath,
-                                                            md5_checksum, sha256_checksum)
-
                 isTimeseries = is_timeseries(ceda_filepath)
 
                 # Create a Datafile record for each file
@@ -207,9 +203,7 @@ def create_datafile_records(var, freq, table, expt, node, distrib, latest):
                                                             variable_units=df["variable_units"][0].strip(),
                                                             start_time=start_time,
                                                             end_time=end_time,
-                                                            timeseries=isTimeseries,
-                                                            up_to_date=uptodate,
-                                                            up_to_date_note=uptodateNotes
+                                                            timeseries=isTimeseries
                                                             )
 
 def create_dataset_records(variable, frequency, table, experiment, node, spec):
@@ -258,13 +252,6 @@ def create_dataset_records(variable, frequency, table, experiment, node, spec):
             # Link this to the DataSpecification table
             ds.data_spec.add(spec)
             ds.save()
-
-
-def make_no_file_log(NO_FILE_LOG):
-    if os.path.isfile(NO_FILE_LOG):
-        os.remove(NO_FILE_LOG)
-    with open(NO_FILE_LOG, 'w') as fe:
-        fe.write('')
 
 
 def run_ceda_cc(file):
@@ -406,6 +393,13 @@ def generate_filelist(FILELIST):
         for df in DataFiles.objects.all():
             fw.writelines([df.archive_path, "\n"])
 
+
+def up_to_date_check():
+    uptodate, uptodateNotes = is_latest_version(project, variable, table, frequency, experiment, model,
+                                                ensemble, version, node, latest, ceda_filepath,
+                                                md5_checksum, sha256_checksum)
+
+
 if __name__ == '__main__':
 
     """
@@ -417,14 +411,12 @@ if __name__ == '__main__':
     freq = argv[3]
     expt = argv[4]
 
-#    node = "172.16.150.171"
-    requester = "CP4CDS"
-    print var, freq, table, expt
+    if DEBUG: print var, freq, table, expt
 
-    make_no_file_log(NO_FILE_LOG)
-    dspec = create_dataspec(requester, var, freq, table)
-    create_dataset_records(var, freq, table, expt, node, dspec)
-    # create_datafile_records(var, freq, table, expt, node, distrib, latest)
+    # dspec = create_dataspec(requester, var, freq, table)
+    # create_dataset_records(var, freq, table, expt, node, dspec)
+    create_datafile_records(var, freq, table, expt, node, distrib, latest)
+    # up_to_date_check()
 
     # for df in DataFile.objects.filter(dataset__variable=var,
     #                                   dataset__cmor_table=table,
