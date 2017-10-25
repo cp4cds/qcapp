@@ -1,11 +1,27 @@
 
+import django
+django.setup()
+from qcapp.models import *
+
+import collections, os, timeit, datetime, time, re, glob
+import commands
+import hashlib
+import requests, itertools
+from subprocess import call
+from sys import argv
+from ceda_cc import c4
+from cfchecker.cfchecks import CFVersion, CFChecker, newest_version
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+
+from django.db.models import Count, Max, Min, Sum, Avg
+requests.packages.urllib3.disable_warnings()
 from qc_settings import *
 
 project = 'CMIP5'
 
 
 def is_latest_version(project, variable, table, frequency, experiment, model, ensemble, version, node, latest,
-                      archive_path, md5_checksum, sha256_checksum, debug):
+                      archive_path, md5_checksum, sha256_checksum):
 
     distrib_latest = True
     replica_latest = False
@@ -13,7 +29,7 @@ def is_latest_version(project, variable, table, frequency, experiment, model, en
 
 
     url = URL_LATEST_TEMPLATE % vars()
-    if debug: print url
+    if DEBUG: print url
     resp = requests.get(url, verify=False)
     json = resp.json()
 
@@ -59,7 +75,7 @@ def is_latest_version(project, variable, table, frequency, experiment, model, en
                 return uptodate, uptodateNotes
 
 
-def is_timeseries(filepath, debug):
+def is_timeseries(filepath):
 
     if os.path.isdir(os.path.dirname(filepath)):
 
@@ -116,13 +132,13 @@ def get_start_end_times(frequency, fname):
 
 
 def esgf_ds_search(search_template, facet_check, project, variable, table, frequency, experiment, model, node, distrib,
-                   latest, debug):
+                   latest):
     """
     Perform an esgf dataset search using the specified template
     :return: dictionary of facets
     """
     url = search_template % vars()
-    if debug: print "DS SEARCH URL:: \n", url
+    if DEBUG: print "DS SEARCH URL:: \n", url
     resp = requests.get(url, verify=False)
     json = resp.json()
     result = json["facet_counts"]["facet_fields"][facet_check]
@@ -131,7 +147,7 @@ def esgf_ds_search(search_template, facet_check, project, variable, table, frequ
     return result, json
 
 
-def create_datafile_records(var, freq, table, expt, node, distrib, latest, debug):
+def create_datafile_records(var, freq, table, expt, node, distrib, latest):
 
     for ds in Dataset.objects.filter(variable=var, cmor_table=table, frequency=freq, experiment=expt):
         variable = ds.variable
@@ -157,9 +173,9 @@ def create_datafile_records(var, freq, table, expt, node, distrib, latest, debug
                 pass
             else:
                 # Check file exists at ceda
-                if debug: print ceda_filepath
+                if DEBUG: print ceda_filepath
                 if not os.path.isfile(ceda_filepath):
-                    if debug: print "FILE DOES NOT EXIST AT CEDA:: ", ceda_filepath
+                    if DEBUG: print "FILE DOES NOT EXIST AT CEDA:: ", ceda_filepath
                     with open(NO_FILE_LOG, 'a') as fe:
                         fe.write("NOT VALID CEDA FILE: %s" % ceda_filepath)
 
@@ -170,11 +186,11 @@ def create_datafile_records(var, freq, table, expt, node, distrib, latest, debug
                     sha256_checksum = df["checksum"][0].strip()
                 else: sha256_checksum = ""
 
-                uptodate, uptodateNotes = is_latest_version(project, variable, table, frequency, experiment, model, ensemble,
-                                                            version, node, latest, ceda_filepath, md5_checksum, sha256_checksum,
-                                                            debug)
+                uptodate, uptodateNotes = is_latest_version(project, variable, table, frequency, experiment, model,
+                                                            ensemble, version, node, latest, ceda_filepath,
+                                                            md5_checksum, sha256_checksum)
 
-                isTimeseries = is_timeseries(ceda_filepath, debug)
+                isTimeseries = is_timeseries(ceda_filepath)
 
                 # Create a Datafile record for each file
                 newfile, _ = DataFile.objects.get_or_create(dataset=ds,
@@ -196,8 +212,7 @@ def create_datafile_records(var, freq, table, expt, node, distrib, latest, debug
                                                             up_to_date_note=uptodateNotes
                                                             )
 
-
-def create_dataset_records(variable, frequency, table, experiment, node, debug):
+def create_dataset_records(variable, frequency, table, experiment, node, spec):
     """
 
     :return:
@@ -207,19 +222,19 @@ def create_dataset_records(variable, frequency, table, experiment, node, debug):
 
     # Get a dictionary of models that match a given search criteria
     models, json = esgf_ds_search(URL_DS_MODEL_FACETS, 'model', project, variable, table, frequency,
-                                  experiment, '', node, distrib, latest, debug)
+                                  experiment, '', node, distrib, latest)
 
     for model in models.keys():
 
         # Get a dictionary of ensemble members that match a given search criteria
         ensembles, json = esgf_ds_search(URL_DS_ENSEMBLE_FACETS, 'ensemble', project, variable, table, frequency,
-                                         experiment, model, node, distrib, latest, debug)
+                                         experiment, model, node, distrib, latest)
 
         for dset in range(len(json["response"]["docs"])):
 
             dataset = json["response"]["docs"][dset]
 
-            if debug:
+            if DEBUG:
                 print project, dataset["product"][0].strip(), dataset["institute"][0].strip(), model, \
                       experiment, frequency, dataset["realm"][0].strip(), table, dataset["ensemble"][0].strip(), \
                       variable, dataset["version"].strip()
@@ -252,9 +267,9 @@ def make_no_file_log(NO_FILE_LOG):
         fe.write('')
 
 
-def run_ceda_cc(file, debug):
+def run_ceda_cc(file):
 
-    if debug: print file
+    if DEBUG: print file
 
     institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
     cedacc_odir = os.path.join(CEDACC_DIR, model, experiment, table)
@@ -273,7 +288,7 @@ def run_ceda_cc(file, debug):
         res = call[mv_cmd]
 
 
-def parse_ceda_cc(file, debug):
+def parse_ceda_cc(file):
 
     checkType = "CEDA-CC"
 
@@ -287,7 +302,7 @@ def parse_ceda_cc(file, debug):
 
     for logfile in log_dir_files:
         if ceda_cc_file_pattern.match(logfile):
-            if debug: print logfile
+            if DEBUG: print logfile
             with open(os.path.join(log_dir, logfile), 'r') as fr:
                 ceda_cc_out = fr.readlines()
 
@@ -311,9 +326,9 @@ def parse_ceda_cc(file, debug):
                     make_qc_err_record(df, checkType, "fatal", line, os.path.join(log_dir, logfile))
 
 
-def run_cf_checker(file, debug):
+def run_cf_checker(file):
 
-    if debug: print file
+    if DEBUG: print file
 
     institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
     cf_odir = os.path.join(CF_DIR, model, experiment, table)
@@ -332,7 +347,7 @@ def run_cf_checker(file, debug):
     cf_err.close()
 
 
-def parse_cf_checker(file, debug):
+def parse_cf_checker(file):
 
     checkType = "CF"
 
@@ -346,7 +361,7 @@ def parse_cf_checker(file, debug):
 
     for logfile in log_dir_files:
         if cf_file_pattern.match(logfile):
-            if debug: print logfile
+            if DEBUG: print logfile
             with open(os.path.join(log_dir, logfile), 'r') as fr:
                 cf_out = fr.readlines()
 
@@ -377,6 +392,13 @@ def make_qc_err_record(dfile, checkType, errorType, errorMessage, filepath):
                                               report_filepath=filepath
                                               )
 
+def create_dataspec(requester, variable, frequency, table):
+    dRequester, _ = DataRequester.objects.get_or_create(requested_by=requester)
+    dSpec, _ = DataSpecification.objects.get_or_create(variable=variable, cmor_table=table, frequency=frequency)
+    dSpec.datarequesters.add(dRequester)
+    dSpec.save()
+
+    return dSpec
 
 def generate_filelist(FILELIST):
 
@@ -391,21 +413,18 @@ if __name__ == '__main__':
     """
 
     var = argv[1]
-    freq = argv[2]
-    table = argv[3]
+    table = argv[2]
+    freq = argv[3]
     expt = argv[4]
 
 #    node = "172.16.150.171"
-    node = "esgf-index1.ceda.ac.uk"
-    expts = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
-    debug = False
-    distrib = False
-    latest = True
-
+    requester = "CP4CDS"
+    print var, freq, table, expt
 
     make_no_file_log(NO_FILE_LOG)
-    create_dataset_records(var, freq, table, expt, node, debug=debug)
-    create_datafile_records(var, freq, table, expt, node, distrib, latest, debug=debug)
+    dspec = create_dataspec(requester, var, freq, table)
+    create_dataset_records(var, freq, table, expt, node, dspec)
+    create_datafile_records(var, freq, table, expt, node, distrib, latest)
 
     # for df in DataFile.objects.filter(dataset__variable=var,
     #                                   dataset__cmor_table=table,
@@ -415,7 +434,7 @@ if __name__ == '__main__':
     #
     #     file = df.archive_path
     #
-    #     run_ceda_cc(file, debug)
-    #     parse_ceda_cc(file, debug)
-    #     run_cf_checker(file, debug)
-    #     parse_cf_checker(file, debug)
+    #     run_ceda_cc(file)
+    #     parse_ceda_cc(file)
+    #     run_cf_checker(file)
+    #     parse_cf_checker(file)

@@ -1,10 +1,12 @@
 #!/bin/bash
 
+odir=/group_workspaces/jasmin2/cp4cds1/qc/qc-app/qcapp/lotus-logs
+mkdir -p $odir
+
 var=$1
-freq=$2
-table=$3
+table=$2
+freq=$3
 expt=$4
 
-/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/venv/bin/activate
-export DJANGO_SETTINGS_MODULE=qcproj.settings
-python /group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/qc_db_builder.py $var $freq $table $expt
+bsub -J -o $odir/%J.out -W 24:00 ./run_qc_lotus.sh $var $table $freq $expt
+

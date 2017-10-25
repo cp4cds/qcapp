@@ -1,4 +1,4 @@
-cp4cds,,,,,,
+CP4CDS,,,,,,
 variable,cmor_table,frequency,variable_longname,numb_experiments,numb_models,data_volume
 tas,Amon,mon,Near-surface (2m) air temperature (SAT),7,11,132.6428
 ts,Amon,mon,Surface temperature (Skin/SST),7,11,122.4069

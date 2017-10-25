@@ -14,6 +14,10 @@ AREATABLE = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/area-type-table.xml"
 STDNAMETABLE = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/cf-standard-name-table.xml"
 FILELIST = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/ancil_filescp4cds-files.txt"
 DEBUG = True
+#expts = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
+node = "esgf-index1.ceda.ac.uk"
+distrib = False
+latest = True
 
 URL_DS_MODEL_FACETS = 'https://%(node)s/esg-search/' \
                       'search?type=Dataset&' \
