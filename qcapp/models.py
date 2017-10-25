@@ -93,7 +93,7 @@ class DataFile(models.Model):
     end_time = models.DateField()
     timeseries = models.NullBooleanField(default=None, blank=True, null=True)
     up_to_date = models.NullBooleanField(default=None, blank=True, null=True)
-    up_to_date_note = models.CharField(max_length=1000, blank=True, null=True)
+    up_to_date_note = models.CharField(default=None, max_length=1000, blank=True, null=True)
 
     # Datafile QC information
     cf_compliance_score = models.PositiveSmallIntegerField(default=0, blank=True)
