@@ -413,13 +413,15 @@ if __name__ == '__main__':
     var = argv[1]
     table = argv[2]
     freq = argv[3]
-    expt = argv[4]
+    # expt = argv[4]
 
-    if DEBUG: print var, freq, table, expt
+    if DEBUG: print var, freq, table
+    experiments = ['piControl', 'amip', 'rcp26', 'rcp60', 'rcp85']
 
-    dspec = create_dataspec(requester, var, freq, table)
-    create_dataset_records(var, freq, table, expt, node, dspec)
-    create_datafile_records(var, freq, table, expt, node, distrib, latest)
+    for expt in experiments:
+        dspec = create_dataspec(requester, var, freq, table)
+        create_dataset_records(var, freq, table, expt, node, dspec)
+        create_datafile_records(var, freq, table, expt, node, distrib, latest)
 
 
     # for df in DataFile.objects.filter(dataset__variable=var,
