@@ -6,8 +6,8 @@ from subprocess import call
 #    node = "172.16.150.171"
 experiments = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
 experiments = ['rcp45']
-# file = "ancil_files/cp4cds_priority_data_requirements.txt"
-file = "ancil_files/cp4cds_priority_data_requirements.txt"
+file = "ancil_files/cp4cds_data_requirements.txt"
+#file = "ancil_files/cp4cds_priority_data_requirements.txt"
 
 
 with open(file, 'r') as reader:

@@ -424,7 +424,7 @@ if __name__ == '__main__':
     make_no_file_log(NO_FILE_LOG)
     dspec = create_dataspec(requester, var, freq, table)
     create_dataset_records(var, freq, table, expt, node, dspec)
-    create_datafile_records(var, freq, table, expt, node, distrib, latest)
+    # create_datafile_records(var, freq, table, expt, node, distrib, latest)
 
     # for df in DataFile.objects.filter(dataset__variable=var,
     #                                   dataset__cmor_table=table,
