@@ -1,3 +1,3 @@
 CP4CDS,,,,,,
 variable,cmor_table,frequency,variable_longname,numb_experiments,numb_models,data_volume
-snd,OImon,mon,Snow depth over sea ice,3,32,239.3155
+huss,Amon,mon,Near-surface specific humidity,7,8,107.8666

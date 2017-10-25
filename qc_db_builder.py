@@ -20,13 +20,12 @@ from qc_settings import *
 project = 'CMIP5'
 
 
-def is_latest_version(project, variable, table, frequency, experiment, model, ensemble, version, node, latest,
-                      archive_path, md5_checksum, sha256_checksum):
+def is_latest_version(archive_path, variable, table, frequency, experiment, model, ensemble,
+                      version, md5_checksum, sha256_checksum):
 
     distrib_latest = True
     replica_latest = False
     version = "v" + version
-
 
     url = URL_LATEST_TEMPLATE % vars()
     if DEBUG: print url
@@ -394,10 +393,15 @@ def generate_filelist(FILELIST):
             fw.writelines([df.archive_path, "\n"])
 
 
-def up_to_date_check():
-    uptodate, uptodateNotes = is_latest_version(project, variable, table, frequency, experiment, model,
-                                                ensemble, version, node, latest, ceda_filepath,
-                                                md5_checksum, sha256_checksum)
+def up_to_date_check(df, file, variable, table, frequency, experiment):
+
+    uptodate, uptodateNotes = is_latest_version(file, variable, table, frequency, experiment,
+                                                df.dataset.model,
+                                                df.dataset.ensemble,
+                                                df.dataset.version,
+                                                md5_checksum,
+                                                sha256_checksum
+                                                )
 
 
 if __name__ == '__main__':
@@ -413,18 +417,20 @@ if __name__ == '__main__':
 
     if DEBUG: print var, freq, table, expt
 
-    # dspec = create_dataspec(requester, var, freq, table)
-    # create_dataset_records(var, freq, table, expt, node, dspec)
+    dspec = create_dataspec(requester, var, freq, table)
+    create_dataset_records(var, freq, table, expt, node, dspec)
     create_datafile_records(var, freq, table, expt, node, distrib, latest)
-    # up_to_date_check()
+
 
     # for df in DataFile.objects.filter(dataset__variable=var,
     #                                   dataset__cmor_table=table,
     #                                   dataset__frequency=freq,
     #                                   dataset__experiment=expt
     #                                   ):
-    #
     #     file = df.archive_path
+    #     up_to_date_check(df, file, var, table, freq, expt)
+    #
+    #
     #
     #     run_ceda_cc(file)
     #     parse_ceda_cc(file)
