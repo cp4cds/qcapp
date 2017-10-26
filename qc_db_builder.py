@@ -20,60 +20,6 @@ from qc_settings import *
 project = 'CMIP5'
 
 
-def is_latest_version(archive_path, variable, table, frequency, experiment, model, ensemble,
-                      version, md5_checksum, sha256_checksum):
-
-    distrib_latest = True
-    replica_latest = False
-    version = "v" + version
-
-    url = URL_LATEST_TEMPLATE % vars()
-    if DEBUG: print url
-    resp = requests.get(url, verify=False)
-    json = resp.json()
-
-    if json["response"]["numFound"] == 0:
-        uptodate = False
-        uptodateNotes = "NO URL RESPONSE: %s" % url
-        return uptodate, uptodateNotes
-
-    else:
-
-        for resp in range(json["response"]["numFound"]):
-            json_resp = json["response"]["docs"][resp]
-
-            if json_resp["title"] == os.path.basename(archive_path):
-                id = json_resp["id"].strip()
-                checksum = json_resp["checksum"][0].strip()
-                checksum_type = json_resp["checksum_type"][0].strip()
-                datanode = id.split('|')[1]
-                dataset_id = id.split('|')[0]
-                latest_version = dataset_id.split('.')[-3]
-
-                if checksum_type == "MD5":
-                    checksum_match = checksum == md5_checksum
-                else:
-                    checksum_match = checksum == sha256_checksum
-
-                if checksum_match:
-                    uptodate = True
-                    uptodateNotes = "UP TO DATE"
-                    return uptodate, uptodateNotes
-                else:
-                    uptodate = False
-                    if latest_version != version:
-                        uptodateNotes = "VERSION MISMATCH. Old version: %s, latest version %s, url %s" % \
-                                        (version, latest_version, url)
-                        return uptodate, uptodateNotes
-                    else:
-                        uptodateNotes = "UNKNOWN: Checksums don't match unknown reason, %s" % url
-                        return uptodate, uptodateNotes
-            else:
-                uptodate = False
-                uptodateNotes = "NO MATCHING FILE FOUND: %s" % url
-                return uptodate, uptodateNotes
-
-
 def is_timeseries(filepath):
 
     if os.path.isdir(os.path.dirname(filepath)):
@@ -205,6 +151,7 @@ def create_datafile_records(var, freq, table, expt, node, distrib, latest):
                                                             timeseries=isTimeseries
                                                             )
 
+
 def create_dataset_records(variable, frequency, table, experiment, node, spec):
     """
 
@@ -266,12 +213,12 @@ def run_ceda_cc(file):
     run_cedacc = c4.main(cedacc_args)
 
     # Tidy up; move ceda-cc output files to a log_dir
-    cedacc_ofiles = ["cccc_atMapLog.txt",
-                     "Rec.json",
-                     "Rec.txt"]
-    for f in cedacc_ofiles:
-        mv_cmd = ['mv', f, 'log_dir/']
-        res = call[mv_cmd]
+    # cedacc_ofiles = ["cccc_atMapLog.txt",
+    #                  "Rec.json",
+    #                  "Rec.txt"]
+    # for f in cedacc_ofiles:
+    #     mv_cmd = ['mv', f, 'log_dir/']
+    #     res = call(mv_cmd)
 
 
 def parse_ceda_cc(file):
@@ -378,6 +325,7 @@ def make_qc_err_record(dfile, checkType, errorType, errorMessage, filepath):
                                               report_filepath=filepath
                                               )
 
+
 def create_dataspec(requester, variable, frequency, table):
     dRequester, _ = DataRequester.objects.get_or_create(requested_by=requester)
     dSpec, _ = DataSpecification.objects.get_or_create(variable=variable, cmor_table=table, frequency=frequency)
@@ -385,6 +333,7 @@ def create_dataspec(requester, variable, frequency, table):
     dSpec.save()
 
     return dSpec
+
 
 def generate_filelist(FILELIST):
 
@@ -395,13 +344,77 @@ def generate_filelist(FILELIST):
 
 def up_to_date_check(df, file, variable, table, frequency, experiment):
 
+
     uptodate, uptodateNotes = is_latest_version(file, variable, table, frequency, experiment,
                                                 df.dataset.model,
                                                 df.dataset.ensemble,
                                                 df.dataset.version,
-                                                md5_checksum,
-                                                sha256_checksum
+                                                df.md5_checksum,
+                                                df.sha256_checksum
                                                 )
+
+    df.up_to_date = uptodate
+    df.up_to_date_note = uptodateNotes
+    df.save()
+
+
+def is_latest_version(archive_path, variable, table, frequency, experiment, model, ensemble,
+                      version, md5_checksum, sha256_checksum):
+
+    distrib_latest = True
+    replica_latest = False
+    version = "v" + version
+    latest_node = node
+    latest_project = project
+    latest_latest = latest
+
+    url = URL_LATEST_TEMPLATE % vars()
+    if DEBUG: print url
+    resp = requests.get(url, verify=False)
+    json = resp.json()
+
+    if json["response"]["numFound"] == 0:
+        uptodate = False
+        uptodateNotes = "NO URL RESPONSE: %s" % url
+        return uptodate, uptodateNotes
+
+    else:
+
+        for resp in range(len(json["response"]["docs"])):
+            json_resp = json["response"]["docs"][resp]
+
+            if json_resp["title"] == os.path.basename(archive_path):
+                id = json_resp["id"].strip()
+                checksum = json_resp["checksum"][0].strip()
+                checksum_type = json_resp["checksum_type"][0].strip()
+                datanode = id.split('|')[1]
+                dataset_id = id.split('|')[0]
+                latest_version = dataset_id.split('.')[-3]
+
+                if checksum_type == "MD5":
+                    checksum_match = checksum == md5_checksum
+                else:
+                    checksum_match = checksum == sha256_checksum
+
+                if checksum_match:
+                    uptodate = True
+                    uptodateNotes = "UP TO DATE"
+                    return uptodate, uptodateNotes
+                else:
+                    uptodate = False
+                    if latest_version != version:
+                        uptodateNotes = "VERSION MISMATCH. Old version: %s, latest version %s, url %s" % \
+                                        (version, latest_version, url)
+                        return uptodate, uptodateNotes
+                    else:
+                        uptodateNotes = "UNKNOWN: Checksums don't match unknown reason, %s" % url
+                        return uptodate, uptodateNotes
+            else:
+                uptodate = False
+                uptodateNotes = "NO MATCHING FILE FOUND: %s" % url
+                return uptodate, uptodateNotes
+
+
 
 
 if __name__ == '__main__':
@@ -414,27 +427,35 @@ if __name__ == '__main__':
     table = argv[2]
     freq = argv[3]
     # expt = argv[4]
+    CREATE = False
+    QC = True
+    experiments = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
+    #experiments = ['historical']
 
     if DEBUG: print var, freq, table
-    experiments = ['piControl', 'amip', 'rcp26', 'rcp60', 'rcp85']
 
-    for expt in experiments:
-        dspec = create_dataspec(requester, var, freq, table)
-        create_dataset_records(var, freq, table, expt, node, dspec)
-        create_datafile_records(var, freq, table, expt, node, distrib, latest)
+    if CREATE:
+        if DEBUG: print "creating"
+        for expt in experiments:
+            dspec = create_dataspec(requester, var, freq, table)
+            create_dataset_records(var, freq, table, expt, node, dspec)
+            create_datafile_records(var, freq, table, expt, node, distrib, latest)
 
+    if QC:
+        if DEBUG: print "running QC"
 
-    # for df in DataFile.objects.filter(dataset__variable=var,
-    #                                   dataset__cmor_table=table,
-    #                                   dataset__frequency=freq,
-    #                                   dataset__experiment=expt
-    #                                   ):
-    #     file = df.archive_path
-    #     up_to_date_check(df, file, var, table, freq, expt)
-    #
-    #
-    #
-    #     run_ceda_cc(file)
-    #     parse_ceda_cc(file)
-    #     run_cf_checker(file)
-    #     parse_cf_checker(file)
+        for expt in experiments:
+            if DEBUG: print expt
+
+            for df in DataFile.objects.filter(dataset__variable=var,
+                                              dataset__cmor_table=table,
+                                              dataset__frequency=freq,
+                                              dataset__experiment=expt
+                                              ):
+                file = df.archive_path
+                up_to_date_check(df, file, var, table, freq, expt)
+                run_ceda_cc(file)
+                run_cf_checker(file)
+
+                # parse_ceda_cc(file)
+                # parse_cf_checker(file)

@@ -68,15 +68,15 @@ URL_FILE_INFO = 'https://%(node)s/esg-search/' \
                 'latest=%(latest)s&distrib=%(distrib)s&' \
                 'format=application%%2Fsolr%%2Bjson&limit=10000'
 
-URL_LATEST_TEMPLATE = 'https://%(node)s/esg-search/' \
+URL_LATEST_TEMPLATE = 'https://%(latest_node)s/esg-search/' \
                       'search?type=File&' \
-                      'project=%(project)s&' \
+                      'project=%(latest_project)s&' \
                       'model=%(model)s&' \
                       'experiment=%(experiment)s&' \
                       'time_frequency=%(frequency)s&' \
                       'cmor_table=%(table)s&' \
                       'ensemble=%(ensemble)s&' \
                       'variable=%(variable)s&' \
-                      'latest=%(latest)s&distrib=%(distrib_latest)s&replica=%(replica_latest)s&' \
+                      'latest=%(latest_latest)s&distrib=%(distrib_latest)s&replica=%(replica_latest)s&' \
                       'format=application%%2Fsolr%%2Bjson&limit=10000'
 
