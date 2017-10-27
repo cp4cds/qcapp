@@ -223,8 +223,9 @@ def run_ceda_cc(file):
 
 def parse_ceda_cc(file):
 
+    if DEBUG: print file
     checkType = "CEDA-CC"
-
+    if DEBUG: print checkType
     temporal_range = file.split("_")[-1].strip(".nc").split("_")[0]
     institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
 
@@ -235,8 +236,9 @@ def parse_ceda_cc(file):
 
     for logfile in log_dir_files:
         if ceda_cc_file_pattern.match(logfile):
-            if DEBUG: print logfile
-            with open(os.path.join(log_dir, logfile), 'r') as fr:
+            ceda_cc_file = os.path.join(log_dir, logfile)
+            if DEBUG: print ceda_cc_file
+            with open(ceda_cc_file, 'r') as fr:
                 ceda_cc_out = fr.readlines()
 
             # Identify where CEDA-CC picks up a QC error
@@ -248,15 +250,15 @@ def parse_ceda_cc(file):
 
             for line in ceda_cc_out:
                 if cedacc_global_error.match(line.strip()):
-                    make_qc_err_record(df, checkType, "global", line, os.path.join(log_dir, logfile))
+                    make_qc_err_record(df, checkType, "global", line, ceda_cc_file)
                 if cedacc_variable_error.match(line.strip()):
-                    make_qc_err_record(df, checkType, "variable", line, os.path.join(log_dir, logfile))
+                    make_qc_err_record(df, checkType, "variable", line, ceda_cc_file)
                 if cedacc_other_error.match(line.strip()):
-                    make_qc_err_record(df, checkType, "other", line, os.path.join(log_dir, logfile))
+                    make_qc_err_record(df, checkType, "other", line, ceda_cc_file)
                 if cedacc_exception.match(line.strip()):
-                    make_qc_err_record(df, checkType, "fatal", line, os.path.join(log_dir, logfile))
+                    make_qc_err_record(df, checkType, "fatal", line, ceda_cc_file)
                 if cedacc_abort.match(line.strip()):
-                    make_qc_err_record(df, checkType, "fatal", line, os.path.join(log_dir, logfile))
+                    make_qc_err_record(df, checkType, "fatal", line, ceda_cc_file)
 
 
 def run_cf_checker(file):
@@ -265,6 +267,7 @@ def run_cf_checker(file):
 
     institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
     cf_odir = os.path.join(CF_DIR, model, experiment, table)
+
 
     if not os.path.exists(cf_odir):
         os.makedirs(cf_odir)
@@ -283,6 +286,7 @@ def run_cf_checker(file):
 def parse_cf_checker(file):
 
     checkType = "CF"
+    if DEBUG: print checkType, file
 
     temporal_range = file.split("_")[-1].strip(".nc").split("_")[0]
     institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
@@ -291,6 +295,7 @@ def parse_cf_checker(file):
     cf_file_pattern = re.compile(file_base + ".cf-log.txt")
     log_dir = os.path.join(CF_DIR, model, experiment, table)
     log_dir_files = os.listdir(log_dir)
+    if DEBUG: print file_base, log_dir
 
     for logfile in log_dir_files:
         if cf_file_pattern.match(logfile):
@@ -414,7 +419,24 @@ def is_latest_version(archive_path, variable, table, frequency, experiment, mode
                 uptodateNotes = "NO MATCHING FILE FOUND: %s" % url
                 return uptodate, uptodateNotes
 
+def check_cfout():
 
+    basedir = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CF-OUTPUT'
+    institutes = os.listdir(basedir)
+    for i in institutes:
+        expts = os.listdir(os.path.join(basedir, i))
+        for e in expts:
+            realms = os.listdir(os.path.join(basedir, i, e))
+            for r in realms:
+                for f in os.listdir(os.path.join(basedir, i, e, r)):
+                    if f.endswith('cf-err.txt'):
+                        if os.path.getsize(os.path.join(basedir, i, e, r, f)) != 0:
+                            print os.path.join(basedir, i, e, r, f)
+                            with open(os.path.join(basedir, i, e, r, f.replace("-err", "-log"))) as reader:
+                                data = reader.readlines()
+                                datafile = data[1].strip('\n').strip('CHECKING NetCDF FILE: ')
+                                print datafile
+                                run_cf_checker(datafile)
 
 
 if __name__ == '__main__':
@@ -429,11 +451,15 @@ if __name__ == '__main__':
     # expt = argv[4]
     CREATE = False
     QC = True
-    experiments = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
-    #experiments = ['historical']
+    #experiments = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
+    experiments = ['historical']
 
     if DEBUG: print var, freq, table
 
+    if DEBUG:
+        check_cfout()
+        asdfsd
+    asdfasd
     if CREATE:
         if DEBUG: print "creating"
         for expt in experiments:
@@ -453,9 +479,11 @@ if __name__ == '__main__':
                                               dataset__experiment=expt
                                               ):
                 file = df.archive_path
-                up_to_date_check(df, file, var, table, freq, expt)
-                run_ceda_cc(file)
-                run_cf_checker(file)
+                os.path.getsize()
+                # up_to_date_check(df, file, var, table, freq, expt)
+                # run_ceda_cc(file)
+                # run_cf_checker(file)
 
                 # parse_ceda_cc(file)
-                # parse_cf_checker(file)
+                parse_cf_checker(file)
+                sadfp
