@@ -456,10 +456,11 @@ if __name__ == '__main__':
 
     if DEBUG: print var, freq, table
 
-    if DEBUG:
-        check_cfout()
-        asdfsd
-    asdfasd
+    # if DEBUG:
+    #     check_cfout()
+    #     asdfsd
+    # asdfasd
+
     if CREATE:
         if DEBUG: print "creating"
         for expt in experiments:
@@ -479,11 +480,10 @@ if __name__ == '__main__':
                                               dataset__experiment=expt
                                               ):
                 file = df.archive_path
-                os.path.getsize()
+
                 # up_to_date_check(df, file, var, table, freq, expt)
                 # run_ceda_cc(file)
                 # run_cf_checker(file)
 
-                # parse_ceda_cc(file)
+                parse_ceda_cc(file)
                 parse_cf_checker(file)
-                sadfp
