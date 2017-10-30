@@ -3,7 +3,6 @@ from django.http import HttpResponse
 
 from qcapp.models import *
 from .models import *
-from data_availability_functions import *
 from view_functions import *
 
 import os, collections, json
