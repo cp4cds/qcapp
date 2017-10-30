@@ -16,13 +16,14 @@ to provide a QC summary for all the data in the CP4CDS qcapp
 1. Checkout
 2. `export DJANGO_SETTINGS_MODULE=qcproj.settings`
 3. To run a parallel process
-3.1 Run `qc_db_starter.py`
-3.1.a This reads in a "data request"
-3.1.b For each variable, at a given frequency and CMOR table this will set off a lotus process by calling `submit-lotus.sh`
-`submit-lotush.sh` submits jobs to louts through `run_qc_lotus.sh`
-`run_qc_lotus.sh` sets up the correct environment on the lotus node and calls `qc_db_builder.py`
-`qc_db_builder.py` takes the three arguments: variable, cmor_table, frequency and applies the selected functions for all experiments:
+* Run `qc_db_starter.py`
+* This reads in a "data request"
+* For each variable, at a given frequency and CMOR table this will set off a lotus process by calling `submit-lotus.sh`
+    * `submit-lotush.sh` submits jobs to louts through `run_qc_lotus.sh`
+    * `run_qc_lotus.sh` sets up the correct environment on the lotus node and calls `qc_db_builder.py`
+    * `qc_db_builder.py` takes the three arguments: variable, cmor_table, frequency and applies the selected functions for all experiments:
     historical, piControl, amip, rcp26, rcp45, rcp60, rcp85
+
 
 4. To run a single process currently need to call with args `qc_db_builder.py <var> <table> <frequency>`
 
