@@ -10,10 +10,9 @@ from ceda_cc import c4
 from cfchecker.cfchecks import CFVersion, CFChecker, STANDARDNAME, AREATYPES, newest_version
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings()
-from data_availability_functions import *
-from esgf_search_functions import *
+from qc_db_builder import *
 from qc_functions import *
-from timeseries_and_md5s import *
+
 print "Counts..."
 
 print "DataRequesters: ", DataRequester.objects.count()

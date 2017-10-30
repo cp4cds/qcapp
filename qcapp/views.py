@@ -4,9 +4,7 @@ from django.http import HttpResponse
 from qcapp.models import *
 from .models import *
 from data_availability_functions import *
-from esgf_search_functions import *
-from qc_functions import *
-from timeseries_and_md5s import *
+from view_functions import *
 
 import os, collections, json
 
@@ -277,3 +275,4 @@ def facet_filter(request, model, experiment):
 
         filtered_data = json.dumps(facets)
         return HttpResponse(filtered_data, content_type='application/json')
+

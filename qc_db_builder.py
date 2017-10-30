@@ -451,9 +451,8 @@ if __name__ == '__main__':
     # expt = argv[4]
     CREATE = False
     QC = True
-    #experiments = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
-    experiments = ['historical']
-
+    experiments = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
+    
     if DEBUG: print var, freq, table
 
     # if DEBUG:

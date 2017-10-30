@@ -1,15 +1,20 @@
 qcproj/settings_local.py
 *.pyc
-amapDraft.txt
 *.log
 OUTPUT-LOGS/
 lotus-logs/
 log_dir/
 
-
+# Database
 db.sqlite*
+
+# CEDA-CC output
 cccc*
 Rec*
+amapDraft.txt
+cedacc-out/
+.clear_cedacc
+
 *.zip
 *.out
 *.GOOD

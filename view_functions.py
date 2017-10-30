@@ -8,8 +8,63 @@ import collections, os, timeit, datetime, time, re, glob
 import commands
 import requests, itertools
 
-from ceda_cc import c4
-from cfchecker.cfchecks import CFVersion, CFChecker, STANDARDNAME, AREATYPES, newest_version
+
+
+def max_timeseries_qc_errors(ts):
+    """
+    Input is of the format of a dictionary of dictonary e.g.
+    {'filename': {'global': 0, 'variable': 1, 'other', 1}}
+
+    COPIED FROM qc_functions.py
+
+    :param ts:
+    :return:
+    """
+
+    max_errors = {'global': 0, 'variable': 0, 'other': 0}
+
+    for key in ['global', 'variable', 'other']:
+        errors = []
+        for file, errs in ts.iteritems():
+            errors.append(errs[key])
+        max_errors[key] = max(errors)
+
+    return max_errors
+
+def get_total_qc_errors(qcfile):
+    """
+
+    COPIED FROM qc_functions.py
+
+    """
+    files = DataFile.objects.filter(ncfile=qcfile)
+    # if files != 1:
+    #    raise Exception("Length of files %s must not be greater than 1, length is %s: " % (qcfile, len(files)))
+
+    file = files.first()
+    qc_errors = file.qcerror_set.all()
+    errors = {}
+    errors['global'] = qc_errors.filter(error_type='global').count()
+    errors['variable'] = qc_errors.filter(error_type='variable').exclude(error_msg__contains="ERROR (4)").count()
+    errors['other'] = qc_errors.filter(error_type='other').exclude(error_msg__contains="ERROR (4)").count()
+
+    return errors
+
+
+def get_list_of_qc_files():
+    """
+
+    COPIED FROM qc_functions.py
+
+    """
+    for dataset in Dataset.objects.all():
+        datafiles = dataset.datafile_set.all()
+        for dfile in datafiles:
+            qc_errors = dfile.qcerror_set.all()
+            for error in qc_errors:
+                path = error.file.archive_path
+                file = error.file.ncfile
+
 
 
 
