@@ -17,10 +17,19 @@ from django.db.models import Count, Max, Min, Sum, Avg
 requests.packages.urllib3.disable_warnings()
 from qc_settings import *
 
-project = 'CMIP5'
-
-
 def is_timeseries(filepath):
+    """
+
+    Checks whether the file is part of a timeseries by checking whether it
+    exists as a single file in its directory.
+
+    Returns True if only file in the directory
+    Returns False if there is more than one file in the directory.
+
+    :param filepath: valid filepath
+    TODO: Add in valid filepath check
+    :return: Boolean
+    """
 
     if os.path.isdir(os.path.dirname(filepath)):
 
@@ -36,9 +45,25 @@ def is_timeseries(filepath):
 
 def get_start_end_times(frequency, fname):
     """
-    Get start and end times from the filename
-    :return:
+
+    From a file name e.g. tas_Amon_EC-EARTH_historical_r13i1p1_200001-200911.nc
+    The final element here is the file temporal range.
+
+    Currently only working with monthly and daily data and so only returning a date object
+
+    TODO Improve this to cope with 3 and 6 hourly data.
+
+    If the temporal element is monthly then it has only YYYY and MM but no DD component as required for a
+    datetime.date object. Irrespective of calendar used in the data a standard calendar is assumed and a dummy DD is
+    generated in order that a datetime.date object can be generated.
+
+    TODO: Incorporate the calendar information(?)
+
+    :param frequency: CMIP5 frequency
+    :param fname: filename
+    :return: tuple of datetime.date objects representing the start and end times
     """
+
 
     if fname.endswith('.nc'):
 
@@ -79,9 +104,20 @@ def get_start_end_times(frequency, fname):
 def esgf_ds_search(search_template, facet_check, project, variable, table, frequency, experiment, model, node, distrib,
                    latest):
     """
-    Perform an esgf dataset search using the specified template
-    :return: dictionary of facets
+
+    Performs an ESGF search using a specified search template to query for a list of facets that are valid for
+    the given search criteria. E.g. which models exist for facet_check=ensemble, project=CMIP5, variable=tas,
+    table=Amon, frequency=mon, experiment=historical, model=HadGEM2-ES,
+    node=esgf-index1.ceda.ac.uk, distrib=False, latest=True.
+    This example represents a search of the local node only and would return a list of ensemble members which were
+    valid for these conditions.
+
+    :param search_template: URL template defined in qc_settings.py
+    :param facet_check: The facet to investigate
+    :param other parameters are passed in from the global scope which allows % vars()
+    :return: Tuple of (list of facets satisfying the search criteria, json response of URL query)
     """
+
     url = search_template % vars()
     if DEBUG: print "DS SEARCH URL:: \n", url
     resp = requests.get(url, verify=False)
@@ -93,6 +129,31 @@ def esgf_ds_search(search_template, facet_check, project, variable, table, frequ
 
 
 def create_datafile_records(var, freq, table, expt, node, distrib, latest):
+    """
+
+    Pre-requisits: Valid qcapp Dataset objcets
+
+    For each of the qcapp Datasets for each of the given criteria (variable, frequency, cmor_table, experiment) an
+    ESGF search is performed for datafiles this information is extracted and is used to populate the DataFile
+    qcapp table.
+
+    Additionally for each of the datafiles found
+    1. The CEDA data archive path is generated from the download url
+    2. Is currently restricted to only files that end with ".nc"
+        TODO: consider ICHEC_EC-EARTH datafiles that have ".nc4" extensions
+        TODO: consider MOHC datafiles that have ".nc_[0-4]" extenstions
+    3. Generates the local MD5 sum
+    4. Calls is_timeseries to set True/False flag for whether the datafile is part of a timeseries
+    5. Generates the DataFile entry in the qcapp.
+
+    :param var: A CP4CDS and CMIP5 valid variable
+    :param freq: A CP4CDS and CMIP5 valid frequency
+    :param table: A CP4CDS and CMIP5 valid CMOR table
+    :param expt: A CP4CDS and CMIP5 valid experiment
+    :param node: :distrib: :latest: puts these in the local scope for use with % vars()
+
+    :return:
+    """
 
     for ds in Dataset.objects.filter(variable=var, cmor_table=table, frequency=freq, experiment=expt):
         variable = ds.variable
@@ -111,26 +172,27 @@ def create_datafile_records(var, freq, table, expt, node, distrib, latest):
 
         for datafile in range(len(datafiles)):
             df = datafiles[datafile]
-            ceda_filepath = df["url"][0].split('|')[0].\
-                replace("http://esgf-data1.ceda.ac.uk/thredds/fileServer/esg_dataroot/", ARCHIVE_ROOT)
+            ceda_filepath = df["url"][0].split('|')[0].replace("http://esgf-data1.ceda.ac.uk/thredds/fileServer/esg_dataroot/", ARCHIVE_ROOT)
 
+            # Check file exists at datacentre
             if not os.path.basename(ceda_filepath).endswith(".nc"):
                 pass
             else:
-                # Check file exists at ceda
+                # For all valid files
                 if DEBUG: print ceda_filepath
                 if not os.path.isfile(ceda_filepath):
                     if DEBUG: print "FILE DOES NOT EXIST AT CEDA:: ", ceda_filepath
                     with open(NO_FILE_LOG, 'a') as fe:
                         fe.write("NOT VALID CEDA FILE: %s" % ceda_filepath)
 
-                start_time, end_time = get_start_end_times(frequency, ceda_filepath)
-                md5_checksum = commands.getoutput('md5sum ' + ceda_filepath).split(' ')[0]
-
+                # Obtain SHA256 checksum if it exists else place empty entry in the DataFile record
                 if df["checksum_type"][0].strip() == "SHA256":
                     sha256_checksum = df["checksum"][0].strip()
                 else: sha256_checksum = ""
 
+
+                start_time, end_time = get_start_end_times(frequency, ceda_filepath)
+                md5_checksum = commands.getoutput('md5sum ' + ceda_filepath).split(' ')[0]
                 isTimeseries = is_timeseries(ceda_filepath)
 
                 # Create a Datafile record for each file
@@ -152,13 +214,21 @@ def create_datafile_records(var, freq, table, expt, node, distrib, latest):
                                                             )
 
 
-def create_dataset_records(variable, frequency, table, experiment, node, spec):
+def create_dataset_records(variable, frequency, table, experiment, node, distrib, latest, spec):
     """
 
+    This routine searches ESGF to obtain valid data criteria and then creates a qcapp Dataset record,
+    it also then links the Dataset record to the DataSpecification record.
+
+
+    :param variable: A CP4CDS and CMIP5 valid variable
+    :param frequency: A CP4CDS and CMIP5 valid variable
+    :param table: A CP4CDS and CMIP5 valid CMOR_table
+    :param experiment: A CP4CDS and CMIP5 valid experiment
+    :param node: :distrib: :latest: ensures that these are available in the local scope
+    :param spec: Link through to the DataSpecification record in qcapp
     :return:
     """
-    distrib = False
-    latest = True
 
     # Get a dictionary of models that match a given search criteria
     models, json = esgf_ds_search(URL_DS_MODEL_FACETS, 'model', project, variable, table, frequency,
@@ -201,40 +271,57 @@ def create_dataset_records(variable, frequency, table, experiment, node, spec):
 
 
 def run_ceda_cc(file):
+    """
 
+    Runs CEDA-CC on the input file
+
+    :param file: valid filepath to run CEDA-CC
+    TODO: Check file exits
+    TODO: Check CEDA-CC has run ok
+    :return:
+    """
     if DEBUG: print file
 
     institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
-    cedacc_odir = os.path.join(CEDACC_DIR, model, experiment, table)
 
+    # Use facets to create directory for CEDA-CC output e.g. BASEDIR/model/experiment/table/<files>
+    cedacc_odir = os.path.join(CEDACC_DIR, model, experiment, table)
     if not os.path.exists(cedacc_odir):
         os.makedirs(cedacc_odir)
+
+    # Run CEDA-CC
     cedacc_args = ['-p', 'CMIP5', '-f', file, '--log', 'multi', '--ld', cedacc_odir, '--cae', '--blfmode', 'a']
     run_cedacc = c4.main(cedacc_args)
 
-    # Tidy up; move ceda-cc output files to a log_dir
-    # cedacc_ofiles = ["cccc_atMapLog.txt",
-    #                  "Rec.json",
-    #                  "Rec.txt"]
-    # for f in cedacc_ofiles:
-    #     mv_cmd = ['mv', f, 'log_dir/']
-    #     res = call(mv_cmd)
-
 
 def parse_ceda_cc(file):
+    """
+
+    Parses the CEDA-CC output on the input file.
+
+    Finds any errors recorded by CEDA-CC and then makes a QCerror record for each found.
+
+    :param file: Archive file
+    TODO: check it is a valid file?
+    :return:
+    """
 
     if DEBUG: print file
     checkType = "CEDA-CC"
-    if DEBUG: print checkType
     temporal_range = file.split("_")[-1].strip(".nc").split("_")[0]
     institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
-
     file_base = "_".join([variable, table, model, experiment, ensemble, temporal_range])
+
+    # Constructs a CEDA-CC regex based on variable_table_model_experiment_ensemble_temporal-range__qclog_{date}.txt
     ceda_cc_file_pattern = re.compile(file_base + "__qclog_\d+\.txt")
+
+    # List files in the CEDA-CC logdir
     log_dir = os.path.join(CEDACC_DIR, model, experiment, table)
     log_dir_files = os.listdir(log_dir)
 
     for logfile in log_dir_files:
+
+        # If the input file is in the logdir parse the output
         if ceda_cc_file_pattern.match(logfile):
             ceda_cc_file = os.path.join(log_dir, logfile)
             if DEBUG: print ceda_cc_file
@@ -248,6 +335,7 @@ def parse_ceda_cc(file):
             cedacc_exception = re.compile('.*Exception.*')
             cedacc_abort = re.compile('.*aborted.*')
 
+            # For CEDA-CC ouput search for errors and if found make a QCerror record
             for line in ceda_cc_out:
                 if cedacc_global_error.match(line.strip()):
                     make_qc_err_record(df, checkType, "global", line, ceda_cc_file)
@@ -262,66 +350,108 @@ def parse_ceda_cc(file):
 
 
 def run_cf_checker(file):
+    """
+
+    Run the CF-Checker on the input file from the shell by calling out using subprocess.call
+
+    :param file: Archive NetCDF file
+    TODO: validate input file
+    :return:
+    """
 
     if DEBUG: print file
 
     institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
+
+    # Make a CF output directory
     cf_odir = os.path.join(CF_DIR, model, experiment, table)
-
-
     if not os.path.exists(cf_odir):
         os.makedirs(cf_odir)
 
+    # Define output and error log files
     cf_out_file = os.path.join(cf_odir, ncfile.replace(".nc", ".cf-log.txt"))
     cf_err_file = os.path.join(cf_odir, ncfile.replace(".nc", ".cf-err.txt"))
 
     run_cmd = ["cf-checker", "-a", AREATABLE, "-s", STDNAMETABLE, "-v", "auto", file]
     cf_out = open(cf_out_file, "w")
     cf_err = open(cf_err_file, "w")
+    # Run CF checker in current shell
     call(run_cmd, stdout=cf_out, stderr=cf_err)
     cf_out.close()
     cf_err.close()
 
+    # TODO: This requires a success test and retry if it fails.
+
 
 def parse_cf_checker(file):
+    """
 
+    Parses the CF-Checker output for the input file
+
+    Finds any errors recorded by the CF-Checker and then makes a QCerror record for each found.
+
+    :param file: Archive file
+    TODO: check it is a valid file?
+
+    :return:
+    """
     checkType = "CF"
     if DEBUG: print checkType, file
 
     temporal_range = file.split("_")[-1].strip(".nc").split("_")[0]
     institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
-
     file_base = "_".join([variable, table, model, experiment, ensemble, temporal_range])
+
+    # Constructs a CF file regex based on variable_table_model_experiment_ensemble_temporal-range.cf-log.txt
     cf_file_pattern = re.compile(file_base + ".cf-log.txt")
+
+    # List files in the CF logdir
     log_dir = os.path.join(CF_DIR, model, experiment, table)
     log_dir_files = os.listdir(log_dir)
     if DEBUG: print file_base, log_dir
 
     for logfile in log_dir_files:
+
+        # If the input file is in the logdir parse the output
         if cf_file_pattern.match(logfile):
             if DEBUG: print logfile
             with open(os.path.join(log_dir, logfile), 'r') as fr:
                 cf_out = fr.readlines()
 
-            # Identify where CF picks up a QC error
-
+            # CF regex expressions for errors
             cf_global_error = re.compile('.*ERROR.*(global|Global|Convention).*')
             cf_variable_error = re.compile('.*ERROR.*(units|cell).*(?!.*(time|boundary|coordinate)).*variable.*')
             cf_other_error = re.compile('.*ERROR.*(bound|Boundary|grid|coordinate|dimension).*')
             cf_abort = re.compile('.*suffix.*')
 
+            # Dictionary mapping the CF regex with type of error
             regexlist = [(cf_global_error, "global"),
                          (cf_variable_error, "variable"),
                          (cf_other_error, "other"),
                          (cf_abort, "fatal")]
 
+            # Identify where CF picks up a QC error
             for line in cf_out:
                 for regex, label in regexlist:
                     if regex.match(line.strip()):
                         make_qc_err_record(df, checkType, label, line, os.path.join(log_dir, logfile))
 
 
+    # TODO: Must add in a test for a non-zero .cf-err.txt and record perhaps retry or read in only here
+
+
 def make_qc_err_record(dfile, checkType, errorType, errorMessage, filepath):
+    """
+
+    Make a QCerror record based on file inputs.
+
+    :param dfile: The DataFile record associated with the QCerror
+    :param checkType: QC check type
+    :param errorType: QC error type
+    :param errorMessage: QC error message
+    :param filepath: Filepath to QC output, e.g. CEDA-CC record
+    :return:
+    """
 
     qc_err, _ = QCerror.objects.get_or_create(file=dfile,
                                               check_type=checkType,
@@ -332,6 +462,17 @@ def make_qc_err_record(dfile, checkType, errorType, errorMessage, filepath):
 
 
 def create_dataspec(requester, variable, frequency, table):
+    """
+
+    Creates a DataSpecification record based on input variables
+
+    :param requester: Project making data request
+    :param variable: CP4CDS and CMIP5 valid variable
+    :param frequency: CP4CDS and CMIP5 valid frequency
+    :param table: CP4CDS and CMIP5 valid cmor_table
+    :return: DataSpecification table object
+    """
+
     dRequester, _ = DataRequester.objects.get_or_create(requested_by=requester)
     dSpec, _ = DataSpecification.objects.get_or_create(variable=variable, cmor_table=table, frequency=frequency)
     dSpec.datarequesters.add(dRequester)
@@ -341,14 +482,35 @@ def create_dataspec(requester, variable, frequency, table):
 
 
 def generate_filelist(FILELIST):
+    """
 
-    with open(FILELIST, 'w') as fw:
+    Generate a full list of all files in the QC db
+    This is a DEBUG function and does not run in parallel context
+
+    :param FILELIST: A global variable
+    """
+    # Ensure output file exists
+    call(['touch', FILELIST])
+
+    with open(FILELIST, 'a') as fw:
         for df in DataFiles.objects.all():
             fw.writelines([df.archive_path, "\n"])
 
 
 def up_to_date_check(df, file, variable, table, frequency, experiment):
+    """
 
+    Checks whether the archive file is the most recent version.
+
+    :param df: DataFile object
+    :param file: archive file
+    TODO: validate file?
+    :param variable: CP4CDS and CMIP5 valid variable
+    :param table: CP4CDS and CMIP5 valid cmor table
+    :param frequency: CP4CDS and CMIP5 valid frequency
+    :param experiment: CP4CDS and CMIP5 valid experiment
+    :return:
+    """
 
     uptodate, uptodateNotes = is_latest_version(file, variable, table, frequency, experiment,
                                                 df.dataset.model,
@@ -365,14 +527,34 @@ def up_to_date_check(df, file, variable, table, frequency, experiment):
 
 def is_latest_version(archive_path, variable, table, frequency, experiment, model, ensemble,
                       version, md5_checksum, sha256_checksum):
+    """
+
+    Checks if file is the latest version by performing an ESGF search
+
+    :param archive_path: full archive filepath
+    :param variable: CP4CDS and CMIP5 valid variable
+    :param table: CP4CDS and CMIP5 valid cmor table
+    :param frequency: CP4CDS and CMIP5 valid frequency
+    :param experiment: CP4CDS and CMIP5 valid experiment
+    :param model: CP4CDS and CMIP5 valid model
+    :param ensemble: CP4CDS and CMIP5 valid ensemble
+    :param version:
+    :param md5_checksum:
+    :param sha256_checksum:
+    :return: Tuple of uptodate [Boolean] and uptodateNote [string]
+    """
 
     distrib_latest = True
     replica_latest = False
     version = "v" + version
+
+    # puts these variables in the local scope
+    # TODO tidy this up
     latest_node = node
     latest_project = project
     latest_latest = latest
 
+    # Perform a distributed ESGF search for the archive file, where replica=False, latest=True
     url = URL_LATEST_TEMPLATE % vars()
     if DEBUG: print url
     resp = requests.get(url, verify=False)
@@ -420,7 +602,16 @@ def is_latest_version(archive_path, variable, table, frequency, experiment, mode
                 return uptodate, uptodateNotes
 
 def check_cfout():
+    """
 
+    Checks the CF output for erroneous *.cf-err.txt files
+    If a *.cf-err.txt file exists then the CF checker is re-run to ensure that the output is not erroneous.
+
+    TODO this needs to be integrated into the main CF-Checking routines
+
+    This does not run in parallel context only a DEBUG function
+
+    """
     basedir = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CF-OUTPUT'
     institutes = os.listdir(basedir)
     for i in institutes:
@@ -437,6 +628,33 @@ def check_cfout():
                                 datafile = data[1].strip('\n').strip('CHECKING NetCDF FILE: ')
                                 print datafile
                                 run_cf_checker(datafile)
+
+
+def clear_cedacc_ouptut():
+    """
+    Tidy up any ceda-cc output files
+    Move ceda-cc output files to a log_dir
+
+    :return:
+    """
+
+    # Ensure log_dir exists
+    logdir = os.path.join(QCAPP_PATH, 'log_dir')
+    if not os.path.isdir(logdir):
+        os.makedirs(logdir)
+
+    # List of ceda-cc output files
+    cedacc_ofiles = ["cccc_atMapLog.txt",
+                     "amapDraft.txt"
+                     "Rec.json",
+                     "Rec.txt"]
+
+    # If CEDA-CC output exists put this into a log_dir
+    for f in cedacc_ofiles:
+        filepath = os.path.join(QCAPP_PATH, f)
+        if os.path.isfile(filepath):
+            mv_cmd = ['mv', filepath, logdir]
+            res = call(mv_cmd)
 
 
 if __name__ == '__main__':
@@ -464,7 +682,7 @@ if __name__ == '__main__':
         if DEBUG: print "creating"
         for expt in experiments:
             dspec = create_dataspec(requester, var, freq, table)
-            create_dataset_records(var, freq, table, expt, node, dspec)
+            create_dataset_records(var, freq, table, expt, node, distrib, latest, dspec)
             create_datafile_records(var, freq, table, expt, node, distrib, latest)
 
     if QC:
@@ -486,3 +704,5 @@ if __name__ == '__main__':
 
                 parse_ceda_cc(file)
                 parse_cf_checker(file)
+
+        clear_cedacc_ouptut()
