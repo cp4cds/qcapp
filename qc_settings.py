@@ -4,6 +4,12 @@
 # time_frequency=mon&model=HadGEM2-ES&experiment=historical&ensemble=r1i1p1&latest=True&distrib=False&
 # format=application%%2Fsolr%%2Bjson&limit=10000"
 
+"""
+
+This file contains constants, global variables and templates
+
+"""
+
 QCAPP_PATH = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/"
 ARCHIVE_ROOT = "/badc/cmip5/data/"
 GWSDIR = "/group_workspaces/jasmin2/cp4cds1/qc/CFchecks/CF-OUTPUT/"

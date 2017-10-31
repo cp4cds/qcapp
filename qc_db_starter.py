@@ -1,15 +1,17 @@
 
+"""
+Run this file to read in data request information in the form where the first three columns must be in the order
+    variable short name, cmor table, frequency,
+
+For each of these a separate lotus job will be run by calling
+    "submit-lotus.sh" with the variable, table, frequency options
+
+This will have the effect of setting off 50 parallel jobs.
+"""
+
 from qc_settings import *
 from qc_db_builder import *
 from subprocess import call
-
-#    node = "172.16.150.171"
-# experiments = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
-# experiments = ['historical']
-#
-# experiments = ['piControl', 'amip', 'rcp26', 'rcp60', 'rcp85']
-#
-# for experiment in experiments:
 
 file = "ancil_files/cp4cds_data_requirements.txt"
 #file = "ancil_files/cp4cds_priority_data_requirements.txt"
