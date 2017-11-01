@@ -1,0 +1,17 @@
+<br>
+<br>
+{% extends 'qcapp/base.html' %}
+
+<!--{% load static %}-->
+{% block contents %}
+
+<h4> CEDA-CC Errors </h4>
+
+    {% for e in ccerrs %}
+        {{ e }}
+        <BR>
+    {% endfor %}
+
+
+
+{% endblock %}

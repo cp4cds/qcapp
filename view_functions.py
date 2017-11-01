@@ -17,14 +17,15 @@ def cedacc_error_list():
     for f in ccerrs:
         CC.add(f.error_msg)
 
-    print "CEDA-CC errors"
-    for e in CC:
-        print e
-        dfs_cc = DataFile.objects.filter(qcerror__error_msg=e)
-        for df in dfs_cc:
-            print df
+    # print "CEDA-CC errors"
+    # for e in CC:
+    #     #print e
+    #     dfs_cc = DataFile.objects.filter(qcerror__error_msg=e)
+    #     for df in dfs_cc:
+    #      #   print df
+    #
 
-        asdf
+    return list(CC)
 
 def max_timeseries_qc_errors(ts):
     """

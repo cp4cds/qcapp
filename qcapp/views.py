@@ -10,6 +10,15 @@ import os, collections, json
 GWSDIR = "qcapp/cp4cds_gws_qc/"
 FACETS_LIST = ['model', 'experiment']
 
+
+
+def qcerrors(request):
+
+    title = "QC Errors - details"
+    ccerrs = cedacc_error_list()
+    
+    return render(request, 'qcapp/qcerrors.html', {'page_title': title, 'ccerrs': ccerrs})
+
 def documentation(request):
 
     return render(request, 'qcapp/documentation.html', {'page_title': 'Documentation'})
