@@ -7,8 +7,9 @@
 
 <h4> CEDA-CC Errors </h4>
 
-    {% for e in ccerrs %}
+    {% for e, f in ccerrs.items %}
         {{ e }}
+
         <BR>
     {% endfor %}
 

@@ -17,7 +17,7 @@ def qcerrors(request):
     title = "QC Errors - details"
     ccerrs = cedacc_error_list()
     
-    return render(request, 'qcapp/qcerrors.html', {'page_title': title, 'ccerrs': ccerrs})
+    return render(request, 'qcapp/qcerrors.html', {'page_title': title, 'ccerrs': ccerrs,})
 
 def documentation(request):
 

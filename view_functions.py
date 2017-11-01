@@ -13,19 +13,22 @@ import requests, itertools
 def cedacc_error_list():
 
     ccerrs = QCerror.objects.filter(check_type='CEDA-CC')
+
+    ceda_cc_errors = {}
     CC = set()
     for f in ccerrs:
         CC.add(f.error_msg)
 
-    # print "CEDA-CC errors"
-    # for e in CC:
-    #     #print e
-    #     dfs_cc = DataFile.objects.filter(qcerror__error_msg=e)
-    #     for df in dfs_cc:
-    #      #   print df
-    #
+    files = []
+    for e in CC:
+        dfs_cc = DataFile.objects.filter(qcerror__error_msg=e)
+        for df in dfs_cc:
+            files.append(df.archive_path)
 
-    return list(CC)
+        ceda_cc_errors[e] = files
+
+    return ceda_cc_errors
+
 
 def max_timeseries_qc_errors(ts):
     """
