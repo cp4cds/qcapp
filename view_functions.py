@@ -10,6 +10,22 @@ import requests, itertools
 
 
 
+def cedacc_error_list():
+
+    ccerrs = QCerror.objects.filter(check_type='CEDA-CC')
+    CC = set()
+    for f in ccerrs:
+        CC.add(f.error_msg)
+
+    print "CEDA-CC errors"
+    for e in CC:
+        print e
+        dfs_cc = DataFile.objects.filter(qcerror__error_msg=e)
+        for df in dfs_cc:
+            print df
+
+        asdf
+
 def max_timeseries_qc_errors(ts):
     """
     Input is of the format of a dictionary of dictonary e.g.
