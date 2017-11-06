@@ -2,15 +2,32 @@
 <br>
 {% extends 'qcapp/base.html' %}
 
+
+
 <!--{% load static %}-->
 {% block contents %}
 
 <h4> CEDA-CC Errors </h4>
 
-    {% for e, f in ccerrs.items %}
-        {{ e }}
+    {% for errmsg, filelist in ccc_errs.items %}
 
-        <BR>
+            <!--<a class="btn btn-primary btn-sm" role="button" data-toggle="collapse" href="#{{forloop.counter}}">-->
+                <!--Show file list-->
+            <!--</a>-->
+
+            <button class="btn btn-primary btn-sm" type="button" data-toggle="collapse" data-target="#{{forloop.counter}}">
+                 Show list of files <span class="badge">{{ filelist|length }}</span>
+            </button> {{ errmsg }}
+            <div class="collapse" id="{{forloop.counter}}">
+                <div class="well" style="max-height: 300px; overflow-y: auto">
+                    {% for file in filelist %}
+                        {{file}}
+                        <BR>
+                    {% endfor %}
+                </div>
+            </div>
+            <BR>
+            <BR>
     {% endfor %}
 
 

@@ -7,6 +7,7 @@ from django.db.models import Count, Max, Min, Sum, Avg
 import collections, os, timeit, datetime, time, re, glob
 import commands
 import requests, itertools
+from tqdm import tqdm
 
 
 
@@ -19,8 +20,8 @@ def cedacc_error_list():
     for f in ccerrs:
         CC.add(f.error_msg)
 
-    files = []
     for e in CC:
+        files = []
         dfs_cc = DataFile.objects.filter(qcerror__error_msg=e)
         for df in dfs_cc:
             files.append(df.archive_path)
@@ -28,6 +29,7 @@ def cedacc_error_list():
         ceda_cc_errors[e] = files
 
     return ceda_cc_errors
+
 
 
 def max_timeseries_qc_errors(ts):
