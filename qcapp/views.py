@@ -4,7 +4,7 @@ from django.http import HttpResponse
 from qcapp.models import *
 from .models import *
 from view_functions import *
-
+from tqdm import tqdm
 import os, collections, json
 
 GWSDIR = "qcapp/cp4cds_gws_qc/"
@@ -16,11 +16,6 @@ def qcerrors(request):
 
     title = "QC Errors - details"
     ccc_errs = cedacc_error_list()
-    
-    # if request.GET.get('e'):
-    #     message = 'You submitted: % ' % request.GET['ccc_errs[e]']
-    # else:
-    #     message = 'You submitted nothing!'
 
     return render(request, 'qcapp/qcerrors.html', {'page_title': title, 'ccc_errs': ccc_errs})
 

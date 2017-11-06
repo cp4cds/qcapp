@@ -13,20 +13,18 @@ from tqdm import tqdm
 
 def cedacc_error_list():
 
-    ccerrs = QCerror.objects.filter(check_type='CEDA-CC')
+    ccerrs = QCerror.objects.filter(check_type='CEDA-CC').values_list('error_msg', flat=True)
 
     ceda_cc_errors = {}
-    CC = set()
-    for f in ccerrs:
-        CC.add(f.error_msg)
+    CC = set(ccerrs)
 
     for e in CC:
-        files = []
+        qc = {}
         dfs_cc = DataFile.objects.filter(qcerror__error_msg=e)
         for df in dfs_cc:
-            files.append(df.archive_path)
-
-        ceda_cc_errors[e] = files
+            _ = df.qcerror_set.filter(check_type='CEDA-CC', error_msg=e).first()
+            qc[df.archive_path] = _.report_filepath
+        ceda_cc_errors[e] = qc
 
     return ceda_cc_errors
 
