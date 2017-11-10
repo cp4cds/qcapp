@@ -2,20 +2,38 @@
 import django
 django.setup()
 from qcapp.models import *
-
-import collections, os, timeit, datetime, time, re, glob
+import collections
+import os
+import timeit
+import datetime
+import time
+import re
+import glob
 import commands
 import hashlib
-import requests, itertools
+import requests
+import itertools
+import json as jsn
 from subprocess import call
 from sys import argv
 from ceda_cc import c4
 from cfchecker.cfchecks import CFVersion, CFChecker, newest_version
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
-
 from django.db.models import Count, Max, Min, Sum, Avg
-requests.packages.urllib3.disable_warnings()
 from qc_settings import *
+from time_checks.run_file_timechecks import main as tc_run
+requests.packages.urllib3.disable_warnings()
+
+def file_time_checks(file):
+
+    institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
+    tc_odir = os.path.join(TC_DIR, model, experiment, table)
+    if not os.path.exists(tc_odir):
+        os.makedirs(tc_odir)
+
+    # ofile = os.path.join(tc_odir, ncfile.replace('.nc', '__file_timecheck.log'))
+
+    tc_run(file, tc_odir)
 
 def is_timeseries(filepath):
     """
@@ -101,6 +119,43 @@ def get_start_end_times(frequency, fname):
     return start_time, end_time
 
 
+def json_all_latest_logger(variable, frequency, table, experiment, node, project):
+
+    distrib = True
+    latest = True
+    # Get a dictionary of models that match a given search criteria
+    models, json = esgf_ds_search(URL_DS_MODEL_FACETS, 'model', project, variable, table, frequency,
+                                  experiment, '', node, distrib, latest)
+
+    for model in models.keys():
+
+        # Get a dictionary of ensemble members that match a given search criteria
+        ensembles, json = esgf_ds_search(URL_DS_ENSEMBLE_FACETS, 'ensemble', project, variable, table, frequency,
+                                         experiment, model, node, distrib, latest)
+        for ensemble in ensembles:
+
+            url = URL_FILE_INFO % vars()
+            resp = requests.get(url, verify=False)
+            json = resp.json()
+            datafiles = json["response"]["docs"]
+
+            for datafile in range(len(datafiles)):
+                # TODO ADD VERSION
+                filename = '_'.join([variable, model, experiment, table, ensemble, 'v'])
+                # TODO make a few levels of subdirs
+                json_file = os.path.join(JSONDIR, filename) + ".log"
+
+                url = url_template % vars()
+                resp = requests.get(url, verify=False)
+                json = resp.json()
+
+                print json_file
+                with open(json_file, 'w') as fw:
+                    jsn.dump(json, fw)
+
+                dfsdf
+
+
 def esgf_ds_search(search_template, facet_check, project, variable, table, frequency, experiment, model, node, distrib,
                    latest):
     """
@@ -119,7 +174,6 @@ def esgf_ds_search(search_template, facet_check, project, variable, table, frequ
     """
 
     url = search_template % vars()
-    if DEBUG: print "DS SEARCH URL:: \n", url
     resp = requests.get(url, verify=False)
     json = resp.json()
     result = json["facet_counts"]["facet_fields"][facet_check]
@@ -179,9 +233,7 @@ def create_datafile_records(var, freq, table, expt, node, distrib, latest):
                 pass
             else:
                 # For all valid files
-                if DEBUG: print ceda_filepath
                 if not os.path.isfile(ceda_filepath):
-                    if DEBUG: print "FILE DOES NOT EXIST AT CEDA:: ", ceda_filepath
                     with open(NO_FILE_LOG, 'a') as fe:
                         fe.write("NOT VALID CEDA FILE: %s" % ceda_filepath)
 
@@ -244,11 +296,6 @@ def create_dataset_records(variable, frequency, table, experiment, node, distrib
 
             dataset = json["response"]["docs"][dset]
 
-            if DEBUG:
-                print project, dataset["product"][0].strip(), dataset["institute"][0].strip(), model, \
-                      experiment, frequency, dataset["realm"][0].strip(), table, dataset["ensemble"][0].strip(), \
-                      variable, dataset["version"].strip()
-
             # Make the dataset record
             ds, _ = Dataset.objects.get_or_create(project=project,
                                                   product=dataset["product"][0].strip(),
@@ -280,7 +327,6 @@ def run_ceda_cc(file):
     TODO: Check CEDA-CC has run ok
     :return:
     """
-    if DEBUG: print file
 
     institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
 
@@ -306,7 +352,6 @@ def parse_ceda_cc(file):
     :return:
     """
 
-    if DEBUG: print file
     checkType = "CEDA-CC"
     temporal_range = file.split("_")[-1].strip(".nc").split("_")[0]
     institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
@@ -324,7 +369,6 @@ def parse_ceda_cc(file):
         # If the input file is in the logdir parse the output
         if ceda_cc_file_pattern.match(logfile):
             ceda_cc_file = os.path.join(log_dir, logfile)
-            if DEBUG: print ceda_cc_file
             with open(ceda_cc_file, 'r') as fr:
                 ceda_cc_out = fr.readlines()
 
@@ -358,8 +402,6 @@ def run_cf_checker(file):
     TODO: validate input file
     :return:
     """
-
-    if DEBUG: print file
 
     institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
 
@@ -396,7 +438,6 @@ def parse_cf_checker(file):
     :return:
     """
     checkType = "CF"
-    if DEBUG: print checkType, file
 
     temporal_range = file.split("_")[-1].strip(".nc").split("_")[0]
     institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
@@ -408,13 +449,11 @@ def parse_cf_checker(file):
     # List files in the CF logdir
     log_dir = os.path.join(CF_DIR, model, experiment, table)
     log_dir_files = os.listdir(log_dir)
-    if DEBUG: print file_base, log_dir
 
     for logfile in log_dir_files:
 
         # If the input file is in the logdir parse the output
         if cf_file_pattern.match(logfile):
-            if DEBUG: print logfile
             with open(os.path.join(log_dir, logfile), 'r') as fr:
                 cf_out = fr.readlines()
 
@@ -485,7 +524,7 @@ def generate_filelist(FILELIST):
     """
 
     Generate a full list of all files in the QC db
-    This is a DEBUG function and does not run in parallel context
+    This is a debugging function and does not run in parallel context
 
     :param FILELIST: A global variable
     """
@@ -556,7 +595,6 @@ def is_latest_version(archive_path, variable, table, frequency, experiment, mode
 
     # Perform a distributed ESGF search for the archive file, where replica=False, latest=True
     url = URL_LATEST_TEMPLATE % vars()
-    if DEBUG: print url
     resp = requests.get(url, verify=False)
     json = resp.json()
 
@@ -601,6 +639,7 @@ def is_latest_version(archive_path, variable, table, frequency, experiment, mode
                 uptodateNotes = "NO MATCHING FILE FOUND: %s" % url
                 return uptodate, uptodateNotes
 
+
 def check_cfout():
     """
 
@@ -609,7 +648,7 @@ def check_cfout():
 
     TODO this needs to be integrated into the main CF-Checking routines
 
-    This does not run in parallel context only a DEBUG function
+    This does not run in parallel context only a debugging function
 
     """
     basedir = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CF-OUTPUT'
@@ -671,25 +710,15 @@ if __name__ == '__main__':
     QC = True
     experiments = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
     
-    if DEBUG: print var, freq, table
-
-    # if DEBUG:
-    #     check_cfout()
-    #     asdfsd
-    # asdfasd
-
     if CREATE:
-        if DEBUG: print "creating"
         for expt in experiments:
             dspec = create_dataspec(requester, var, freq, table)
             create_dataset_records(var, freq, table, expt, node, distrib, latest, dspec)
             create_datafile_records(var, freq, table, expt, node, distrib, latest)
 
     if QC:
-        if DEBUG: print "running QC"
 
         for expt in experiments:
-            if DEBUG: print expt
 
             for df in DataFile.objects.filter(dataset__variable=var,
                                               dataset__cmor_table=table,
@@ -702,7 +731,11 @@ if __name__ == '__main__':
                 # run_ceda_cc(file)
                 # run_cf_checker(file)
 
-                parse_ceda_cc(file)
-                parse_cf_checker(file)
+                # parse_ceda_cc(file)
+                # parse_cf_checker(file)
+
+                file_time_checks(file)
+                asdfasd
+                # json_all_latest_logger(var, freq, table, expt, node, "CMIP5")
 
         clear_cedacc_ouptut()
