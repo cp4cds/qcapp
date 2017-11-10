@@ -21,7 +21,7 @@ from cfchecker.cfchecks import CFVersion, CFChecker, newest_version
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from django.db.models import Count, Max, Min, Sum, Avg
 from qc_settings import *
-from time_checks.run_file_timechecks import main as tc_run
+from time_checks.run_file_timechecks import main as time_checks
 requests.packages.urllib3.disable_warnings()
 
 def file_time_checks(file):
@@ -31,9 +31,7 @@ def file_time_checks(file):
     if not os.path.exists(tc_odir):
         os.makedirs(tc_odir)
 
-    # ofile = os.path.join(tc_odir, ncfile.replace('.nc', '__file_timecheck.log'))
-
-    tc_run(file, tc_odir)
+    time_checks(file, tc_odir)
 
 def is_timeseries(filepath):
     """
@@ -132,28 +130,31 @@ def json_all_latest_logger(variable, frequency, table, experiment, node, project
         # Get a dictionary of ensemble members that match a given search criteria
         ensembles, json = esgf_ds_search(URL_DS_ENSEMBLE_FACETS, 'ensemble', project, variable, table, frequency,
                                          experiment, model, node, distrib, latest)
+
+
         for ensemble in ensembles:
+
+            json_dir = os.path.join(JSONDIR, model, experiment, table, ensemble)
+            if not os.path.exists(json_dir):
+                os.makedirs(json_dir)
 
             url = URL_FILE_INFO % vars()
             resp = requests.get(url, verify=False)
             json = resp.json()
             datafiles = json["response"]["docs"]
 
-            for datafile in range(len(datafiles)):
-                # TODO ADD VERSION
-                filename = '_'.join([variable, model, experiment, table, ensemble, 'v'])
-                # TODO make a few levels of subdirs
-                json_file = os.path.join(JSONDIR, filename) + ".log"
+            for df in range(len(datafiles)):
 
-                url = url_template % vars()
-                resp = requests.get(url, verify=False)
-                json = resp.json()
+                ds_id = datafiles[df]["id"].split('|')[0]
+                node = datafiles[df]["id"].split('|')[1]
+                node = node.replace('.', '-')
+                ds_id = '_'.join(ds_id.split('.')[3:-1])
 
-                print json_file
+                filename = ds_id + '_' + node + '.json'
+                json_file = os.path.join(json_dir, filename)
+
                 with open(json_file, 'w') as fw:
-                    jsn.dump(json, fw)
-
-                dfsdf
+                    jsn.dump(datafiles[df], fw)
 
 
 def esgf_ds_search(search_template, facet_check, project, variable, table, frequency, experiment, model, node, distrib,
@@ -707,9 +708,14 @@ if __name__ == '__main__':
     freq = argv[3]
     # expt = argv[4]
     CREATE = False
-    QC = True
+    QC = False
+    LOGGER = True
     experiments = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
-    
+
+    if LOGGER:
+        for expt in experiments:
+            json_all_latest_logger(var, freq, table, expt, node, "CMIP5")
+
     if CREATE:
         for expt in experiments:
             dspec = create_dataspec(requester, var, freq, table)
@@ -734,8 +740,6 @@ if __name__ == '__main__':
                 # parse_ceda_cc(file)
                 # parse_cf_checker(file)
 
-                file_time_checks(file)
-                asdfasd
-                # json_all_latest_logger(var, freq, table, expt, node, "CMIP5")
+                # file_time_checks(file)
 
         clear_cedacc_ouptut()

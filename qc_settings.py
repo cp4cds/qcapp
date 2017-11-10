@@ -13,7 +13,7 @@ This file contains constants, global variables and templates
 QCAPP_PATH = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/"
 ARCHIVE_ROOT = "/badc/cmip5/data/"
 GWSDIR = "/group_workspaces/jasmin2/cp4cds1/qc/CFchecks/CF-OUTPUT/"
-JSONDIR = "/group_workspaces/jasmin2/cp4cds1/qc/CFchecks/JSON-OUTPUT/"
+JSONDIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/JSON-OUTPUT/"
 NO_FILE_LOG = 'log_dir/cp4cds_nofile_error.log'
 CEDACC_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CEDACC-OUTPUT/"
 CF_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CF-OUTPUT/"
