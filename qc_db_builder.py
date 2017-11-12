@@ -131,30 +131,30 @@ def json_all_latest_logger(variable, frequency, table, experiment, node, project
         ensembles, json = esgf_ds_search(URL_DS_ENSEMBLE_FACETS, 'ensemble', project, variable, table, frequency,
                                          experiment, model, node, distrib, latest)
 
+        json_dir = os.path.join(JSONDIR, model, experiment, table)
+        if not os.path.exists(json_dir):
+            os.makedirs(json_dir)
 
         for ensemble in ensembles:
-
-            json_dir = os.path.join(JSONDIR, model, experiment, table, ensemble)
-            if not os.path.exists(json_dir):
-                os.makedirs(json_dir)
 
             url = URL_FILE_INFO % vars()
             resp = requests.get(url, verify=False)
             json = resp.json()
             datafiles = json["response"]["docs"]
 
-            for df in range(len(datafiles)):
+            # for df in range(len(datafiles)):
+            #
+            #     ds_id = datafiles[df]["id"].split('|')[0]
+            #     node = datafiles[df]["id"].split('|')[1]
+            #     node = node.replace('.', '-')
+            #     ds_id = '_'.join(ds_id.split('.')[3:-1])
+            # filename = ds_id + '_' + node + '.json'
+            filename = '_'.join([variable, model, experiment, table, frequency, ensemble]) + ".json"
+            json_file = os.path.join(json_dir, filename)
 
-                ds_id = datafiles[df]["id"].split('|')[0]
-                node = datafiles[df]["id"].split('|')[1]
-                node = node.replace('.', '-')
-                ds_id = '_'.join(ds_id.split('.')[3:-1])
+            with open(json_file, 'w') as fw:
+                jsn.dump(datafiles, fw)
 
-                filename = ds_id + '_' + node + '.json'
-                json_file = os.path.join(json_dir, filename)
-
-                with open(json_file, 'w') as fw:
-                    jsn.dump(datafiles[df], fw)
 
 
 def esgf_ds_search(search_template, facet_check, project, variable, table, frequency, experiment, model, node, distrib,
@@ -708,8 +708,8 @@ if __name__ == '__main__':
     freq = argv[3]
     # expt = argv[4]
     CREATE = False
-    QC = False
-    LOGGER = True
+    QC = True
+    LOGGER = False
     experiments = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
 
     if LOGGER:
@@ -740,6 +740,6 @@ if __name__ == '__main__':
                 # parse_ceda_cc(file)
                 # parse_cf_checker(file)
 
-                # file_time_checks(file)
-
-        clear_cedacc_ouptut()
+                file_time_checks(file)
+                
+        # clear_cedacc_ouptut()

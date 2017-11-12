@@ -27,6 +27,7 @@ node = "esgf-index1.ceda.ac.uk"
 distrib = False
 latest = True
 requester = "CP4CDS"
+DEBUG = False
 
 URL_DS_MODEL_FACETS = 'https://%(node)s/esg-search/' \
                       'search?type=Dataset&' \
