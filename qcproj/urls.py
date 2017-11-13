@@ -22,6 +22,8 @@ urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^documentation/', qcapp.views.documentation),
     url(r'^qcerrors/', qcapp.views.qcerrors),
+    url(r'^ceda-cc-errors/', qcapp.views.ceda_cc_errors, name="ceda-cc-errors"),
+    url(r'^cf-errors/', qcapp.views.cf_errors, name="cf-errors"),
     url(r'^variable-qc/(?P<ncfile>\S+)', qcapp.views.variable_qc, name="variable-qc"),
     url(r'^variable-file-qc/(?P<ncfile>\S+)', qcapp.views.variable_file_qc, name="variable-file-qc"),
     url(r'^variable-timeseries-qc/(?P<ncfile>\S+)', qcapp.views.variable_timeseries_qc, name="variable-timeseries-qc"),
