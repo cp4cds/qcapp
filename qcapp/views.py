@@ -4,7 +4,7 @@ from django.http import HttpResponse
 from qcapp.models import *
 from .models import *
 from view_functions import *
-
+from tqdm import tqdm
 import os, collections, json
 
 GWSDIR = "qcapp/cp4cds_gws_qc/"
@@ -15,13 +15,14 @@ FACETS_LIST = ['model', 'experiment']
 def qcerrors(request):
 
     title = "QC Errors - details"
-    ccerrs = cedacc_error_list()
-    
-    return render(request, 'qcapp/qcerrors.html', {'page_title': title, 'ccerrs': ccerrs})
+    ccc_errs = cedacc_error_list()
+
+    return render(request, 'qcapp/qcerrors.html', {'page_title': title, 'ccc_errs': ccc_errs})
 
 def documentation(request):
 
     return render(request, 'qcapp/documentation.html', {'page_title': 'Documentation'})
+
 
 def data_spec(request):
 
@@ -42,7 +43,6 @@ def variable_summary_qc(request):
     title = "Quality control information for  %s" % project
 
     return render(request, 'qcapp/variable-summary-qc.html', {'page_title': title, 'dataSpec': dataSpec})
-
 
 
 def variable_dataset_qc(request, variable):
@@ -246,7 +246,6 @@ def variable_file_qc(request, ncfile):
     return render(request, 'qcapp/variable-file-qc.html', {'page_title': title, 'dataset_id': dataset_id, 'filename': filename,
                                                   'qc_cf_errors': qc_cf_errors, 'qc_cedacc_errors': qc_cedacc_errors,
                                                   'qc_error_counts': qc_error_counts, 'cf_file': cf_file, 'cc_file': cc_file})
-
 
 
 def variable_timeseries_qc(request, ncfile):

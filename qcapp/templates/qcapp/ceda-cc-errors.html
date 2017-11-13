@@ -6,6 +6,12 @@
 
 <h4> CEDA-CC Errors </h4>
 
+
+<table class="table table-hover">
+<thead> <tr> <th> Error </th> <th> Files </th> </thead>
+<tbody>
+
+
     {% for errmsg, filelist in ccc_errs.items %}
 
             <!--<a class="btn btn-primary btn-sm" role="button" data-toggle="collapse" href="#{{forloop.counter}}">-->
@@ -28,6 +34,9 @@
             <BR>
     {% endfor %}
 
+
+</tbody>
+</table>
 
 
 {% endblock %}

@@ -7,25 +7,28 @@ from django.db.models import Count, Max, Min, Sum, Avg
 import collections, os, timeit, datetime, time, re, glob
 import commands
 import requests, itertools
+from tqdm import tqdm
 
 
 
 def cedacc_error_list():
 
-    ccerrs = QCerror.objects.filter(check_type='CEDA-CC')
-    CC = set()
-    for f in ccerrs:
-        CC.add(f.error_msg)
+    ccerrs = QCerror.objects.filter(check_type='CEDA-CC').values_list('error_msg', flat=True)
 
-    # print "CEDA-CC errors"
-    # for e in CC:
-    #     #print e
-    #     dfs_cc = DataFile.objects.filter(qcerror__error_msg=e)
-    #     for df in dfs_cc:
-    #      #   print df
-    #
+    ceda_cc_errors = {}
+    CC = set(ccerrs)
 
-    return list(CC)
+    for e in CC:
+        qc = {}
+        dfs_cc = DataFile.objects.filter(qcerror__error_msg=e)
+        for df in dfs_cc:
+            _ = df.qcerror_set.filter(check_type='CEDA-CC', error_msg=e).first()
+            qc[df.archive_path] = _.report_filepath
+        ceda_cc_errors[e] = qc
+
+    return ceda_cc_errors
+
+
 
 def max_timeseries_qc_errors(ts):
     """
