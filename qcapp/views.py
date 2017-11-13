@@ -11,6 +11,21 @@ GWSDIR = "qcapp/cp4cds_gws_qc/"
 FACETS_LIST = ['model', 'experiment']
 
 
+def cf_errors(request):
+
+    title = "CF Errors: details"
+    cf_errs = cf_error_list()
+
+    return render(request, 'qcapp/cf-errors.html', {'page_title': title, 'cf_errs': cf_errs})
+
+
+def ceda_cc_errors(request):
+
+    title = "CEDA CC Errors: details"
+    ccc_errs = cedacc_error_list()
+
+    return render(request, 'qcapp/ceda-cc-errors.html', {'page_title': title, 'ccc_errs': ccc_errs})
+
 
 def qcerrors(request):
 

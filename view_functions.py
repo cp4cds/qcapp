@@ -11,6 +11,83 @@ from tqdm import tqdm
 
 
 
+def get_models_availability(variables, table, frequency, experiment):
+    """
+
+    This function will search for a list of simulations where a simulation is defined as:
+    simulation = institute + model for a given experiment and will return this list of
+    simultions in which all the variables specified are presnet
+    together with a list of ensemble members for the simulation.
+
+    :param variables: A list of variables to be searched on   
+    :param table: A list of tables corresponding to the variables
+    :param frequency: A list of frequencies corresponding to the variables
+    :param experiment: A single experiment in which to search
+
+    :return: Dictionary object where the model is key and the values are a list of ensemble members
+    """
+    
+    if experiment not in ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']:
+        raise Exception("The value for experiment is not valid, it must be one of 'historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85'")
+
+    for input_variable in [variables, table, frequency]:
+
+        if not isinstance(input_variable, list):
+            input_variable = list(input_variable)
+
+    model = Dataset.objects.filter(experiment=experiment)
+
+    all_models = []
+    model_ensmeble_dict = {}
+
+    for v, t, f in zip(variables, table, frequency):
+        models = model.filter(variable=v, cmor_table=t, frequency=f)
+        distinct_models = models.distinct('model')
+        all_models.append(distinct_models)
+
+    unique_models = set()
+    for m in all_models:
+        for mod in m:
+            unique_models.add(mod.model)
+
+    for m in unique_models:
+        ensembles = models.filter(model=m)
+        distinct_ensembles = ensembles.distinct('ensemble')
+        model_ensmeble_dict[m] = [e.ensemble for e in distinct_ensembles]
+
+    return model_ensmeble_dict
+
+
+
+
+
+
+
+
+
+
+
+
+def cf_error_list():
+
+    check = "CF"
+    cferrs = QCerror.objects.filter(check_type=check).values_list('error_msg', flat=True)
+
+    cf_errors = {}
+    CF = set(cferrs)
+
+    for e in CF:
+        qc = {}
+        dfs_cc = DataFile.objects.filter(qcerror__error_msg=e)
+        # dfs_cc = dfs_cc.filter(dataset__model="HadGEM2-ES")
+        for df in dfs_cc:
+            _ = df.qcerror_set.filter(check_type=check, error_msg=e).first()
+            qc[df.archive_path] = _.report_filepath.replace("group_workspaces/jasmin2/cp4cds1/qc/qc-app2/", "qcapp/cp4cds_gws_qc/")
+        cf_errors[e] = qc
+
+    return cf_errors
+
+
 def cedacc_error_list():
 
     ccerrs = QCerror.objects.filter(check_type='CEDA-CC').values_list('error_msg', flat=True)
@@ -21,9 +98,10 @@ def cedacc_error_list():
     for e in CC:
         qc = {}
         dfs_cc = DataFile.objects.filter(qcerror__error_msg=e)
+        # dfs_cc = dfs_cc.filter(dataset__model="HadGEM2-ES")
         for df in dfs_cc:
             _ = df.qcerror_set.filter(check_type='CEDA-CC', error_msg=e).first()
-            qc[df.archive_path] = _.report_filepath
+            qc[df.archive_path] = _.report_filepath.replace("group_workspaces/jasmin2/cp4cds1/qc/qc-app2/", "qcapp/cp4cds_gws_qc/")
         ceda_cc_errors[e] = qc
 
     return ceda_cc_errors
@@ -50,6 +128,7 @@ def max_timeseries_qc_errors(ts):
         max_errors[key] = max(errors)
 
     return max_errors
+
 
 def get_total_qc_errors(qcfile):
     """
