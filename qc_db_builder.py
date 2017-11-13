@@ -708,7 +708,7 @@ if __name__ == '__main__':
     freq = argv[3]
     # expt = argv[4]
     CREATE = False
-    QC = False
+    QC = True
     LOGGER = False
     experiments = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
 
@@ -741,5 +741,5 @@ if __name__ == '__main__':
                 # parse_cf_checker(file)
 
                 file_time_checks(file)
-
+                afds
         # clear_cedacc_ouptut()
