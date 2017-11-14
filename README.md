@@ -42,3 +42,12 @@ Also
 * Checks if the directory holding the data has more than one file, i.e. data is part of a timeseries
 
 * Performs a distributed search, for latest, no replicas to checks whether this is the most recent version of the data
+
+
+# Corrections
+The time checker will adjust automatically any NetCDF file where the units of time are given as "days since YYYY-MM"
+to "days since YYYY-MM".
+
+If a file start date is 0001-01-01 then the time checker performs only one consistency check
+
+If the file is valid at one time only then in time_checks/file_time_checks.py if len(times) == 1, returns True
