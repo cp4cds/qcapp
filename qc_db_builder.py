@@ -24,6 +24,82 @@ from qc_settings import *
 from time_checks.run_file_timechecks import main as time_checks
 requests.packages.urllib3.disable_warnings()
 
+
+def dataset_latest_check(variable, frequency, table, experiment, node, project, fwrite):
+
+    distrib = True
+    latest = True
+
+    # Get a dictionary of models that match a given search criteria
+    models, json = esgf_ds_search(URL_DS_MODEL_FACETS, 'model', project, variable, table, frequency,
+                                  experiment, '', node, distrib, latest)
+
+    for model in models.keys():
+
+        # Get a dictionary of ensemble members that match a given search criteria
+        ensembles, json = esgf_ds_search(URL_DS_ENSEMBLE_FACETS, 'ensemble', project, variable, table, frequency,
+                                         experiment, model, node, distrib, latest)
+
+        for ensemble in ensembles:
+
+            url = URL_DATASET_ENSEMBLE % vars()
+            resp = requests.get(url, verify=False)
+            json = resp.json()
+            datasets = json["response"]["docs"]
+
+            versions = {}
+            nodes = []
+            for ds in datasets:
+                ds_id = ds["id"].split('|')[0]
+                node = ds["id"].split('|')[1]
+                nodes.append(ds["id"].split('|')[1])
+                versions[node] = ds["id"].split('|')[0].split('.')[-1].strip('v')
+
+            fwrite.writelines("{} ::".format(ds_id))
+
+            all_versions = []
+            for version in versions.values():
+                all_versions.append(datetime.datetime(int(version[0:4]), int(version[4:6]), int(version[6:8])))
+            latest_version = max(all_versions)
+
+            ceda_data_node = "esgf-data1.ceda.ac.uk"
+            for node in versions.keys():
+                if node == ceda_data_node:
+                    ceda_esgf_version = versions[node]
+                    d = Dataset.objects.filter(model=model,
+                                               experiment=experiment,
+                                               frequency=frequency,
+                                               cmor_table=table,
+                                               ensemble=ensemble,
+                                               variable=variable
+                                               )
+                    if len(d) != 1:
+                        fwrite.writelines(" Multiple datasets that should be unique with variables "
+                                          "{}, {}, {}, {}, {}, {} ".format(model, experiment, frequency, table, ensemble, variable))
+
+                    _ = d.first()
+                    ceda_db_esgf_version = _.version
+                    if ceda_db_esgf_version != ceda_esgf_version:
+                        fwrite.writelines(" Mismatch between CEDA database version {} and ESGF version {}".format\
+                            (ceda_db_esgf_version, ceda_esgf_version))
+
+                    current_ceda_version = datetime.datetime(int(ceda_esgf_version[0:4]), int(ceda_esgf_version[4:6]),
+                                                             int(ceda_esgf_version[6:8]))
+                    if current_ceda_version < latest_version:
+                        fwrite.writelines(" CEDA version is out of date. CEDA version is {}, LATEST version is {}".format\
+                            (current_ceda_version, latest_version))
+
+                    if current_ceda_version == latest_version:
+                        fwrite.writelines(" CEDA version is up to date {}".format(latest_version))
+
+                    if current_ceda_version > latest_version:
+                        fwrite.writelines(" ERROR CEDA version {} can not be greater than latest version {}".format\
+                            (current_ceda_version, latest_version))
+
+            if ceda_data_node not in versions.keys():
+                fwrite.writelines(" Dataset is missing from CEDA archive")
+
+
 def file_time_checks(file):
 
     institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
@@ -210,7 +286,7 @@ def create_datafile_records(var, freq, table, expt, node, distrib, latest):
     :return:
     """
 
-    for ds in Dataset.objects.filter(variable=var, cmor_table=table, frequency=freq, experiment=expt):
+    for ds in Dataset.objects.filter(variable=var, cmor_table=table, frequency=freq, experimnt=expt):
         variable = ds.variable
         table = ds.cmor_table
         frequency = ds.frequency
@@ -708,13 +784,17 @@ if __name__ == '__main__':
     freq = argv[3]
     # expt = argv[4]
     CREATE = False
-    QC = True
-    LOGGER = False
+    QC = False
+    LOGGER = True
     experiments = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
 
     if LOGGER:
         for expt in experiments:
-            json_all_latest_logger(var, freq, table, expt, node, "CMIP5")
+            #json_all_latest_logger(var, freq, table, expt, node, "CMIP5")
+            up_to_date_dir = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/UP-TO-DATE"
+            fname = '_'.join([var, freq, table, expt]) + '.log'
+            with open(os.path.join(up_to_date_dir, fname), 'w+') as fwrite:
+                dataset_latest_check(var, freq, table, expt, node, "CMIP5", fwrite)
 
     if CREATE:
         for expt in experiments:
@@ -741,6 +821,5 @@ if __name__ == '__main__':
                 # parse_cf_checker(file)
 
                 file_time_checks(file)
-                
-                
+
         # clear_cedacc_ouptut()

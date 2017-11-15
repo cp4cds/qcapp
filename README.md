@@ -46,7 +46,7 @@ Also
 
 # Corrections
 The time checker will adjust automatically any NetCDF file where the units of time are given as "days since YYYY-MM"
-to "days since YYYY-MM".
+to "days since YYYY-MM-DD".
 
 If a file start date is 0001-01-01 then the time checker performs only one consistency check
 
