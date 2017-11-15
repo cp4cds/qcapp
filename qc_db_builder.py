@@ -40,9 +40,14 @@ def dataset_latest_check(variable, frequency, table, experiment, node, project, 
         ensembles, json = esgf_ds_search(URL_DS_ENSEMBLE_FACETS, 'ensemble', project, variable, table, frequency,
                                          experiment, model, node, distrib, latest)
 
-        for ensemble in ensembles:
+        for ensemble in ensembles.keys():
+
+            print project, variable, table, frequency, experiment, node, distrib, latest
+
+            print model, ensemble
 
             url = URL_DATASET_ENSEMBLE % vars()
+            print url
             resp = requests.get(url, verify=False)
             json = resp.json()
             datasets = json["response"]["docs"]
@@ -51,9 +56,10 @@ def dataset_latest_check(variable, frequency, table, experiment, node, project, 
             nodes = []
             for ds in datasets:
                 ds_id = ds["id"].split('|')[0]
-                node = ds["id"].split('|')[1]
+                dnode = ds["id"].split('|')[1]
                 nodes.append(ds["id"].split('|')[1])
-                versions[node] = ds["id"].split('|')[0].split('.')[-1].strip('v')
+                versions[dnode] = ds["id"].split('|')[0].split('.')[-1].strip('v')
+            print ds_id
 
             fwrite.writelines("{} ::".format(ds_id))
 
@@ -63,9 +69,9 @@ def dataset_latest_check(variable, frequency, table, experiment, node, project, 
             latest_version = max(all_versions)
 
             ceda_data_node = "esgf-data1.ceda.ac.uk"
-            for node in versions.keys():
-                if node == ceda_data_node:
-                    ceda_esgf_version = versions[node]
+            for nde in versions.keys():
+                if nde == ceda_data_node:
+                    ceda_esgf_version = versions[nde]
                     d = Dataset.objects.filter(model=model,
                                                experiment=experiment,
                                                frequency=frequency,
@@ -787,6 +793,7 @@ if __name__ == '__main__':
     QC = False
     LOGGER = True
     experiments = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
+    experiments = ['historical']
 
     if LOGGER:
         for expt in experiments:
