@@ -280,7 +280,7 @@ def esgf_ds_search(search_template, facet_check, project, variable, table, frequ
     return result, json
 
 
-def create_datafile_records(var, freq, table, expt, node, distrib, latest):
+def create_datafile_records(var, freq, table, expt, node, distrib, latest, project):
     """
 
     Pre-requisits: Valid qcapp Dataset objcets
@@ -307,7 +307,7 @@ def create_datafile_records(var, freq, table, expt, node, distrib, latest):
     :return:
     """
 
-    for ds in Dataset.objects.filter(variable=var, cmor_table=table, frequency=freq, experimnt=expt):
+    for ds in Dataset.objects.filter(variable=var, cmor_table=table, frequency=freq, experiment=expt):
         variable = ds.variable
         table = ds.cmor_table
         frequency = ds.frequency
@@ -364,7 +364,7 @@ def create_datafile_records(var, freq, table, expt, node, distrib, latest):
                                                             )
 
 
-def create_dataset_records(variable, frequency, table, experiment, node, distrib, latest, spec):
+def create_dataset_records(variable, frequency, table, experiment, node, distrib, latest, spec, project):
     """
 
     This routine searches ESGF to obtain valid data criteria and then creates a qcapp Dataset record,
@@ -820,8 +820,8 @@ if __name__ == '__main__':
     if CREATE:
         for expt in experiments:
             dspec = create_dataspec(requester, var, freq, table)
-            create_dataset_records(var, freq, table, expt, node, distrib, latest, dspec)
-            create_datafile_records(var, freq, table, expt, node, distrib, latest)
+            create_dataset_records(var, freq, table, expt, node, distrib, latest, dspec, "CMIP5")
+            create_datafile_records(var, freq, table, expt, node, distrib, latest, "CMIP5")
 
     if QC:
 
