@@ -14,7 +14,7 @@ from qc_db_builder import *
 from subprocess import call
 
 file = "ancil_files/cp4cds_data_requirements.txt"
-file = "ancil_files/magic_additional_data.txt"
+#file = "ancil_files/magic_additional_data.txt"
 #file = "ancil_files/cp4cds_priority_data_requirements.txt"
 
 if os.path.isfile(NO_FILE_LOG):

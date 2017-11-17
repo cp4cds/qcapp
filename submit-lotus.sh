@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Ensure a output directory for lotus logs exists
-odir=/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/lotus-logs/magic-create
+odir=/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/lotus-logs/db-utd
 mkdir -p $odir
 
 var=$1
