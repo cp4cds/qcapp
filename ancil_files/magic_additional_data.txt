@@ -1,0 +1,16 @@
+MAGIC,,
+variable,cmor_table,frequency
+msftmyz,Omon,mon
+od550aer,aero,mon
+prsn,day,day
+psl,cf3hr,3hr
+rhs,day,day
+rlutcs,Amon,mon
+rsds,day,day
+rsutcs,Amon,mon
+sfcWind,day,day
+ta,day,day
+ua,day,day
+uas,3hr,3hr
+vas,3hr,3hr
+zg,day,day
