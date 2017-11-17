@@ -31,7 +31,6 @@ def dataset_latest_check(variable, frequency, table, experiment, node, project, 
     latest = True
     ceda_data_node = "esgf-data1.ceda.ac.uk"
     version_qc = True
-    valid_datanode = True
 
     # Get a dictionary of models that match a given search criteria
     models, json = esgf_ds_search(URL_DS_MODEL_FACETS, 'model', project, variable, table, frequency,
@@ -45,7 +44,6 @@ def dataset_latest_check(variable, frequency, table, experiment, node, project, 
 
         for ensemble in ensembles.keys():
 
-            import pdb; pdb.set_trace()
             url = URL_DATASET_ENSEMBLE % vars()
             resp = requests.get(url, verify=False)
             json = resp.json()
@@ -62,17 +60,23 @@ def dataset_latest_check(variable, frequency, table, experiment, node, project, 
             # Write DS ID as first column of output file
             fwrite.writelines("{} ::".format(ds_id))
 
+            if ceda_data_node not in versions.keys():
+                errmsg = "UTD.001 [ERROR] :: Dataset is missing from CEDA archive"
+                fwrite.writelines(" {} \n".format(errmsg))
+                version_qc = False
+
             # Test if Dataset exists in database
             db_ds_id = '.'.join(ds_id.split('.')[:-1])
             db_ds = Dataset.objects.filter(esgf_drs__startswith=db_ds_id, variable=variable)
 
             if len(db_ds) == 0:
-                fwrite.writelines(" UTD.009 [ERROR] :: Dataset not in qc app, missing from CEDA archive \n")
-                return
+                fwrite.writelines(" UTD.005 [ERROR] :: Dataset not in CP4CDS qc database \n")
+                version_qc = False
             if len(db_ds) > 1:
                 fwrite.writelines(" UTD.008 [FATAL] :: Multiple datasets in qc database {} \n".format(versions))
-                return
+                version_qc = False
 
+            # Get database object
             db_ds_first = db_ds.first()
 
             # Get latest version
@@ -87,60 +91,56 @@ def dataset_latest_check(variable, frequency, table, experiment, node, project, 
                 latest_version = max(all_versions)
 
             except TypeError:
-                fwrite.writelines(" UTD.005 [FATAL] :: Cannot perform test, no known latest version as "
-                                  "types do not match {} \n".format(versions))
-                return
-
-            if ceda_data_node not in versions.keys():
-                errmsg = "UTD.001 [ERROR] :: Dataset is missing from CEDA archive"
+                errmsg = "UTD.006 [FATAL] :: Cannot perform test, no known latest version " \
+                         "as types do not match {} \n".format(versions)
                 db_ds_first.up_to_date = False
                 db_ds_first.up_to_date_note = errmsg
                 fwrite.writelines(" {} \n".format(errmsg))
-                return
+                version_qc = False
 
-            try:
-                ceda_db_esgf_version_no = db_ds_first.version
+            if version_qc:
+                ceda_esgf_version_no = versions[ceda_data_node]
+                try:
+                    ceda_db_esgf_version_no = db_ds_first.version
 
-                if ceda_db_esgf_version_no != ceda_esgf_version_no:
-                    errmsg = "UTD.003 [ERROR] :: Mismatch between CEDA database version {} and " \
-                             "ESGF version {}".format(ceda_db_esgf_version_no, ceda_esgf_version_no)
+                    if ceda_db_esgf_version_no != ceda_esgf_version_no:
+                        errmsg = "UTD.003 [ERROR] :: Mismatch between CEDA database version {} and " \
+                                 "ESGF version {}".format(ceda_db_esgf_version_no, ceda_esgf_version_no)
+                        db_ds_first.up_to_date = False
+                        db_ds_first.up_to_date_note = errmsg
+                        fwrite.writelines(" {} \n".format(errmsg))
+
+                except AttributeError:
+                    errmsg = "UTD.004 [ERROR] :: CEDA database version unspecified"
                     db_ds_first.up_to_date = False
                     db_ds_first.up_to_date_note = errmsg
                     fwrite.writelines(" {} \n".format(errmsg))
 
-            except AttributeError:
-                errmsg = "UTD.004 [ERROR] :: CEDA database version unspecified"
-                db_ds_first.up_to_date = False
-                db_ds_first.up_to_date_note = errmsg
-                fwrite.writelines(" {} \n".format(errmsg))
+                if len(ceda_esgf_version_no) == 8:
+                    current_ceda_version = datetime.datetime(int(ceda_esgf_version_no[0:4]), int(ceda_esgf_version_no[4:6]),
+                                                             int(ceda_esgf_version_no[6:8]))
+                if len(ceda_esgf_version_no) == 1:
+                    current_ceda_version = ceda_esgf_version_no
 
-            if len(ceda_esgf_version_no) == 8:
-                current_ceda_version = datetime.datetime(int(ceda_esgf_version_no[0:4]), int(ceda_esgf_version_no[4:6]),
-                                                         int(ceda_esgf_version_no[6:8]))
-            if len(ceda_esgf_version_no) == 1:
-                current_ceda_version = ceda_esgf_version_no
+                if current_ceda_version < latest_version:
+                    errmsg = "UTD.002 [ERROR] :: CEDA version is out of date. CEDA version is {}, " \
+                             "LATEST version is {}".format(current_ceda_version, latest_version)
+                    db_ds_first.up_to_date = False
+                    db_ds_first.up_to_date_note = errmsg
+                    fwrite.writelines(" {} \n".format(errmsg))
 
-            if current_ceda_version < latest_version:
-                errmsg = "UTD.002 [ERROR] :: CEDA version is out of date. CEDA version is {}, " \
-                         "LATEST version is {}".format(current_ceda_version, latest_version)
-                db_ds_first.up_to_date = False
-                db_ds_first.up_to_date_note = errmsg
-                fwrite.writelines(" {} \n".format(errmsg))
+                if current_ceda_version == latest_version:
+                    errmsg = "UTD.000 [PASS] :: CEDA version is up to date {}".format(latest_version)
+                    db_ds_first.up_to_date = True
+                    db_ds_first.up_to_date_note = errmsg
+                    fwrite.writelines(" {} \n".format(errmsg))
 
-            if current_ceda_version == latest_version:
-                errmsg = "UTD.000 [PASS] :: CEDA version is up to date {}".format(latest_version)
-                db_ds_first.up_to_date = True
-                db_ds_first.up_to_date_note = errmsg
-                fwrite.writelines(" {} \n".format(errmsg))
-
-            if current_ceda_version > latest_version:
-                errmsg = "UTD.007 [FATAL] :: CEDA version {} can not be greater than " \
-                         "latest version {} \n".format(current_ceda_version, latest_version)
-                db_ds_first.up_to_date = False
-                db_ds_first.up_to_date_note = errmsg
-                fwrite.writelines(" {} \n".format(errmsg))
-
-
+                if current_ceda_version > latest_version:
+                    errmsg = "UTD.007 [FATAL] :: CEDA version {} can not be greater than " \
+                             "latest version {} \n".format(current_ceda_version, latest_version)
+                    db_ds_first.up_to_date = False
+                    db_ds_first.up_to_date_note = errmsg
+                    fwrite.writelines(" {} \n".format(errmsg))
 
 def file_time_checks(file):
 
