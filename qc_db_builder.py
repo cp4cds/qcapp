@@ -69,11 +69,11 @@ def dataset_latest_check(variable, frequency, table, experiment, node, project, 
                 latest_version = max(all_versions)
                 version_qc = True
             except TypeError:
-                fwrite.writelines(" Version types do not match {} \n".format(versions))
+                fwrite.writelines(" UTD.005 [FATAL] :: Cannot perform test version types do not match {} \n".format(versions))
                 version_qc = False
 
             if ceda_data_node not in versions.keys():
-                fwrite.writelines(" Dataset is missing from CEDA archive \n")
+                fwrite.writelines(" UTD.001 [ERROR] :: Dataset is missing from CEDA archive \n")
                 valid_datanode = False
             else: valid_datanode = True
 
@@ -87,7 +87,7 @@ def dataset_latest_check(variable, frequency, table, experiment, node, project, 
                                            variable=variable
                                            )
                 if len(d) != 1:
-                    fwrite.writelines(" Multiple datasets that should be unique with variables "
+                    fwrite.writelines(" UTD.006 [FATAL] :: Cannot perform test multiple datasets that should be unique with variables "
                                       "{}, {}, {}, {}, {}, {} \n".format(model, experiment, frequency, table, ensemble, variable))
 
                 _ = d.first()
@@ -95,11 +95,11 @@ def dataset_latest_check(variable, frequency, table, experiment, node, project, 
                     ceda_db_esgf_version = _.version
 
                     if ceda_db_esgf_version != ceda_esgf_version:
-                        fwrite.writelines(" Mismatch between CEDA database version {} and ESGF version {} \n".format\
+                        fwrite.writelines(" UTD.003 [ERROR] :: Mismatch between CEDA database version {} and ESGF version {} \n".format\
                             (ceda_db_esgf_version, ceda_esgf_version))
 
                 except AttributeError:
-                    fwrite.writelines(" ERROR CEDA database version unspecified \n")
+                    fwrite.writelines(" UTD.004 [ERROR] :: CEDA database version unspecified \n")
 
                 if len(ceda_esgf_version) == 8:
                     current_ceda_version = datetime.datetime(int(ceda_esgf_version[0:4]), int(ceda_esgf_version[4:6]),
@@ -108,14 +108,14 @@ def dataset_latest_check(variable, frequency, table, experiment, node, project, 
                     current_ceda_version = ceda_esgf_version
 
                 if current_ceda_version < latest_version:
-                    fwrite.writelines(" CEDA version is out of date. CEDA version is {}, LATEST version is {} \n".format\
+                    fwrite.writelines(" UTD.002 [ERROR] :: CEDA version is out of date. CEDA version is {}, LATEST version is {} \n".format\
                         (current_ceda_version, latest_version))
 
                 if current_ceda_version == latest_version:
-                    fwrite.writelines(" CEDA version is up to date {} \n".format(latest_version))
+                    fwrite.writelines(" UTD.000 [PASS] :: CEDA version is up to date {} \n".format(latest_version))
 
                 if current_ceda_version > latest_version:
-                    fwrite.writelines(" ERROR CEDA version {} can not be greater than latest version {} \n".format\
+                    fwrite.writelines(" UTD.007 [FATAL] :: CEDA version {} can not be greater than latest version {} \n".format\
                         (current_ceda_version, latest_version))
 
 

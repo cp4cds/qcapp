@@ -53,6 +53,8 @@ class Dataset(models.Model):
     variable = models.CharField(max_length=20)
     esgf_drs = models.CharField(max_length=200, blank=True)
     esgf_node = models.CharField(max_length=80, blank=True)
+    up_to_date = models.NullBooleanField(default=None, blank=True, null=True)
+    up_to_date_note = models.CharField(default=None, max_length=1000, blank=True, null=True)
 
     # TO DO WHEN QC IS COMPLETE
     #    dataset_qc = models.ForeignKey('DatasetQC', null=True)
