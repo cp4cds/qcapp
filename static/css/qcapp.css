@@ -1,7 +1,11 @@
 .qcapp-main-container {
     top: 100px;
 }
-facet-filter.ex {
+.facet-filter.ex {
     height: 20px;
     width: 50px;
+}
+
+body {
+    padding-top: 50px;
 }
