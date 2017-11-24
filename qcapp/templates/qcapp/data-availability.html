@@ -1,3 +1,88 @@
 {% extends 'qcapp/base.html' %}
 {% load static %}
+{% block extrahead %}
+    <link rel="stylesheet" href="{% static 'css/chosen.min.css' %}">
+    <script src="{% static 'js/chosen.jquery.min.js' %}"></script>
+
+{% endblock %}
 {% block contents %}
+    <form id="filterform" method="POST" action="{% url 'data-availability-matrix' %}">
+    {% csrf_token %}
+
+    <table class="table">
+        <thead>
+        <th>
+            Variables
+        </th>
+        <th>
+            Experiments
+        </th>
+        <th>
+            Min Ensemble Size
+        </th>
+        </thead>
+        <tbody>
+        <tr>
+            <td>
+                <select multiple class="variables" id="variables" name="variables">
+                    {% for variable in variables %}
+                    <option>{{ variable }}</option>
+                    {% endfor %}
+                </select>
+                <a class="select-variable">Select all</a> |
+                <a class="deselect-variable">Deselect all</a>
+
+                <table class="table" id="variable-details" style="display: none;">
+                    <thead>
+                        <th>Variable</th>
+                        <th>Table</th>
+                        <th>Frequency</th>
+                    </thead>
+                    <tbody class="variable-details"></tbody>
+                </table>
+            </td>
+            <td>
+                <select multiple class="experiments" id="experiments" name="experiments">
+                    {% for experiment in experiments %}
+                    <option>{{ experiment }}</option>
+                    {% endfor %}
+
+                </select>
+                <a class="select-expr">Select all</a> |
+                <a class="deselect-expr">Deselect all</a>
+            </td>
+            <td>
+                <select id="ensemble-size" name="ensemble-size" style="height: 29px; width:95%">
+                    {% for i in range  %}
+                        <option>{{ i }}</option>
+                    {% endfor %}
+                </select>
+
+            </td>
+        </tr>
+        </tbody>
+
+    </table>
+
+
+{#    <input value="Get results" type="submit" class="btn btn-success" id="get_results">#}
+        <button type="button" class="btn btn-success" id="get_results">Get results</button>
+    <button type="button" class="btn btn-info" id="clear_filters"> Reset all filters</button>
+</form>
+
+
+    <div id="results">
+        <div align="center" id="loading" style="display: none"></div>
+        <table class="table table-striped" id="results-table" style="display: none">
+            <thead>
+                <th>Institute</th>
+                <th>Model</th>
+                <th>Experiment</th>
+                <th>Ensembles</th>
+            </thead>
+
+            <tbody id="data-availability-results"></tbody>
+        </table>
+    </div>
+ <script src="{% static 'js/data_availability_matrix.js' %}"></script>
+{% endblock %}

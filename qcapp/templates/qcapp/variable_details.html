@@ -1,0 +1,82 @@
+{% extends 'qcapp/base.html' %}
+{% load static qc_tags %}
+{% block contents %}
+
+    <input type="hidden" id="variable-select" value="{{ selected.variable }}">
+
+
+<form method="POST" action="{% url 'variable-details' %}">
+    {% csrf_token %}
+
+
+    <table class="table">
+
+        <thead>
+        <th>Variable</th>
+
+        </thead>
+        <tbody>
+
+        <tr>
+            <td>
+                <select class="facet-filter" id="variable" name="variable">
+                    <!--somewhere here set the default width using css-->
+                    <!--NEED TO ONLY DISPLAY BELOW IF NO SELECTION HAS BEEN MADE-->
+                    <option value="All">All</option>
+                    {% for variable in variables %}
+                    <option>{{variable}}</option>
+                    {% endfor %}
+
+                </select>
+            </td>
+        </tr>
+
+        </tbody>
+
+
+    </table>
+    <input value="Get results" type="submit" class="btn btn-success" id="file_qc_list">
+    <button type="button" class="btn btn-info" id="clear_filters"> Reset all filters</button>
+</form>
+
+<h3>Models <span class="badge">{{ models | length}}</span></h3>
+
+<div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true">
+    {% for model, ensembles in models.iteritems %}
+        <div class="panel panel-default">
+            <div class="panel-heading" role="tab" id="heading{{model | clean_special}}">
+                <h4 class="panel-title">
+                    <a role="button" data-toggle="collapse" data-parent="#accordion" href="#collapse{{ model | clean_special }}" aria-expanded="true" aria-controls="collapse{{ model | clean_special }}">
+          {{model}}
+        </a>
+
+                    <span style="float:right;">Ensembles: {{ ensembles | length }}</span>
+                </h4>
+            </div>
+            <div id="collapse{{ model | clean_special}}" class="panel-collapse collapse" role="tabpanel" aria-labelledby="heading{{ model | clean_special}}">
+                <div class="panel-body">
+                    {%  for ensemble in ensembles %}
+                        <p>{{ ensemble }}</p>
+                    {% endfor %}
+
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+
+    <script type="text/javascript">
+        // Makes sure that the filters are set to the requested values when the page loads.
+        var variableselect = $("#variable-select").val()
+
+        $(document).ready(function () {
+            if (variableselect) {
+                $('#variable').val(variableselect);
+            }
+        })
+    </script>
+
+
+
+{% endblock %}

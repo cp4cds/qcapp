@@ -1,11 +1,14 @@
 from django.shortcuts import render
 from django.http import HttpResponse
+from django.db.models import Q
+from functools import reduce
 
 from qcapp.models import *
 from .models import *
 from view_functions import *
 from tqdm import tqdm
 import os, collections, json
+
 
 GWSDIR = "qcapp/cp4cds_gws_qc/"
 FACETS_LIST = ['model', 'experiment']
@@ -298,3 +301,161 @@ def facet_filter(request, model, experiment):
         filtered_data = json.dumps(facets)
         return HttpResponse(filtered_data, content_type='application/json')
 
+
+def model_details(request):
+    context = {}
+
+    context["page_title"] = "Model Details"
+
+
+    if request.POST:
+
+        context["selected"] = {"model":request.POST["model"], "experiment": request.POST["experiment"]}
+
+        datasets = Dataset.objects.all()
+
+        if request.POST['model'] != "All":
+            datasets = datasets.filter(model=request.POST['model'])
+
+        if request.POST['experiment'] != "All":
+            datasets = datasets.filter(experiment=request.POST['experiment'])
+
+        variables = datasets.values_list('variable', flat=True).distinct()
+
+        vars = {}
+
+        for var in variables:
+            expr_list = []
+            experiments = datasets.filter(variable=var).values_list('experiment', flat=True).distinct()
+            for expr in experiments:
+                experiment_data = {}
+
+                ensembles = list(datasets.filter(experiment=expr).values_list('ensemble', flat=True).distinct())
+
+                experiment_data["experiment"] = expr
+                experiment_data["ensembles"] = ensembles
+                expr_list.append(experiment_data)
+
+            vars[var] = expr_list
+
+        context["variables"] = vars
+
+    context["models"] = Dataset.objects.values_list("model", flat=True).distinct()
+    context["experiments"] = Dataset.objects.values_list("experiment", flat=True).distinct()
+
+
+    return render(request, 'qcapp/model_details.html', context)
+
+def variable_details(request):
+    context = {}
+
+    context["page_title"] = "Variable Details"
+
+
+    if request.POST:
+
+        datasets = Dataset.objects.all()
+
+        if request.POST["variable"] != "All":
+            datasets = datasets.filter(variable=request.POST["variable"])
+
+        models = datasets.values_list('model', flat=True).distinct()
+
+        model_data = {}
+        for model in models:
+            ensembles = datasets.filter(model=model).values_list('ensemble', flat=True).distinct()
+            model_data[model] = ensembles
+
+        context["models"] = model_data
+        context["selected"] = {"variable":request.POST["variable"]}
+
+
+
+
+    context["variables"] = Dataset.objects.values_list("variable", flat=True).distinct()
+
+    return render(request, 'qcapp/variable_details.html', context)
+
+
+
+def data_availability_matrix(request):
+    context = {}
+    context["page_title"] = "Data Availability Matrix"
+
+    if request.POST and request.is_ajax():
+        data = dict(request.POST.lists())
+        try:
+            variables = data["variables"]
+            tables = data['tables']
+            freqs = data['freqs']
+            print len(variables), len(tables), len(freqs)
+            experiments = data['experiments']
+            min_size = int(data["ensemble-size"][0])
+
+        except KeyError:
+            # User has not made a selection for one of the filters. Return bad request code.
+            return HttpResponse(status=400)
+
+        # Get datasets that have one or other of the experiments
+        datasets = Dataset.objects.filter(experiment__in=experiments)
+
+        # Filter by variables build Q object for variable filter
+        # TODO: possible to do using reduce and lambda function.
+        if len(variables) > 1:
+            q = Q(variable=variables[0], cmor_table=tables[0], frequency=freqs[0])
+            for var, table, freq in zip(variables[1:], tables[1:], freqs[1:]):
+                q = q | Q(variable=var, cmor_table=table, frequency=freq)
+
+            datasets = datasets.filter(q)
+        else:
+            datasets = datasets.filter(variable=variables[0], cmor_table=tables[0], frequency=freqs[0])
+
+        # Get list of distinct models which contain all the variables and at least one of the experiments.
+        models = datasets.values_list('model', flat=True).distinct()
+
+        return_data_list = []
+        for model in models:
+            model_specific_datasets = datasets.filter(model=model)
+            institute = model_specific_datasets.values_list('institute', flat=True).distinct().first()
+            expts = model_specific_datasets.values_list('experiment', flat=True).distinct()
+            for experiment in expts:
+                model_data = {}
+                ensembles = list(model_specific_datasets.filter(experiment=experiment).values_list('ensemble',flat=True).distinct())
+                if len(ensembles) < min_size:
+                    continue
+                model_data["institute"] = institute
+                model_data["model"] = model
+                model_data["experiment"] = experiment
+                model_data["ensembles"] = ensembles
+
+                return_data_list.append(model_data)
+
+        return HttpResponse(json.dumps(return_data_list), content_type='application/json')
+
+
+
+
+    datasets = Dataset.objects.all()
+
+    context["range"] = range(1,16)
+    context["variables"] = datasets.values_list('variable', flat=True).distinct()
+    context["experiments"] = datasets.values_list('experiment', flat=True).distinct()
+
+    return render(request, 'qcapp/data-availability.html', context)
+
+def data_availability_variables(request):
+    data = {}
+    if request.is_ajax():
+        selected_variables = json.loads(request.POST['variables'])
+        var_list = []
+        for var in selected_variables:
+            var_data = {}
+            tables = list(Dataset.objects.filter(variable=var).values_list('cmor_table', flat=True).distinct())
+            freqs = list(Dataset.objects.filter(variable=var).values_list('frequency', flat=True).distinct())
+            var_data["tables"] = tables
+            var_data["freqs"] = freqs
+            var_data["variable"] = var
+            var_list.append(var_data)
+    data["variables"] = var_list
+
+    return HttpResponse(json.dumps(data), content_type='application/json' )

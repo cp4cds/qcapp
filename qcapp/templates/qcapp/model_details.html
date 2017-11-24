@@ -1,0 +1,138 @@
+{% extends 'qcapp/base.html' %}
+{% load static qc_tags %}
+
+
+{% block contents %}
+    <input type="hidden" id="model-select" value="{{ selected.model }}">
+    <input type="hidden" id="experiment-select" value="{{ selected.experiment }}">
+
+    <form method="POST" action="{% url 'model-details' %}">
+        {% csrf_token %}
+
+        <table class="table">
+            <thead>
+            <th>
+                Model
+            </th>
+            <th>
+                Experiment
+            </th>
+            </thead>
+            <tbody>
+            <tr>
+                <td>
+                    <select class="facet-filter" id="model" name="model">
+                        <option>All</option>
+                        {% for model in models %}
+                            <option>{{ model }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td>
+                    <select id="experiment" name="experiment">
+                        <option>All</option>
+                        {% for experiment in experiments %}
+                            <option>{{ experiment }}</option>
+                        {% endfor %}
+
+                    </select>
+
+                </td>
+            </tr>
+            </tbody>
+
+        </table>
+
+        <input value="Get results" type="submit" class="btn btn-success" id="file_qc_list">
+        <button type="button" class="btn btn-info" id="clear_filters"> Reset all filters</button>
+    </form>
+
+    <div>
+        <h3>Variables <span class="badge">{{ variables | length }}</span></h3>
+
+        <div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true">
+            {% for variable, data in variables.iteritems %}
+                <div class="panel panel-default">
+                    <div class="panel-heading" role="tab" id="heading{{ variable }}">
+                        <h4 class="panel-title">
+                            <a role="button" data-toggle="collapse" data-parent="#accordion"
+                               href="#collapse{{ variable }}"
+                               aria-expanded="true" aria-controls="collapse{{ variable }}">
+                                {{ variable }}
+                            </a>
+
+                            <span style="float:right;"> Experiments: {{ data | length }} Ensembles: {{ data | max_item_count:"ensembles" }}</span>
+                        </h4>
+                    </div>
+                    <div id="collapse{{ variable }}" class="panel-collapse collapse" role="tabpanel"
+                         aria-labelledby="heading{{ variable }}">
+                        <div class="panel-body">
+                            {% for item in data %}
+                                <div class="row" style="margin: 10px 0px">
+                                    <strong class="col-md-2 col-sm-2">{{ item.experiment }} :</strong>
+                                    <div class="col-md-10 col-sm-10">
+                                        {% for ens in item.ensembles %}
+                                            <p class="ensemble-tag">{{ ens }}</p>
+                                        {% endfor %}
+                                    </div>
+
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        $('.facet-filter').change(function () {
+            var model = $('#model').val()
+            var experiment = $('#experiment').val()
+            var target = "/facet-filter/" + model + '/' + experiment
+            $.get(target, function (data) {
+                // Handle data from server and populate dropdown menus
+                // Declare vars
+                var i, j
+                var model_list
+                var experiment_list
+                // Initialise innerHTML strings for dropdown with All option
+                model_list = "<option value='All'> All </option>"
+                experiment_list = "<option value='All'> All </option>"
+                // Loop JSON to build html strings
+                for (i = 0; i < data.model.length; i++) {
+                    model_list = model_list.concat("<option value=" + data.model[i] + ">" + data.model[i] + "</option>")
+                }
+                for (j = 0; j < data.experiment.length; j++) {
+                    experiment_list = experiment_list.concat("<option value=" + data.experiment[j] + ">" + data.experiment[j] + "</option>")
+                }
+                // Populate selection dropdowns
+                $('#model').html(model_list)
+                $('#experiment').html(experiment_list)
+                // Choose selected value
+                $('#model').val(model)
+                $('#experiment').val(experiment)
+            })
+        })
+        $('#clear_filters').click(function () {
+            $('#model').val('All')
+            $('#experiment').val('All')
+            $('.facet-filter').trigger('change')
+
+        })
+    </script>
+    <script type="text/javascript">
+        var modelselect = $("#model-select").val()
+        var experselect = $("#experiment-select").val()
+
+        $(document).ready(function () {
+            if (modelselect || experselect) {
+                $('#model').val(modelselect);
+                $('#experiment').val(experselect);
+            }
+        })
+
+    </script>
+
+
+{% endblock %}

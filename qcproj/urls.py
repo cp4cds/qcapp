@@ -30,6 +30,14 @@ urlpatterns = [
     url(r'^variable-dataset-qc/(?P<variable>\S+)', qcapp.views.variable_dataset_qc, name="variable-dataset-qc"),
     url(r'^variable-summary-qc/', qcapp.views.variable_summary_qc, name="variable-summary-qc"),
     url(r'^data-spec/', qcapp.views.data_spec, name="data-spec"),
+    url(r'^model-details/', qcapp.views.model_details, name="model-details"),
+    url(r'^variable-details/', qcapp.views.variable_details, name="variable-details"),
+    url(r'^data-availability/', qcapp.views.data_availability_matrix, name="data-availability-matrix"),
+
+
+    # Ajax endpoints
     url(r'^facet-filter/(?P<model>\S+)/(?P<experiment>\S+)',
         qcapp.views.facet_filter, name="facet-filter"),
+    url(r'^data-availability-variables', qcapp.views.data_availability_variables, name="data-availability-variables"),
+
 ]

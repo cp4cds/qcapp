@@ -1,11 +1,36 @@
 .qcapp-main-container {
     top: 100px;
 }
-.facet-filter.ex {
+.facet-filter {
     height: 20px;
-    width: 50px;
+    width: 150px;
 }
 
 body {
     padding-top: 50px;
+}
+
+.ensemble-tag {
+    display: inline;
+    border: solid;
+    border-width: 1px;
+    padding: 2px 5px;
+    border-radius: 5px;
+    background-color: #c4dce8;
+
+}
+
+.chosen-choices{
+    max-height: 150px;
+}
+
+.overlay{
+    background: #e9e9e9;
+    display: none;
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    opacity: 0.5;
 }
