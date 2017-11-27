@@ -11,7 +11,8 @@ body {
 }
 
 .ensemble-tag {
-    display: inline;
+    float: left;
+    display: block;
     border: solid;
     border-width: 1px;
     padding: 2px 5px;
@@ -24,13 +25,38 @@ body {
     max-height: 150px;
 }
 
-.overlay{
-    background: #e9e9e9;
+.static-header{
+    margin-top: 10px;
+    border-bottom: solid;
     display: none;
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    opacity: 0.5;
+    }
+
+
+nav div a {
+    color: white;
 }
+
+.navbar-brand:hover{
+    color: #bfbfbf;
+}
+
+.navbar-brand:active{
+    color: #bfbfbf;
+}
+
+
+.copernicus{
+    background-color: #971e35;
+    color: white;
+}
+
+.copernicus:hover{
+    color: #bfbfbf;
+}
+.copernicus:active{
+    color: #bfbfbf;
+}
+.copernicus:focus {
+    color: white
+}
+

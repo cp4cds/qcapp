@@ -43,8 +43,8 @@
 
         </table>
 
-        <input value="Get results" type="submit" class="btn btn-success" id="file_qc_list">
-        <button type="button" class="btn btn-info" id="clear_filters"> Reset all filters</button>
+        <input value="Get results" type="submit" class="btn copernicus" id="file_qc_list">
+        <button type="button" class="btn copernicus" id="clear_filters"> Reset all filters</button>
     </form>
 
     <div>
@@ -58,7 +58,7 @@
                             <a role="button" data-toggle="collapse" data-parent="#accordion"
                                href="#collapse{{ variable }}"
                                aria-expanded="true" aria-controls="collapse{{ variable }}">
-                                {{ variable }}
+                                <span class="caret"></span>&nbsp;{{ variable }}
                             </a>
 
                             <span style="float:right;"> Experiments: {{ data | length }} Ensembles: {{ data | max_item_count:"ensembles" }}</span>

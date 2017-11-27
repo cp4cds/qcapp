@@ -330,7 +330,7 @@ def model_details(request):
             for expr in experiments:
                 experiment_data = {}
 
-                ensembles = list(datasets.filter(experiment=expr).values_list('ensemble', flat=True).distinct())
+                ensembles = list(datasets.filter(experiment=expr).values_list('ensemble', flat=True).distinct().order_by('ensemble'))
 
                 experiment_data["experiment"] = expr
                 experiment_data["ensembles"] = ensembles
@@ -411,7 +411,7 @@ def data_availability_matrix(request):
             datasets = datasets.filter(variable=variables[0], cmor_table=tables[0], frequency=freqs[0])
 
         # Get list of distinct models which contain all the variables and at least one of the experiments.
-        models = datasets.values_list('model', flat=True).distinct()
+        models = datasets.values_list('model', flat=True).distinct().order_by('model')
 
         return_data_list = []
         for model in models:
@@ -420,7 +420,7 @@ def data_availability_matrix(request):
             expts = model_specific_datasets.values_list('experiment', flat=True).distinct()
             for experiment in expts:
                 model_data = {}
-                ensembles = list(model_specific_datasets.filter(experiment=experiment).values_list('ensemble',flat=True).distinct())
+                ensembles = list(model_specific_datasets.filter(experiment=experiment).values_list('ensemble',flat=True).distinct().order_by('ensemble'))
                 if len(ensembles) < min_size:
                     continue
                 model_data["institute"] = institute

@@ -6,6 +6,9 @@
 
 {% endblock %}
 {% block contents %}
+    <noscript>
+        <h4 class="text-danger" align="center" >Javascript has been disabled on this page. You must enable javascript to use this content.</h4>
+    </noscript>
     <form id="filterform" method="POST" action="{% url 'data-availability-matrix' %}">
     {% csrf_token %}
 
@@ -31,15 +34,16 @@
                 </select>
                 <a class="select-variable">Select all</a> |
                 <a class="deselect-variable">Deselect all</a>
-
-                <table class="table" id="variable-details" style="display: none;">
-                    <thead>
+                <table class="static-header" >
                         <th>Variable</th>
                         <th>Table</th>
                         <th>Frequency</th>
-                    </thead>
+                </table>
+                <div style="max-height: 30vh; overflow-y: scroll">
+                <table class="table" id="variable-details">
                     <tbody class="variable-details"></tbody>
                 </table>
+                </div>
             </td>
             <td>
                 <select multiple class="experiments" id="experiments" name="experiments">
@@ -66,13 +70,14 @@
 
 
 {#    <input value="Get results" type="submit" class="btn btn-success" id="get_results">#}
-        <button type="button" class="btn btn-success" id="get_results">Get results</button>
-    <button type="button" class="btn btn-info" id="clear_filters"> Reset all filters</button>
+        <button type="button" class="btn copernicus" id="get_results">Get results</button>
+    <button type="button" class="btn copernicus" id="clear_filters"> Reset all filters</button>
 </form>
-
+<hr>
 
     <div id="results">
-        <div align="center" id="loading" style="display: none"></div>
+        <h3>Results</h3>
+        <div align="center" style="display: none"></div>
         <table class="table table-striped" id="results-table" style="display: none">
             <thead>
                 <th>Institute</th>
