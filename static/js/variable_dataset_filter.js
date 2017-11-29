@@ -3,7 +3,7 @@
 $('.facet-filter').change(function () {
     var model = $('#model').val()
     var experiment = $('#experiment').val()
-    var target = "/facet-filter/" + model + '/' + experiment
+    var target = "/variable-details/" + model + '/' + experiment
     $.get(target, function (data) {
         // Handle data from server and populate dropdown menus
         // Declare vars

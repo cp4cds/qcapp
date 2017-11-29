@@ -3,6 +3,8 @@
 {% block contents %}
 
     <input type="hidden" id="variable-select" value="{{ selected.variable }}">
+    <input type="hidden" id="table-select" value="{{ selected.table }}">
+    <input type="hidden" id="frequency-select" value="{{ selected.frequency }}">
 
 
 <form method="POST" action="{% url 'variable-details' %}">
@@ -13,6 +15,8 @@
 
         <thead>
         <th>Variable</th>
+        <th>CMOR Table</th>
+        <th>Frequency</th>
 
         </thead>
         <tbody>
@@ -24,7 +28,29 @@
                     <!--NEED TO ONLY DISPLAY BELOW IF NO SELECTION HAS BEEN MADE-->
                     <option value="All">All</option>
                     {% for variable in variables %}
-                    <option>{{variable}}</option>
+                        <option value="{{ variable }}">{{ variable }}</option>
+                    {% endfor %}
+
+                </select>
+            </td>
+            <td>
+                <select class="facet-filter" id="table" name="table">
+                    <!--somewhere here set the default width using css-->
+                    <!--NEED TO ONLY DISPLAY BELOW IF NO SELECTION HAS BEEN MADE-->
+                    <option value="All">All</option>
+                    {% for table in cmor_tables %}
+                        <option value="{{ table }}">{{ table }}</option>
+                    {% endfor %}
+
+                </select>
+            </td>
+            <td>
+                <select class="facet-filter" id="frequency" name="frequency">
+                    <!--somewhere here set the default width using css-->
+                    <!--NEED TO ONLY DISPLAY BELOW IF NO SELECTION HAS BEEN MADE-->
+                    <option value="All">All</option>
+                    {% for freq in frequencies %}
+                        <option value="{{ freq }}">{{ freq }}</option>
                     {% endfor %}
 
                 </select>
@@ -42,21 +68,25 @@
 <h3>Models <span class="badge">{{ models | length}}</span></h3>
 
 <div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true">
-    {% for model, ensembles in models.iteritems %}
-        <div class="panel panel-default">
-            <div class="panel-heading" role="tab" id="heading{{model | clean_special}}">
-                <h4 class="panel-title">
-                    <a role="button" data-toggle="collapse" data-parent="#accordion" href="#collapse{{ model | clean_special }}" aria-expanded="true" aria-controls="collapse{{ model | clean_special }}">
-          <span class="caret"></span>&nbsp;{{model}}
-        </a>
 
-                    <span style="float:right;">Ensembles: {{ ensembles | length }}</span>
+    {% for model in models %}
+        <div class="panel panel-default">
+            <div class="panel-heading" role="tab" id="heading{{ model.model | clean_special }}">
+                <h4 class="panel-title">
+                    <a role="button" data-toggle="collapse" data-parent="#accordion"
+                       href="#collapse{{ model.model | clean_special }}" aria-expanded="true"
+                       aria-controls="collapse{{ model.model | clean_special }}">
+                        <span class="caret"></span>&nbsp;{{ model.institute }}&nbsp;-&nbsp;{{ model.model }}
+                        <span style="float:right;">Ensembles: {{ model.ensembles | length }}</span>
+                    </a>
+
                 </h4>
             </div>
-            <div id="collapse{{ model | clean_special}}" class="panel-collapse collapse" role="tabpanel" aria-labelledby="heading{{ model | clean_special}}">
+            <div id="collapse{{ model.model | clean_special }}" class="panel-collapse collapse" role="tabpanel"
+                 aria-labelledby="heading{{ model.model | clean_special }}">
                 <div class="panel-body">
-                    {%  for ensemble in ensembles %}
-                        <p>{{ ensemble }}</p>
+                    {% for ensemble in model.ensembles %}
+                        <p class="ensemble-tag">{{ ensemble }}</p>
                     {% endfor %}
 
                 </div>
@@ -68,12 +98,79 @@
 
     <script type="text/javascript">
         // Makes sure that the filters are set to the requested values when the page loads.
-        var variableselect = $("#variable-select").val()
 
         $(document).ready(function () {
-            if (variableselect) {
-                $('#variable').val(variableselect);
+            var varselect = $("#variable-select").val()
+            var tabselect = $("#table-select").val()
+            var freqselect = $("#frequency-select").val()
+
+            if (varselect) {
+                $('#variable').val(varselect);
             }
+            if (tabselect) {
+                $('#table').val(tabselect);
+            }
+            if (freqselect) {
+                $('#frequency').val(freqselect);
+            }
+        })
+
+
+        $('.facet-filter').change(function () {
+            var variable = $('#variable').val()
+            var table = $('#table').val()
+            var freq = $('#frequency').val()
+            var target = "/get_variable_details/" + variable + '/' + table + '/' + freq
+            $.get(target, function (data) {
+
+                // Handle data from server and populate dropdown menus
+                // Declare vars
+                var i, j, k
+                var var_list
+                var table_list
+                var freq_list
+
+                // Initialise innerHTML strings for dropdown with All option
+                var_list = "<option value='All'> All </option>"
+                table_list = "<option value='All'> All </option>"
+                freq_list = "<option value='All'> All </option>"
+
+                // Loop JSON to build html strings
+                for (i = 0; i < data.variables.length; i++) {
+                    var_list = var_list.concat("<option value=" + data.variables[i] + ">" + data.variables[i] + "</option>")
+                }
+                for (j = 0; j < data.tables.length; j++) {
+                    table_list = table_list.concat("<option value=" + data.tables[j] + ">" + data.tables[j] + "</option>")
+                }
+                for (k = 0; k < data.frequencies.length; k++) {
+                    freq_list = freq_list.concat("<option value=" + data.frequencies[k] + ">" + data.frequencies[k] + "</option>")
+                }
+                // Populate selection dropdowns
+                $('#variable').html(var_list)
+                $('#table').html(table_list)
+                $('#frequency').html(freq_list)
+
+                // Choose selected value
+                $('#variable').val(variable)
+                if (data.tables.length === 1){
+                    $('#table option[value="'+ data.tables[0] +'"]').prop('selected', true)
+
+                } else {
+                    $('#table option[value="'+ table +'"]').prop('selected', true)
+                }
+
+                if (data.frequencies.length === 1){
+                    $('#frequency option[value="'+ data.frequencies[0] +'"]').prop('selected', true)
+
+                } else {
+                    $('#table option[value="'+ freq +'"]').prop('selected', true)
+                }
+            })
+        })
+        $('#clear_filters').click(function () {
+            $('.facet-filter').each(function () {
+                $(this).val('All')
+            }).trigger('change')
         })
     </script>
 

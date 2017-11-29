@@ -24,7 +24,7 @@
                     <select class="facet-filter" id="model" name="model">
                         <option>All</option>
                         {% for model in models %}
-                            <option>{{ model }}</option>
+                            <option value="{{ model }}">{{ model }}</option>
                         {% endfor %}
                     </select>
                 </td>
@@ -32,7 +32,7 @@
                     <select id="experiment" name="experiment">
                         <option>All</option>
                         {% for experiment in experiments %}
-                            <option>{{ experiment }}</option>
+                            <option value="{{ experiment}}">{{ experiment }}</option>
                         {% endfor %}
 
                     </select>
@@ -51,25 +51,25 @@
         <h3>Variables <span class="badge">{{ variables | length }}</span></h3>
 
         <div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true">
-            {% for variable, data in variables.iteritems %}
+            {% for variable in variables %}
                 <div class="panel panel-default">
-                    <div class="panel-heading" role="tab" id="heading{{ variable }}">
+                    <div class="panel-heading" role="tab" id="heading{{ variable.var_name }}">
                         <h4 class="panel-title">
                             <a role="button" data-toggle="collapse" data-parent="#accordion"
-                               href="#collapse{{ variable }}"
-                               aria-expanded="true" aria-controls="collapse{{ variable }}">
-                                <span class="caret"></span>&nbsp;{{ variable }}
+                               href="#collapse{{ variable.var_name }}"
+                               aria-expanded="true" aria-controls="collapse{{ variable.var_name }}">
+                                <span class="caret"></span>&nbsp;{{ variable.var_name }}&nbsp;-&nbsp;{{ variable.var_long_name }}
                             </a>
 
-                            <span style="float:right;"> Experiments: {{ data | length }} Ensembles: {{ data | max_item_count:"ensembles" }}</span>
+                            <span style="float:right;"> Experiments: {{ variable.experiments | length }} Ensembles: {{ variable.experiments | max_item_count:"ensembles" }}</span>
                         </h4>
                     </div>
-                    <div id="collapse{{ variable }}" class="panel-collapse collapse" role="tabpanel"
-                         aria-labelledby="heading{{ variable }}">
+                    <div id="collapse{{ variable.var_name }}" class="panel-collapse collapse" role="tabpanel"
+                         aria-labelledby="heading{{ variable.var_name }}">
                         <div class="panel-body">
-                            {% for item in data %}
+                            {% for item in variable.experiments %}
                                 <div class="row" style="margin: 10px 0px">
-                                    <strong class="col-md-2 col-sm-2">{{ item.experiment }} :</strong>
+                                    <strong class="col-md-2 col-sm-2">{{ item.experiment }} ({{ item.ensembles | length }}) :</strong>
                                     <div class="col-md-10 col-sm-10">
                                         {% for ens in item.ensembles %}
                                             <p class="ensemble-tag">{{ ens }}</p>
@@ -127,8 +127,9 @@
 
         $(document).ready(function () {
             if (modelselect || experselect) {
-                $('#model').val(modelselect);
-                $('#experiment').val(experselect);
+                $('#model option[value="'+ modelselect +'"]').prop('selected',true);
+                $('#experiment option[value="'+ experselect +'"]').prop('selected',true);
+
             }
         })
 

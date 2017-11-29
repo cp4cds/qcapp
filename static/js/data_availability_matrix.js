@@ -31,11 +31,11 @@ function buildSelect(array, name) {
     }
 
     // If array contains more than one element, render a select box. Style to match width of input element
-    html = "<select style='width: 152px' id="+ name +" name=" + name + ">";
+    html = "<select class='variable-table-select' style='width: 152px' id="+ name +" name=" + name + ">";
 
     // Build options list
     for (j = 0; j < array[name].length; j++) {
-        html = html.concat("<option>" + array[name][j] + "</option>")
+        html = html.concat("<option value='"+ array[name][j] +"'>" + array[name][j] + "</option>")
     }
 
     // Append select to close the element
@@ -101,7 +101,7 @@ $(".variables").chosen({width: "95%",placeholder_text_multiple: "Choose one or m
                 var table_select = buildSelect(vari, "tables")
                 var freq_select = buildSelect(vari, "freqs")
 
-                variable_details = variable_details.concat("<td>" + vari.variable + "</td><td>" + table_select + "</td><td>" + freq_select + "</td>")
+                variable_details = variable_details.concat("<td id='"+ i +"-variable'>" + vari.variable + "</td><td id='"+ i +"-table'>" + table_select + "</td><td id='" + i + "-frequency'>" + freq_select + "</td>")
                 variable_details = variable_details.concat("</tr>")
             }
 
@@ -155,6 +155,7 @@ $('#get_results').click(function () {
 
     // Get the data from the form
     var datastring = $("#filterform").serialize();
+    console.log(datastring)
     var target = "/data-availability/";
     $.ajax({
         type: "POST",
@@ -214,6 +215,41 @@ $('#get_results').click(function () {
             else{
                 $('#results div').html("<h4 class='text-danger'>Error retrieving results: "+ response.statusText +"</h4>").show()
             }
+        }
+    })
+})
+
+
+// Link the table and frequency columns in the variable detail table so that only valid options are submittable.
+$('.variable-details').on('change','.variable-table-select',function (event) {
+    var id = $(this).parent().attr('id')
+    var row_num = id.split("-")[0]
+    var data_list = []
+    var variable, table, freq, target, selector
+
+    variable = $('#'+ row_num + '-variable').html()
+    table = $('#'+ row_num + '-table select').val()
+    freq = $('#'+ row_num + '-frequency select').val()
+
+    // set the target url to make use of the api
+    if (id.indexOf('table') !== -1){
+        selector = 'table'
+        target = "/get_variable_details/" + variable + '/' + table + '/All'
+    } else {
+        selector = 'freq'
+        target = "/get_variable_details/" + variable + '/All/' + freq
+    }
+
+    // AJAX request to get the results and modify the UI.
+    $.get(target, function (data) {
+
+        if (selector === 'table' && data.frequencies.length >= 1){
+            $('#' + row_num + '-frequency select option[value="'+ data.frequencies[0] +'"]').prop('selected',true)
+        }
+
+        if (selector === 'freq' && data.tables.length >= 1){
+            $('#' + row_num + '-table select option[value="'+ data.tables[0] +'"]').prop('selected',true)
+
         }
     })
 })
