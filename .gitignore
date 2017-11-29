@@ -1,4 +1,6 @@
 qcproj/settings_local.py
+test*.py
+*.csv
 *.pyc
 *.log
 OUTPUT-LOGS/
