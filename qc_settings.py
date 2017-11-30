@@ -17,6 +17,7 @@ JSONDIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/JSON-OUTPUT/"
 NO_FILE_LOG = 'log_dir/cp4cds_nofile_error.log'
 CEDACC_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CEDACC-OUTPUT/"
 CF_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CF-OUTPUT/"
+CF_FATAL_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CF-FATAL"
 TC_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/TIMECHECKS-OUTPUT/"
 AREATABLE = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/area-type-table.xml"
 STDNAMETABLE = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/cf-standard-name-table.xml"

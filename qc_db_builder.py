@@ -17,7 +17,7 @@ import json as jsn
 from subprocess import call
 from sys import argv
 from ceda_cc import c4
-from cfchecker.cfchecks import CFVersion, CFChecker, newest_version
+#from cfchecker.cfchecks import CFVersion, CFChecker, newest_version
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from django.db.models import Count, Max, Min, Sum, Avg
 from qc_settings import *
@@ -524,7 +524,6 @@ def run_cf_checker(file):
     TODO: validate input file
     :return:
     """
-
     institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
 
     # Make a CF output directory
@@ -535,16 +534,23 @@ def run_cf_checker(file):
     # Define output and error log files
     cf_out_file = os.path.join(cf_odir, ncfile.replace(".nc", ".cf-log.txt"))
     cf_err_file = os.path.join(cf_odir, ncfile.replace(".nc", ".cf-err.txt"))
+    run_cmd = ["/usr/bin/cf-checker", "-a", AREATABLE, "-s", STDNAMETABLE, "-v", "auto", file]
 
-    run_cmd = ["cf-checker", "-a", AREATABLE, "-s", STDNAMETABLE, "-v", "auto", file]
     cf_out = open(cf_out_file, "w")
     cf_err = open(cf_err_file, "w")
-    # Run CF checker in current shell
-    call(run_cmd, stdout=cf_out, stderr=cf_err)
+    res = call(run_cmd, stdout=cf_out, stderr=cf_err)
+
+    if res != 0:
+        filen = file.replace('/', '.') + '.cf-err'
+        filename = os.path.join(CF_FATAL_DIR, filen)
+        touch_cmd = ["touch", filename]
+        call(touch_cmd)
+
     cf_out.close()
     cf_err.close()
 
-    # TODO: This requires a success test and retry if it fails.
+    if os.path.getsize(cf_err_file) == 0:
+        os.remove(cf_err_file)
 
 
 def parse_cf_checker(file):
@@ -797,6 +803,14 @@ def check_cfout():
                                     elog.writelines([err_file, '\n'])
 
 
+def convert_archivepath_to_gwspath(arch_path):
+
+    institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = arch_path.split('/')[6:]
+    alpha_base = "/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1"
+    gws_path = os.path.join(alpha_base, institute, model, experiment, frequency, realm, table, ensemble, variable,
+                            'latest', ncfile)
+    return gws_path
+
 def clear_cedacc_ouptut():
     """
     Tidy up any ceda-cc output files
@@ -835,10 +849,9 @@ if __name__ == '__main__':
     freq = argv[3]
     # expt = argv[4]
     CREATE = False
-    QC = False
+    QC = True
     LOGGER = False
 
-    check_cfout()
 
     experiments = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
 
@@ -869,7 +882,7 @@ if __name__ == '__main__':
 
                 # up_to_date_check(df, file, var, table, freq, expt)
                 # run_ceda_cc(file)
-                # run_cf_checker(file)
+                run_cf_checker(file)
                 #
                 # parse_ceda_cc(file)
                 # parse_cf_checker(file)

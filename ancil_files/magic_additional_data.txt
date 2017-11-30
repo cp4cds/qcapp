@@ -8,7 +8,6 @@ rhs,day,day
 rlutcs,Amon,mon
 rsds,day,day
 rsutcs,Amon,mon
-sfcWind,day,day
 ta,day,day
 ua,day,day
 uas,3hr,3hr

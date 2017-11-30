@@ -15,36 +15,39 @@ from qc_db_builder import *
 from subprocess import call
 
 #file = "ancil_files/cp4cds_data_requirements.txt"
-file = "ancil_files/magic_additional_data.txt"
+#file = "ancil_files/magic_additional_data.txt"
 #file = "ancil_files/cp4cds_priority_data_requirements.txt"
+
+files = ["ancil_files/cp4cds_data_requirements.txt",
+         "ancil_files/magic_additional_data.txt"]
 
 if os.path.isfile(NO_FILE_LOG):
     os.remove(NO_FILE_LOG)
 with open(NO_FILE_LOG, 'w') as fe:
     fe.write('')
 
+for file in files:
+    with open(file, 'r') as reader:
+        data = reader.readlines()
 
-with open(file, 'r') as reader:
-    data = reader.readlines()
+        lineno = 0
+        for line in data:
 
-    lineno = 0
-    for line in data:
+            if lineno == 0:
+                requester = line.split(',')[0].strip()
+                if DEBUG: print requester
 
-        if lineno == 0:
-            requester = line.split(',')[0].strip()
-            if DEBUG: print requester
+            if lineno > 1:
 
-        if lineno > 1:
+                variable = line.split(',')[0].strip()
+                table = line.split(',')[1].strip()
+                frequency = line.split(',')[2].strip()
+                if DEBUG: print variable, table, frequency
 
-            variable = line.split(',')[0].strip()
-            table = line.split(',')[1].strip()
-            frequency = line.split(',')[2].strip()
-            if DEBUG: print variable, table, frequency
-
-            lotus_cmd = ['./submit-lotus.sh', variable, table, frequency]
-            res = call(lotus_cmd)
-
-        lineno += 1
+                lotus_cmd = ['./submit-lotus.sh', variable, table, frequency]
+                res = call(lotus_cmd)
+                call(['sleep', '10'])
+            lineno += 1
 
 
 

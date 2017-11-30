@@ -1,4 +1,5 @@
 qcproj/settings_local.py
+CF-FATAL
 test*.py
 *.csv
 *.pyc
