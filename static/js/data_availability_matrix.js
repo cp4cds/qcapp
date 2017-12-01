@@ -155,7 +155,6 @@ $('#get_results').click(function () {
 
     // Get the data from the form
     var datastring = $("#filterform").serialize();
-    console.log(datastring)
     var target = "/data-availability/";
     $.ajax({
         type: "POST",
@@ -163,57 +162,60 @@ $('#get_results').click(function () {
         data: datastring,
         dataType: "json",
         success: function (returnedData) {
-            if (returnedData.length < 1){
+            var results = returnedData.results
+            if (results.length < 1){
                 // No results are returned, hide results table  and display message
                 $('#results table').hide();
+                $('#results div:eq(1)').hide();
                 data_results.fadeTo('fast', 1);
-                $('#results div').html("<h4 class='text-danger'>Your search returned no results, please edit your filters and try again.</h4>").show()
+                $('#results div:first').html("<h4 class='text-danger'>Your search returned no results, please edit your filters and try again.</h4>").show()
 
             }
             else {
                 // Handle results
                 // Hide the "no results" message
-                $('#results div').hide();
-                $('#results h3').html('Results <span class="badge">'+ returnedData.length +'</span>')
+                $('#results div:first').hide();
+                $('#results h3').html('Results <span class="badge">'+ results.length +'</span>')
 
                 var i;
-                var results = "";
+                var results_string = "";
                 var institute, model, experiment, ensembles;
 
                 // build rows
-                for (i = 0; i < returnedData.length; i++) {
-                    institute = "<td>" + returnedData[i].institute + "</td>";
-                    model = "<td>" + returnedData[i].model + "</td>";
-                    experiment = "<td>" + returnedData[i].experiment + "</td>";
-                    ensembles = "<td style='max-width: 40vw'>" + ensembleTags(returnedData[i].ensembles) + "</td>"
-                    results = results.concat("<tr>" + institute + model + experiment + ensembles + "</tr>")
+                for (i = 0; i < results.length; i++) {
+                    institute = "<td>" + results[i].institute + "</td>";
+                    model = "<td>" + results[i].model + "</td>";
+                    experiment = "<td>" + results[i].experiment + "</td>";
+                    ensembles = "<td style='max-width: 40vw'>" + ensembleTags(results[i].ensembles) + "</td>"
+                    results_string = results_string.concat("<tr>" + institute + model + experiment + ensembles + "</tr>")
                 }
 
                 // Push results to container element
-                $("#data-availability-results").html(results);
+                $("#data-availability-results").html(results_string);
 
                 // show results table
                 $('#results table').show();
+                $('#results div:eq(1)').show();
                 data_results.fadeTo('fast', 1)
             }
 
         },
         error: function (response) {
             // Handle errors
-            console.log(response.status)
 
             // Hide results table
             $('#results table').hide()
+            $('#results div:eq(1)').hide();
             // Display results div
             $("#results").fadeTo('fast',1)
             if (response.status === 400){
                 // Show message
-                $('#results div').html("<h4 class='text-danger'>Missing selection from one of the filters. Make sure you have made" +
+                $('#results div:first').html("<h4 class='text-danger'>Missing selection from one of the filters. Make sure you have made" +
                     " a selection for all filters and try again.</h4>").show()
 
             }
             else{
-                $('#results div').html("<h4 class='text-danger'>Error retrieving results: "+ response.statusText +"</h4>").show()
+                $('#results div:first').html("<h4 class='text-danger'>Error retrieving results: "+ response.statusText +"</h4>").show()
             }
         }
     })

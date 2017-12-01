@@ -3,91 +3,125 @@
 {% block extrahead %}
     <link rel="stylesheet" href="{% static 'css/chosen.min.css' %}">
     <script src="{% static 'js/chosen.jquery.min.js' %}"></script>
+    <script src="{% static 'js/export.js' %}"></script>
 
 {% endblock %}
 {% block contents %}
     <noscript>
-        <h4 class="text-danger" align="center" >Javascript has been disabled on this page. You must enable javascript to use this content.</h4>
+        <h4 class="text-danger" align="center">Javascript has been disabled on this page. You must enable javascript to
+            use this content.</h4>
     </noscript>
     <form id="filterform" method="POST" action="{% url 'data-availability-matrix' %}">
-    {% csrf_token %}
+        {% csrf_token %}
 
-    <table class="table">
-        <thead>
-        <th>
-            Variables
-        </th>
-        <th>
-            Experiments
-        </th>
-        <th>
-            Min Ensemble Size
-        </th>
-        </thead>
-        <tbody>
-        <tr>
-            <td>
-                <select multiple class="variables" id="variables" name="variables">
-                    {% for variable in variables %}
-                    <option>{{ variable }}</option>
-                    {% endfor %}
-                </select>
-                <a class="select-variable">Select all</a> |
-                <a class="deselect-variable">Deselect all</a>
-                <table class="static-header" >
+        <table class="table">
+            <thead>
+            <th>
+                Variables
+            </th>
+            <th>
+                Experiments
+            </th>
+            <th>
+                Min Ensemble Size
+            </th>
+            </thead>
+            <tbody>
+            <tr>
+                <td>
+                    <select multiple class="variables" id="variables" name="variables">
+                        {% for variable in variables %}
+                            <option>{{ variable }}</option>
+                        {% endfor %}
+                    </select>
+                    <a class="select-variable">Select all</a> |
+                    <a class="deselect-variable">Deselect all</a>
+                    <table class="static-header">
                         <th>Variable</th>
                         <th>Table</th>
                         <th>Frequency</th>
-                </table>
-                <div style="max-height: 30vh; overflow-y: scroll">
-                <table class="table" id="variable-details">
-                    <tbody class="variable-details"></tbody>
-                </table>
-                </div>
-            </td>
-            <td>
-                <select multiple class="experiments" id="experiments" name="experiments">
-                    {% for experiment in experiments %}
-                    <option>{{ experiment }}</option>
-                    {% endfor %}
+                    </table>
+                    <div style="max-height: 30vh; overflow-y: scroll">
+                        <table class="table" id="variable-details">
+                            <tbody class="variable-details"></tbody>
+                        </table>
+                    </div>
+                </td>
+                <td>
+                    <select multiple class="experiments" id="experiments" name="experiments">
+                        {% for experiment in experiments %}
+                            <option>{{ experiment }}</option>
+                        {% endfor %}
 
-                </select>
-                <a class="select-expr">Select all</a> |
-                <a class="deselect-expr">Deselect all</a>
-            </td>
-            <td>
-                <select id="ensemble-size" name="ensemble-size" style="height: 29px; width:95%">
-                    {% for i in range  %}
-                        <option>{{ i }}</option>
-                    {% endfor %}
-                </select>
+                    </select>
+                    <a class="select-expr">Select all</a> |
+                    <a class="deselect-expr">Deselect all</a>
+                </td>
+                <td>
+                    <select id="ensemble_size" name="ensemble_size" style="height: 29px; width:95%">
+                        {% for i in range %}
+                            <option>{{ i }}</option>
+                        {% endfor %}
+                    </select>
 
-            </td>
-        </tr>
-        </tbody>
+                </td>
+            </tr>
+            </tbody>
 
-    </table>
+        </table>
 
 
-{#    <input value="Get results" type="submit" class="btn btn-success" id="get_results">#}
+        {#    <input value="Get results" type="submit" class="btn btn-success" id="get_results">#}
         <button type="button" class="btn copernicus" id="get_results">Get results</button>
-    <button type="button" class="btn copernicus" id="clear_filters"> Reset all filters</button>
-</form>
-<hr>
+        <button type="button" class="btn copernicus" id="clear_filters"> Reset all filters</button>
+    </form>
+    <hr>
 
-    <div id="results">
+    <div id="results" style="display: none">
         <h3>Results</h3>
+
         <div align="center" style="display: none"></div>
+        <div style="float: right">
+            {#            <button class="btn btn-xs copernicus" onclick="exportTableToCSV('Results.csv')">Export CSV</button>#}
+            <button class="btn btn-xs copernicus"
+                    onclick="exportResltsToCSV('filterform', '/data-availability/', 'Results.csv')"><span
+                    class="glyphicon glyphicon-download"></span> Export CSV
+            </button>
+            <button class="btn btn-xs copernicus"
+                    onclick="exportResltsToJSON('filterform', '/data-availability/', 'Results.json')"><span
+                    class="glyphicon glyphicon-download"></span> Export JSON
+            </button>
+        </div>
         <table class="table table-striped" id="results-table" style="display: none">
             <thead>
-                <th>Institute</th>
-                <th>Model</th>
-                <th>Experiment</th>
-                <th>Ensembles</th>
+            <th>Institute</th>
+            <th>Model</th>
+            <th>Experiment</th>
+            <th>Ensembles</th>
             </thead>
 
             <tbody id="data-availability-results"></tbody>
         </table>
     </div>
- <script src="{% static 'js/data_availability_matrix.js' %}"></script>
+
+    {# Modal to indicate download taking place #}
+    <div class="modal fade" id="downloadModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+                            aria-hidden="true">&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <div align="center">
+                        <img style="height: 20%" src="{% static 'img/loading.gif' %}">
+                        <h3>Retrieving results&hellip;</h3>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="{% static 'js/data_availability_matrix.js' %}"></script>
+
 {% endblock %}

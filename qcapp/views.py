@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.http import HttpResponse
 from django.db.models import Q
+from django.conf import settings
 
 from qcapp.models import *
 from .models import *
@@ -375,13 +376,14 @@ def data_availability_matrix(request):
 
     if request.POST and request.is_ajax():
         data = dict(request.POST.lists())
+        # Remove csrf token before sending query back in JSON.
+        data.pop('csrfmiddlewaretoken', None)
         try:
             variables = data["variables"]
             tables = data['tables']
             freqs = data['freqs']
-            print len(variables), len(tables), len(freqs)
             experiments = data['experiments']
-            min_size = int(data["ensemble-size"][0])
+            min_size = int(data["ensemble_size"][0])
 
         except KeyError:
             # User has not made a selection for one of the filters. Return bad request code.
@@ -421,7 +423,18 @@ def data_availability_matrix(request):
 
                 return_data_list.append(model_data)
 
-        return HttpResponse(json.dumps(return_data_list), content_type='application/json')
+        # Generate Meta data
+
+        query_dict = {
+
+        }
+
+        data_availability = {}
+        data_availability["provenance"] = "This data has been provided by the ECMWF C3S Copernicus project Climate Predicitions for the Copernicus Climate Data Store (CP4CDS) provided by CEDA-STFC (c) ECWMF C3S"
+        data_availability["query"] = data
+        data_availability["results"] = return_data_list
+
+        return HttpResponse(json.dumps(data_availability), content_type='application/json')
 
 
 
@@ -429,8 +442,9 @@ def data_availability_matrix(request):
     datasets = Dataset.objects.all()
 
     context["range"] = range(1,16)
-    context["variables"] = datasets.values_list('variable', flat=True).distinct()
+    context["variables"] = datasets.values_list('variable', flat=True).distinct().order_by('variable')
     context["experiments"] = datasets.values_list('experiment', flat=True).distinct()
+    context["version"] = settings.VERSION
 
     return render(request, 'qcapp/data-availability.html', context)
 
