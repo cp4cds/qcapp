@@ -44,7 +44,7 @@ for file in files:
                 frequency = line.split(',')[2].strip()
                 if DEBUG: print variable, table, frequency
 
-                lotus_cmd = ['./submit-lotus.sh', variable, table, frequency]
+                lotus_cmd = ['./submit-lotus.sh', variable, table, frequency, 'qc-run-cedacc']
                 res = call(lotus_cmd)
                 call(['sleep', '5'])
             lineno += 1

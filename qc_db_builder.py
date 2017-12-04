@@ -591,6 +591,7 @@ def parse_cf_checker(file):
 
     :return:
     """
+
     checkType = "CF"
 
     temporal_range = file.split("_")[-1].strip(".nc").split("_")[0]
@@ -895,11 +896,9 @@ def create_records(var, freq, table):
 if __name__ == '__main__':
 
     arguments = docopt(__doc__, version='1.0.0rc2')
-    print arguments
     var = arguments['VAR']
     table = arguments['TABLE']
     freq = arguments['FREQ']
-
 
     if arguments['--test']: test(arguments)
 
