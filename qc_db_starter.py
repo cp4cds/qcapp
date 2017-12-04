@@ -18,6 +18,10 @@ from subprocess import call
 #file = "ancil_files/magic_additional_data.txt"
 #file = "ancil_files/cp4cds_priority_data_requirements.txt"
 
+####
+# Specify lotus output dir here
+####
+lotus_out = 'qc-run-cedacc'
 files = ["ancil_files/cp4cds_data_requirements.txt",
          "ancil_files/magic_additional_data.txt"]
 
@@ -44,7 +48,7 @@ for file in files:
                 frequency = line.split(',')[2].strip()
                 if DEBUG: print variable, table, frequency
 
-                lotus_cmd = ['./submit-lotus.sh', variable, table, frequency, 'qc-run-cedacc']
+                lotus_cmd = ['./submit-lotus.sh', variable, table, frequency, lotus_out]
                 res = call(lotus_cmd)
                 call(['sleep', '5'])
             lineno += 1
