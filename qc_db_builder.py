@@ -877,8 +877,8 @@ if __name__ == '__main__':
                 file = df.archive_path
 
                 # up_to_date_check(df, file, var, table, freq, expt)
-                # run_ceda_cc(file)
-                run_cf_checker(file)
+                run_ceda_cc(file)
+                # run_cf_checker(file)
                 #
                 # parse_ceda_cc(file)
                 # parse_cf_checker(file)

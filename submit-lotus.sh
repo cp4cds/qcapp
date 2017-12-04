@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Ensure a output directory for lotus logs exists
-odir=/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/lotus-logs/qc-run-cfchecker
+odir=/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/lotus-logs/qc-run-cedacc
 mkdir -p $odir
 
 var=$1
