@@ -46,7 +46,7 @@ for file in files:
 
                 lotus_cmd = ['./submit-lotus.sh', variable, table, frequency]
                 res = call(lotus_cmd)
-                call(['sleep', '10'])
+                call(['sleep', '5'])
             lineno += 1
 
 

@@ -453,7 +453,7 @@ def run_ceda_cc(file):
     institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
 
     # Use facets to create directory for CEDA-CC output e.g. BASEDIR/model/experiment/table/<files>
-    cedacc_odir = os.path.join(CEDACC_DIR, model, experiment, table)
+    cedacc_odir = os.path.join(CEDACC_DIR, institute, model, experiment, frequency, realm, version)
     if not os.path.exists(cedacc_odir):
         os.makedirs(cedacc_odir)
 
@@ -527,7 +527,7 @@ def run_cf_checker(file):
     institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
 
     # Make a CF output directory
-    cf_odir = os.path.join(CF_DIR, model, experiment, table)
+    cf_odir = os.path.join(CF_DIR, institute, model, experiment, frequency, realm, version)
     if not os.path.exists(cf_odir):
         os.makedirs(cf_odir)
 
@@ -536,21 +536,17 @@ def run_cf_checker(file):
     cf_err_file = os.path.join(cf_odir, ncfile.replace(".nc", ".cf-err.txt"))
     run_cmd = ["/usr/bin/cf-checker", "-a", AREATABLE, "-s", STDNAMETABLE, "-v", "auto", file]
 
-    cf_out = open(cf_out_file, "w")
-    cf_err = open(cf_err_file, "w")
-    res = call(run_cmd, stdout=cf_out, stderr=cf_err)
+    cf_out, cf_err = open(cf_out_file, "w"), open(cf_err_file, "w")
+    call(run_cmd, stdout=cf_out, stderr=cf_err)
+    cf_out.close(), cf_err.close()
 
-    if res != 0:
+    if os.path.getsize(cf_err_file) == 0:
+        os.remove(cf_err_file)
+    else:
         filen = file.replace('/', '.') + '.cf-err'
         filename = os.path.join(CF_FATAL_DIR, filen)
         touch_cmd = ["touch", filename]
         call(touch_cmd)
-
-    cf_out.close()
-    cf_err.close()
-
-    if os.path.getsize(cf_err_file) == 0:
-        os.remove(cf_err_file)
 
 
 def parse_cf_checker(file):
