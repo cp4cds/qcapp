@@ -1,7 +1,35 @@
 
+"""
+Usage:
+  qc_db_builder.py  [VAR] [TABLE] [FREQ]
+                    [--create] [--run_cedacc] [--parse_cedacc] [--run_cfchecker] [--parse_cfchecker]
+                    [--check_up_to_date] [--run_single_file_timechecks] [--test] [--logger]
+
+Arguments:
+    VAR         A valid CMIP5 short variable name
+    TABLE       A valid CMIP5 table name
+    FREQ        A valid CMIP5 frequency
+
+Options:
+    --create                            Create "dataset" and "datafile" records for a given set of
+                                        input parameters: variable, frequency and table.
+    --test                              Prints out the input arguments.
+    --logger                            Do a CMIP5 log of datafile info.
+    --run_cedacc                        Run CEDA-CC for all files in all experiments with the given input parameters.
+    --parse_cedacc                      Parse the CEDA-CC output for all files in all experiments with the given input parameters.
+    --run_cfchecker                     Run the CF-Checker for all files in all experiments with the given input parameters.
+    --parse_cfchecker                   Parse the CF-Checker output for all files in all experiments with the given input parameters.
+    --check_up_to_date                  Checks if the most recent version is at CEDA
+    --run_single_file_timechecks        Run the single file time-checks for all files in all experiments with the given input parameters.
+
+
+  This database builder utilises global variables and settings that are defined in qc_settings.py
+"""
 import django
 django.setup()
 from qcapp.models import *
+
+
 import collections
 import os
 import timeit
@@ -16,6 +44,7 @@ import itertools
 import json as jsn
 from subprocess import call
 from sys import argv
+from docopt import docopt
 from ceda_cc import c4
 #from cfchecker.cfchecks import CFVersion, CFChecker, newest_version
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -143,6 +172,7 @@ def dataset_latest_check(variable, frequency, table, experiment, node, project, 
                         db_ds_first.up_to_date = False
                         db_ds_first.up_to_date_note = errmsg
                         fwrite.writelines(" {} \n".format(errmsg))
+
 
 def file_time_checks(file):
 
@@ -807,6 +837,7 @@ def convert_archivepath_to_gwspath(arch_path):
                             'latest', ncfile)
     return gws_path
 
+
 def clear_cedacc_ouptut():
     """
     Tidy up any ceda-cc output files
@@ -834,55 +865,61 @@ def clear_cedacc_ouptut():
             res = call(mv_cmd)
 
 
+def test(arguments):
+    var = arguments['VAR']
+    table = arguments['TABLE']
+    freq = arguments['FREQ']
+
+    print "Input argument {} is {}".format('VAR', arguments['VAR'])
+    print "Input argument {} is {}".format('TABLE', arguments['TABLE'])
+    print "Input argument {} is {}".format('FREQ', arguments['FREQ'])
+
+
+def logging(var, table, freq):
+    for expt in ALLEXPTS:
+        # json_all_latest_logger(var, freq, table, expt, node, "CMIP5")
+        up_to_date_dir = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/UP-TO-DATE"
+        fname = '_'.join([var, freq, table, expt]) + '.log'
+        with open(os.path.join(up_to_date_dir, fname), 'w+') as fwrite:
+            dataset_latest_check(var, freq, table, expt, node, "CMIP5", fwrite)
+
+
+def create_records(var, freq, table):
+    for expt in ALLEXPTS:
+        dspec = create_dataspec(requester, var, freq, table)
+        create_dataset_records(var, freq, table, expt, node, distrib, latest, dspec, "CMIP5")
+        create_datafile_records(var, freq, table, expt, node, distrib, latest, "CMIP5")
+
+
+
 if __name__ == '__main__':
 
-    """
-    Global variables and settings are defined in qc_settings.py
-    """
-
-    var = argv[1]
-    table = argv[2]
-    freq = argv[3]
-    # expt = argv[4]
-    CREATE = False
-    QC = True
-    LOGGER = False
+    arguments = docopt(__doc__, version='1.0.0rc2')
+    print arguments
+    var = arguments['VAR']
+    table = arguments['TABLE']
+    freq = arguments['FREQ']
 
 
-    experiments = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
+    if arguments['--test']: test(arguments)
 
-    if LOGGER:
-        for expt in experiments:
-            # json_all_latest_logger(var, freq, table, expt, node, "CMIP5")
-            up_to_date_dir = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/UP-TO-DATE"
-            fname = '_'.join([var, freq, table, expt]) + '.log'
-            with open(os.path.join(up_to_date_dir, fname), 'w+') as fwrite:
-                 dataset_latest_check(var, freq, table, expt, node, "CMIP5", fwrite)
+    if arguments['--logger']: logging(var, table, freq)
 
-    if CREATE:
-        for expt in experiments:
-            dspec = create_dataspec(requester, var, freq, table)
-            create_dataset_records(var, freq, table, expt, node, distrib, latest, dspec, "CMIP5")
-            create_datafile_records(var, freq, table, expt, node, distrib, latest, "CMIP5")
+    if arguments['--create']: create_records(var, freq, table)
 
-    if QC:
+    # if arguments['--run_multifile_timechecks']:
 
-        for expt in experiments:
+    for expt in ALLEXPTS:
 
-            for df in DataFile.objects.filter(dataset__variable=var,
-                                              dataset__cmor_table=table,
-                                              dataset__frequency=freq,
-                                              dataset__experiment=expt
-                                              ):
-                file = df.archive_path
-
-                # up_to_date_check(df, file, var, table, freq, expt)
-                run_ceda_cc(file)
-                # run_cf_checker(file)
-                #
-                # parse_ceda_cc(file)
-                # parse_cf_checker(file)
-
-                # file_time_checks(file)
-
-        # clear_cedacc_ouptut()
+        for df in DataFile.objects.filter(dataset__variable=var,
+                                          dataset__cmor_table=table,
+                                          dataset__frequency=freq,
+                                          dataset__experiment=expt
+                                          ):
+            file = df.archive_path
+            if arguments['--check_up_to_date']: up_to_date_check(df, file, var, table, freq, expt)
+            if arguments['--run_cedacc']: run_ceda_cc(file)
+            if arguments['--parse_cedacc']: parse_ceda_cc(file)
+            if arguments['--run_cfchecker']: run_cf_checker(file)
+            if arguments['--parse_cfchecker']: parse_cf_checker(file)
+            if arguments['--run_single_file_timechecks']: file_time_checks(file)
