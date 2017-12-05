@@ -513,7 +513,7 @@ def parse_ceda_cc(file):
     ceda_cc_file_pattern = re.compile(file_base + "__qclog_\d+\.txt")
 
     # List files in the CEDA-CC logdir
-    log_dir = os.path.join(CEDACC_DIR, model, experiment, table)
+    log_dir = os.path.join(CEDACC_DIR,  institute, model, experiment, frequency, realm, version)
     log_dir_files = os.listdir(log_dir)
 
     for logfile in log_dir_files:
@@ -602,7 +602,7 @@ def parse_cf_checker(file):
     cf_file_pattern = re.compile(file_base + ".cf-log.txt")
 
     # List files in the CF logdir
-    log_dir = os.path.join(CF_DIR, model, experiment, table)
+    log_dir = os.path.join(CF_DIR, institute, model, experiment, frequency, realm, version)
     log_dir_files = os.listdir(log_dir)
 
     for logfile in log_dir_files:

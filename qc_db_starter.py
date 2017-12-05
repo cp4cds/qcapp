@@ -21,7 +21,7 @@ from subprocess import call
 ####
 # Specify lotus output dir here
 ####
-lotus_out = 'qc-run-cedacc'
+lotus_out = 'qc-read-cedacc'
 files = ["ancil_files/cp4cds_data_requirements.txt",
          "ancil_files/magic_additional_data.txt"]
 
