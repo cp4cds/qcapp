@@ -14,4 +14,4 @@ export DJANGO_SETTINGS_MODULE=qcproj.settings
 ####
 # Add which options are required here
 ####
-python /group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/qc_db_builder.py $var $table $freq --parse_cedacc
+python /group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/qc_db_builder.py $var $table $freq --run_single_file_timechecks

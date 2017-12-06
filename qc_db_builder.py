@@ -177,7 +177,7 @@ def dataset_latest_check(variable, frequency, table, experiment, node, project, 
 def file_time_checks(file):
 
     institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
-    tc_odir = os.path.join(TC_DIR, model, experiment, table)
+    tc_odir = os.path.join(TC_DIR, institute, model, experiment, frequency, realm, version)
     if not os.path.exists(tc_odir):
         os.makedirs(tc_odir)
 
