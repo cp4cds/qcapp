@@ -76,13 +76,12 @@
         <button type="button" class="btn copernicus" id="clear_filters"> Reset all filters</button>
     </form>
     <hr>
-
+    <div id="messages" style="text-align: center"></div>
     <div id="results" style="display: none">
         <h3>Results</h3>
 
         <div align="center" style="display: none"></div>
         <div style="float: right">
-            {#            <button class="btn btn-xs copernicus" onclick="exportTableToCSV('Results.csv')">Export CSV</button>#}
             <button class="btn btn-xs copernicus"
                     onclick="exportResltsToCSV('filterform', '/data-availability/', 'Results.csv')"><span
                     class="glyphicon glyphicon-download"></span> Export CSV

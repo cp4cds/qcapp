@@ -68,11 +68,23 @@ function ensembleTags(array){
     return tagstring
 }
 
+function filterChangeMessage(){
+    // When something in the filters changes, reduce the opacity of the results and display a message. Only relevant
+    // when the results div is actually visible.
+    if ($('#results:visible').length > 0){
+        $('#messages').html("<h4 class='text-danger'>Your filters have changed. Click 'Get results' to update your results.</h4>").fadeTo('fast',1)
+        $("#results").fadeTo('fast', 0.5)
+    }
+}
+
 // -------------------------------------------------- Main Code --------------------------------------------------------
 
 
 // Variables Chosen box
 $(".variables").chosen({width: "95%",placeholder_text_multiple: "Choose one or more variables"}).change(function () {
+    // Display message if the filter is changed.
+    filterChangeMessage()
+
     var data = {};
     var variables = $(".variables").val();
     data["variables"] = JSON.stringify(variables);
@@ -131,7 +143,10 @@ $(".deselect-variable").click(function () {
 
 
 // Experiments Chosen box
-$(".experiments").chosen({width:"95%",placeholder_text_multiple: "Choose one or more experiments"});
+$(".experiments").chosen({width:"95%",placeholder_text_multiple: "Choose one or more experiments"}).change(function () {
+    // Display message if the filter is changed.
+    filterChangeMessage()
+});
 
 $(".select-expr").click(function () {
     $('.experiments option').prop('selected', true);
@@ -143,6 +158,11 @@ $(".deselect-expr").click(function () {
     $('.experiments').trigger('chosen:updated')
 });
 
+//Min Ensemble Size dropdown
+$('#ensemble_size').change(function () {
+    // Display message if the filter is changed.
+    filterChangeMessage()
+})
 
 
 
@@ -165,16 +185,14 @@ $('#get_results').click(function () {
             var results = returnedData.results
             if (results.length < 1){
                 // No results are returned, hide results table  and display message
-                $('#results table').hide();
-                $('#results div:eq(1)').hide();
-                data_results.fadeTo('fast', 1);
-                $('#results div:first').html("<h4 class='text-danger'>Your search returned no results, please edit your filters and try again.</h4>").show()
+                $('#results').hide()
+                $('#messages').html("<h4 class='text-danger'>Your search returned no results, please edit your filters and try again.</h4>").fadeTo('fast',1)
 
             }
             else {
                 // Handle results
                 // Hide the "no results" message
-                $('#results div:first').hide();
+                $('#messages').hide();
                 $('#results h3').html('Results <span class="badge">'+ results.length +'</span>')
 
                 var i;
@@ -204,18 +222,18 @@ $('#get_results').click(function () {
             // Handle errors
 
             // Hide results table
-            $('#results table').hide()
-            $('#results div:eq(1)').hide();
-            // Display results div
-            $("#results").fadeTo('fast',1)
+            $('#results').hide()
+
+            // Display messages div
+            $("#messages").fadeTo('fast',1)
             if (response.status === 400){
                 // Show message
-                $('#results div:first').html("<h4 class='text-danger'>Missing selection from one of the filters. Make sure you have made" +
+                $('#messages').html("<h4 class='text-danger'>Missing selection from one of the filters. Make sure you have made" +
                     " a selection for all filters and try again.</h4>").show()
 
             }
             else{
-                $('#results div:first').html("<h4 class='text-danger'>Error retrieving results: "+ response.statusText +"</h4>").show()
+                $('#messages').html("<h4 class='text-danger'>Error retrieving results: "+ response.statusText +"</h4>").show()
             }
         }
     })
@@ -224,6 +242,9 @@ $('#get_results').click(function () {
 
 // Link the table and frequency columns in the variable detail table so that only valid options are submittable.
 $('.variable-details').on('change','.variable-table-select',function (event) {
+    // Display message if the filter is changed.
+    filterChangeMessage()
+
     var id = $(this).parent().attr('id')
     var row_num = id.split("-")[0]
     var data_list = []
