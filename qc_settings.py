@@ -29,6 +29,7 @@ distrib = False
 latest = True
 requester = "CP4CDS"
 DEBUG = False
+project = "CMIP5"
 
 URL_DS_MODEL_FACETS = 'https://%(node)s/esg-search/' \
                       'search?type=Dataset&' \

@@ -3,7 +3,7 @@
 Usage:
   qc_db_builder.py  [VAR] [TABLE] [FREQ]
                     [--create] [--run_cedacc] [--parse_cedacc] [--run_cfchecker] [--parse_cfchecker]
-                    [--check_up_to_date] [--run_single_file_timechecks] [--test] [--logger]
+                    [--check_up_to_date] [--run_single_file_timechecks] [--test] [--esgf-ds-logger]
 
 Arguments:
     VAR         A valid CMIP5 short variable name
@@ -14,7 +14,7 @@ Options:
     --create                            Create "dataset" and "datafile" records for a given set of
                                         input parameters: variable, frequency and table.
     --test                              Prints out the input arguments.
-    --logger                            Do a CMIP5 log of datafile info.
+    --esgf-ds-logger                    Do a CMIP5 log of datafile info.
     --run_cedacc                        Run CEDA-CC for all files in all experiments with the given input parameters.
     --parse_cedacc                      Parse the CEDA-CC output for all files in all experiments with the given input parameters.
     --run_cfchecker                     Run the CF-Checker for all files in all experiments with the given input parameters.
@@ -744,9 +744,9 @@ def is_latest_version(archive_path, variable, table, frequency, experiment, mode
 
     # puts these variables in the local scope
     # TODO tidy this up
-    latest_node = node
-    latest_project = project
-    latest_latest = latest
+    latest_node = "esgf-index1.ceda.ac.uk"
+    latest_project = 'CMIP5'
+    latest_latest = True
 
     # Perform a distributed ESGF search for the archive file, where replica=False, latest=True
     url = URL_LATEST_TEMPLATE % vars()
@@ -876,7 +876,7 @@ def test(arguments):
     print "Input argument {} is {}".format('FREQ', arguments['FREQ'])
 
 
-def logging(var, table, freq):
+def esgf_dataset_uptodate_logger(var, table, freq):
     for expt in ALLEXPTS:
         # json_all_latest_logger(var, freq, table, expt, node, "CMIP5")
         up_to_date_dir = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/UP-TO-DATE"
@@ -902,7 +902,7 @@ if __name__ == '__main__':
 
     if arguments['--test']: test(arguments)
 
-    if arguments['--logger']: logging(var, table, freq)
+    if arguments['--esgf-ds-logger']: esgf_dataset_uptodate_logger(var, table, freq)
 
     if arguments['--create']: create_records(var, freq, table)
 
