@@ -1,0 +1,134 @@
+{% extends 'qcapp/base.html' %}
+{% load static %}
+{% block extrahead %}
+        <script>
+        function active(link){
+{#                console.log(event)#}
+            $('.nav-pills li').each(function () {
+                $(this).removeClass('active')
+            })
+{#            console.log($('#'+link))#}
+            $('#'+link).addClass('active')
+        }
+    </script>
+{% endblock %}
+{% block contents %}
+
+
+    <div class="row">
+        <div class="col-md-2 ">
+            <ul class="nav nav-pills nav-stacked" data-spy="affix">
+                <li role="presentation" class="active" id="projectLink"><a href="#project" onclick="active('projectLink')" >The Project</a></li>
+                <li role="presentation" id="variableLink"><a href="#variableDetails" onclick="active('variableLink')">Variable Details</a></li>
+                <li role="presentation" id="modelLink"><a href="#modelDetails" onclick="active('modelLink')">Model Details</a></li>
+                <li role="presentation" id="dataAvailbilityLink"><a href="#dataAvailabilityMatrix" onclick="active('dataAvailbilityLink')">Data Availability Matrix</a></li>
+                <li role="presentation" id="databaseLink"><a href="#database" onclick="active('databaseLink')">The Database</a></li>
+            </ul>
+        </div>
+        <div class="col-md-10 ">
+            <div class="section" id="project">
+                <div class="panel panel-default" >
+                    <div class="panel-heading" style="background: #971e35; color: white;">
+                        <h3 class="panel-title">The Project</h3>
+                    </div>
+                    <div class="panel-body">
+                        Climate Predictions for the Copernicus Climate Data Store (CP4CDS):
+                        Providing an extended ESGF sub-system populated and configured to support the Copernicus Data Store
+                    </div>
+                </div>
+            </div>
+            <div class="section" id="variableDetails">
+                <div class="panel panel-default">
+                    <div class="panel-heading" style="background: #971e35; color: white;">
+                        <h3 class="panel-title" >Variable Details</h3>
+                    </div>
+                    <div class="panel-body">
+                        Choose to filter by variable, CMOR table or frequency and receive a list of models which contain the
+                        variable(s) selected at the frequency(s) selected from the table(s) selected.
+
+                        Each model is then displayed with the number of ensemble members at the top of the panel. These panels
+                        can be opened up to reveal the specific model ensemble members which have that variable, table and frequency.
+                    </div>
+                </div>
+            </div>
+            <div class="section" id="modelDetails">
+                <div class="panel panel-default">
+                    <div class="panel-heading" style="background: #971e35; color: white;">
+                        <h3 class="panel-title">Model Details</h3>
+                    </div>
+                    <div class="panel-body">
+                        Select a model or experiment and return a list of variables. Each panel can be expanded to reveal
+                        the experiments the specific variable appears in and the ensemble members associated with that experiment,
+                        which also include the specified variable.
+                    </div>
+                </div>
+            </div>
+            <div class="section" id="dataAvailabilityMatrix">
+                <div class="panel panel-default">
+                    <div class="panel-heading" style="background: #971e35; color: white;">
+                        <h3 class="panel-title">Data Availability Matrix</h3>
+                    </div>
+                    <div class="panel-body">
+                        The data availability matrix filter allows users to search the CP4CDS database for one or more
+                        variables within one or more experiments simulataneously. By specifying a minimum ensemble size,
+                        each model returned as a result of the search criteria must have at least the number of ensemble
+                        members specificed by the user.
+
+                        <h4>Selecting a variable/experiment</h4>
+
+                        Select variables by either clicking the input box and scrolling to your desired first variable or
+                        start typing to reduce the list down to your desired selection. If typing, either hit enter when the
+                        desired variable is highlighted or click on it. The variable will then become a little box with an "x"
+                        in the corner.<span><img src="{% static 'img/chosen_variable.png' %}"></span>
+
+
+                        When a varable has been selected it will appear in the table below. This displays options for table
+                        and frequency. Only fields with a drop down have more than one option. Choosing either a table or frequency
+                        automatically changes the other to a legal value.
+
+                        <h4>Removing a variable/experiment</h4>
+
+                        Remove a selected variable by clicking the "x" in the top corner
+
+                        <h4>Min Ensemble Size</h4>
+
+                        All the results returned will have at least the specified number of ensembles.
+                        Once more than 10 esembles are required, the number of results drops off rapidly.
+
+                        <h4>Results</h4>
+
+                        Returns a list displaying which models, experiments ans ensembles have all of the selected criteria.
+
+                        <h4>Export</h4>
+
+                        The results can be exported either in JSON or CSV format.
+                        The first 11 rows of the CSV is metadata, row 12 contains the table headers for the results.
+
+                        The JSON export has 3 main keys: provenance, query and results. Provenance has metadata, query contains
+                        information about the selected parameters which gave the results.
+
+
+
+                    </div>
+                </div>
+            </div>
+            <div class="section" id="database">
+                <div class="panel panel-default anchor" id="database">
+                    <div class="panel-heading" style="background: #971e35; color: white;">
+                        <h3 class="panel-title">The Database</h3>
+                    </div>
+                    <div class="panel-body">
+                        The data currently available through this application is linked to the alpha release of the data
+                        that can be found at
+                        <a href="https://cp4cds-index1.ceda.ac.uk/projects/cp4cds_ceda/">https://cp4cds-index1.ceda.ac.uk/projects/cp4cds_ceda/</a>.
+                        <br>
+                        <br>
+                        Current release: {{ version }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+{% endblock %}

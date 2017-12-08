@@ -3,6 +3,8 @@ from django.http import HttpResponse
 from django.db.models import Q
 from django.conf import settings
 
+import datetime
+
 from qcapp.models import *
 from .models import *
 from view_functions import *
@@ -12,6 +14,20 @@ import os, collections, json
 GWSDIR = "qcapp/cp4cds_gws_qc/"
 FACETS_LIST = ['model', 'experiment']
 
+
+def home(request):
+    title = "CP4CDS Quality Control"
+    return render(request,'qcapp/home.html', {'page_title': title, 'version': settings.VERSION})
+
+def help(request):
+    context={}
+    title = "Help Page"
+
+
+
+    context["page_title"] = title
+    context["version"] = settings.VERSION
+    return render(request,'qcapp/help.html', context)
 
 def cf_errors(request):
 
@@ -429,8 +445,13 @@ def data_availability_matrix(request):
 
         }
 
+        provenance = {}
+        provenance["source"] = "This data has been provided by the ECMWF C3S Copernicus project Climate Predicitions for the Copernicus Climate Data Store (CP4CDS) provided by CEDA-STFC (c) ECWMF C3S"
+        provenance["access_date"] = datetime.datetime.today().strftime('%Y-%M-%d %H:%M:%S')
+        provenance["version"] = "CP4CDS QA database version: {}".format(settings.VERSION)
+
         data_availability = {}
-        data_availability["provenance"] = "This data has been provided by the ECMWF C3S Copernicus project Climate Predicitions for the Copernicus Climate Data Store (CP4CDS) provided by CEDA-STFC (c) ECWMF C3S"
+        data_availability["provenance"] = provenance
         data_availability["query"] = data
         data_availability["results"] = return_data_list
 

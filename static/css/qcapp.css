@@ -9,8 +9,31 @@ html {
   box-sizing: inherit;
 }
 
+.navbar-fixed-top{
+    top:90px;
+}
+
+#logo{
+    top: 0px;
+    position: fixed;
+    width: 100%;
+    padding: 10px 15px 5px 15px;
+    z-index: 1;
+}
+
+@media (min-width: 1000px){
+    .affix{
+        position: fixed;
+    }
+}
+@media (max-width: 999px){
+    .affix{
+        position: static;
+    }
+}
+
 body {
-    padding-top: 50px;
+    padding-top: 150px;
     position: relative;
     margin: 0;
     padding-bottom: 7em;
@@ -70,6 +93,10 @@ nav div a {
     color: #bfbfbf;
 }
 
+.copernicus-panel{
+    background: #971e35;
+    color: white;
+}
 
 .copernicus{
     background-color: #971e35;
@@ -86,5 +113,27 @@ nav div a {
     color: white
 }
 
+.panel-link {
+    cursor: pointer;
+}
+.panel-link:hover{
+    text-decoration: none;
+}
 
+.large{
+    font-size: large;
+}
 
+.section{
+    padding-top: 150px;
+    margin-top:-150px
+}
+
+.nav-pills li.active a{
+    background-color: #971e35!important;
+    color: white!important;
+}
+
+.nav-pills li a{
+    color: #971e35!important;
+}

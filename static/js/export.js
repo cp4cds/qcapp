@@ -74,14 +74,21 @@ function makeRow(JSON){
     return results_array
 }
 
+function objToStr(object, key){
+    return [key,object[key]].join(',')
+}
+
 function jsonToCSV(JSON, filename){
     var csv = [];
     // Build header
         // Push provenance
-        csv.push(JSON.provenance)
+        csv.push("Provenance")
+        csv.push(objToStr(JSON.provenance,'source'))
+        csv.push(objToStr(JSON.provenance,'access_date'))
+        csv.push(objToStr(JSON.provenance,'version'))
 
         // Push query
-        csv.push("Search Query - Variables Tables Frequencies are read vertically where the variable was searched using the table and frequency immediately below")
+        csv.push("Search Query - Variables | Tables | Frequencies are read vertically where the variable was searched using the table and frequency immediately below")
         var query = JSON.query
         // console.log(query)
 

@@ -20,6 +20,7 @@ import qcapp.views
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
+    url(r'^$', qcapp.views.home, name="home"),
     url(r'^documentation/', qcapp.views.documentation),
     url(r'^qcerrors/', qcapp.views.qcerrors),
     url(r'^ceda-cc-errors/', qcapp.views.ceda_cc_errors, name="ceda-cc-errors"),
@@ -33,6 +34,7 @@ urlpatterns = [
     url(r'^model-details/', qcapp.views.model_details, name="model-details"),
     url(r'^variable-details/', qcapp.views.variable_details, name="variable-details"),
     url(r'^data-availability/', qcapp.views.data_availability_matrix, name="data-availability-matrix"),
+    url(r'^help/', qcapp.views.help, name="help"),
 
 
     # Ajax endpoints

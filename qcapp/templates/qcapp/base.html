@@ -4,90 +4,94 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <link rel="shortcut icon" href="{% static 'img/favicon.ico'%}" type="image/x-icon">
+    <link rel="shortcut icon" href="{% static 'img/favicon.ico' %}" type="image/x-icon">
 
     <!--<link rel="stylesheet" href="http://getbootstrap.com/dist/css/bootstrap.min.css" />-->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
           integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u"
           crossorigin="anonymous">
     <script
-      src="https://code.jquery.com/jquery-3.2.1.min.js"
-      integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
-      crossorigin="anonymous"></script>
+            src="https://code.jquery.com/jquery-3.2.1.min.js"
+            integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+            crossorigin="anonymous"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"
             integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa"
             crossorigin="anonymous">
     </script>
 
-    <link rel="stylesheet" href="{% static 'css/qcapp.css' %}" />
+    <link rel="stylesheet" href="{% static 'css/qcapp.css' %}"/>
 
-    <title>{{ page_title}}</title>
+    <title>{{ page_title }}</title>
 
     {% block extrahead %}
     {% endblock %}
 
 </head>
 <body>
-    <nav class="navbar navbar-fixed-top">
-          <div class="container-fluid copernicus">
-            <!-- Brand and toggle get grouped for better mobile display -->
-            <div class="navbar-header">
-              <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+
+<div class=" copernicus" id="logo">
+
+    <img src="{% static 'img/C3S–NEG–LINE.png' %}" style="height: 80px;">
+    <img src="{% static 'img/Copernicus.png' %}" style="height: 80px; float:right">
+</div>
+<nav class="navbar navbar-fixed-top">
+    <div class="container-fluid copernicus">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse"
+                    data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
                 <span class="sr-only">Toggle navigation</span>
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
-              </button>
-                <a class="navbar-brand" href="/">CP4CDS Data Management Tool</a>
-            </div>
+            </button>
 
-            <!-- Collect the nav links, forms, and other content for toggling -->
-            <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <a class="navbar-brand" href="/">
+                CP4CDS Data Management Tool
+            </a>
+        </div>
 
-              <ul class="nav navbar-nav navbar-right">
-                <li><a href="/admin/">Admin</a></li>
-              </ul>
-
-              <ul class="nav navbar-nav navbar-right">
-                <li class="active"><a href="/">Home <span class="sr-only">(current)</span></a></li>
-                <li class="dropdown">
-                  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Views <span class="caret"></span></a>
-                  <ul class="dropdown-menu">
-                    <li><a href="{% url 'data-spec' %}">Data Submissions</a></li>
-                    <li><a href="{% url 'data-spec' %}">Data Files</a></li>
-                    <li><a href="{% url 'data-spec' %}">ESGF Datasets</a></li>
-                    <li><a href="{% url 'data-spec' %}">Data Requests</a></li>
-                  </ul>
+        <!-- Collect the nav links, forms, and other content for toggling -->
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav navbar-right">
+                <li class="active">
+                    <a href="/">
+                        <span class="glyphicon glyphicon-home"></span>
+                        Home
+                        <span class="sr-only">(current)</span>
+                    </a>
                 </li>
-              </ul>
+                <li class="dropdown">
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true"
+                       aria-expanded="false">
+                        <span><img src="{% static 'img/compass.png' %}" style="height: 18px"></span>
+                        Explore Data
+                        <span class="caret"></span>
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a href="{% url 'variable-details' %}">Variable Details</a></li>
+                        <li><a href="{% url 'model-details' %}">Model Details</a></li>
+                        <li><a href="{% url 'data-availability-matrix' %}">Data Availability Matrix</a></li>
+                    </ul>
+                </li>
+                <li><a href="{% url 'help' %}"><span class="glyphicon glyphicon-question-sign"></span> Help</a></li>
+            </ul>
+        </div><!-- /.navbar-collapse -->
+    </div><!-- /.container-fluid -->
+</nav>
 
-            </div><!-- /.navbar-collapse -->
-          </div><!-- /.container-fluid -->
-    </nav>
+<div class="container">
 
-    <div class="container">
-
-        {% block title %}
+    {% block title %}
         <H1>{{ page_title|linebreaks }}</H1>
-        {% endblock %}
-        {% block contents %}
+    {% endblock %}
+    <br/>
+    {% block contents %}
 
-        {% endblock %}
+    {% endblock %}
 
-    </div>
-{#    <div class="footer">#}
-{#            <hr>#}
-{#    <div class="container">#}
-{#        <div align="center" style="font-size: 0.9em">#}
-{#            <span class="glyphicon glyphicon-copyright-mark"></span> ECMWF#}
-{#            C3S#}
-{#        </div>#}
-{#        <div align="center" style="font-size: 0.8em">#}
-{#            Project available on <a href="https://github.com/cp4cds/qcapp">GitHub.</a>#}
-{#            Version: {{ version }}#}
-{#        </div>#}
-{#    </div>#}
-{#    </div>#}
+</div>
+
 </body>
 <footer>
     <div class="container">
@@ -97,7 +101,7 @@
         </div>
         <div align="center" style="font-size: 0.8em">
             Project available on <a href="https://github.com/cp4cds/qcapp">GitHub.</a>
-            Version: {{ version }}
+            CP4CDS QA database version: {{ version }}
         </div>
     </div>
 </footer>

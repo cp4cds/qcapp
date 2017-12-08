@@ -81,7 +81,7 @@ function filterChangeMessage(){
 
 
 // Variables Chosen box
-$(".variables").chosen({width: "95%",placeholder_text_multiple: "Choose one or more variables"}).change(function () {
+$(".variables").chosen({width: "95%",placeholder_text_multiple: "Start typing a variable name or click to see the list"}).change(function () {
     // Display message if the filter is changed.
     filterChangeMessage()
 
@@ -143,7 +143,7 @@ $(".deselect-variable").click(function () {
 
 
 // Experiments Chosen box
-$(".experiments").chosen({width:"95%",placeholder_text_multiple: "Choose one or more experiments"}).change(function () {
+$(".experiments").chosen({width:"95%",placeholder_text_multiple: "Start typing an experiment name or click to see the list"}).change(function () {
     // Display message if the filter is changed.
     filterChangeMessage()
 });

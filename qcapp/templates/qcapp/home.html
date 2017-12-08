@@ -1,31 +1,83 @@
-<br>
-<br>
-
-
-
 {% extends 'qcapp/base.html' %}
+{% block extrahead %}
+    <script src="https://use.fontawesome.com/65011007f8.js"></script>
+{% endblock %}
 
 {% block contents %}
+    <div class="container">
 
-This is the Climate Projections for the Climate Data Store (CP4CDS) quality control application.
-The aim of this application is to provide users with information on the availability of quality controlled
-CMIP5 data. This application supports a number of different ways of interrogating the data.
-The availability of the data can be viewed per variable, per model or per experiment.
-<br> <br>
-Each file included in this database has been checked for metadata consistency using the CEDA compliance
-checker developed and maintained by STFC-CEDA and for Climate and Forecast (CF) convention
-conformance using the CF-checker developed and maintained by The University of Reading and STFC-CEDA.
+        <div class="row">
+            <p class="large">
+                This is the Climate Projections for the Copernicus Climate Data Store (CP4CDS) Data Management Tool. The
+                Copernicus Climate Change Service (C3S) funded projects aims to quality control a subset of CMIP5 data
+                and make this available through the Earth System Grid Federation (ESGF) to the climate data store. The
+                information currently provided by this tool is that of data availability.
+            </p>
+            <p class="large">
+                A user can interrogate the data by variable or model. A more complex query can submitted using
+                the data availability matrix.
+            </p>
+            <p class="large">
+                The data currently available through this application is linked to the alpha release of the data that
+                can be found at <a href="https://cp4cds-index1.ceda.ac.uk/projects/cp4cds_ceda/">https://cp4cds-index1.ceda.ac.uk/projects/cp4cds_ceda/</a>.
+            </p>
+            <p class="large">
+                Current release: alpha-1
+            </p>
+        </div>
 
-Full details of all quality control procedures can be found in the documentation section.
 
-<BR> <BR>
-Interrogate the data by
-<BR>
-<a class="btn btn-default btn-lg" href="http://127.0.0.1:8000/data-spec/" role="button" >variable</a>
-<a class="btn btn-default btn-lg" href="http://127.0.0.1:8000/data-spec/" role="button" >model</a>
-<a class="btn btn-default btn-lg" href="http://127.0.0.1:8000/data-spec/" role="button" >experiment</a>
-<BR> <BR>
+        <div class="row">
+            <h2>Interrogate the data by:</h2>
+            <div style="padding-top: 15px">
+                <div class="col-sm-6 col-md-4">
+                    <a href="{% url 'variable-details' %}" class="panel-link">
+                        <div class="panel panel-default" align="center">
+                            <div class="panel-heading">
+                    <span class="fa-stack fa-5x">
+                      <i class="fa fa-circle fa-stack-2x"></i>
+                      <i class="fa fa-thermometer-three-quarters fa-stack-1x fa-inverse"></i>
+                    </span>
+                            </div>
+                            <div class="panel-body">
+                                <h3>Variable</h3>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-sm-6 col-md-4">
+                    <a href="{% url 'model-details' %}" class="panel-link">
+                        <div class="panel panel-default" align="center">
+                            <div class="panel-heading">
+                    <span class="fa-stack fa-5x">
+                      <i class="fa fa-circle fa-stack-2x"></i>
+                      <i class="fa fa-sitemap fa-stack-1x fa-inverse" ></i>
+                    </span>
+                            </div>
+                            <div class="panel-body">
+                                <h3>Model</h3>
+                            </div>
+                        </div>
+                    </a>
 
-<a class="btn btn-default btn-lg" href="http://127.0.0.1:8000/documentation/" role="button">Documentation</a>
+                </div>
+                <div class="col-sm-6 col-md-4">
+                    <a href="{% url 'data-availability-matrix' %}" class="panel-link">
+                        <div class="panel panel-default" align="center">
+                            <div class="panel-heading">
+                    <span class="fa-stack fa-5x">
+                      <i class="fa fa-circle fa-stack-2x"></i>
+                        <i class="glyphicon glyphicon-stats" style="color:white"></i>
+                    </span>
+                            </div>
+                            <div class="panel-body">
+                                <h3>Data Availability Matrix</h3>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 
 {% endblock %}
