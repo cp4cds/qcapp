@@ -397,7 +397,7 @@ def data_availability_matrix(request):
         try:
             variables = data["variables"]
             tables = data['tables']
-            freqs = data['freqs']
+            freqs = data['frequencies']
             experiments = data['experiments']
             min_size = int(data["ensemble_size"][0])
 
@@ -491,6 +491,13 @@ def facet_filter(request, model, experiment):
         filtered_data = json.dumps(facets)
         return HttpResponse(filtered_data, content_type='application/json')
 
+def all_variables(request):
+    data = {}
+    if request.is_ajax():
+        data["variables"] = list(Dataset.objects.all().values_list('variable', flat=True).distinct().order_by('variable'))
+        return HttpResponse(json.dumps(data), content_type='application/json')
+
+
 
 def data_availability_variables(request):
     data = {}
@@ -517,7 +524,7 @@ def data_availability_variables(request):
     return HttpResponse(json.dumps(data), content_type='application/json' )
 
 
-def get_variable_details(request, variable, table, freq):
+def get_variable_details(request, variable, table=None, freq=None):
     data = {}
     if request.is_ajax():
 
@@ -536,7 +543,7 @@ def get_variable_details(request, variable, table, freq):
             tables.append(table)
             freqs.append(freq)
 
-        data['variables'] = list(datasets.values_list('variable', flat=True).distinct().order_by('variable'))
+        data['variable'] = list(datasets.values_list('variable', flat=True).distinct().order_by('variable'))
         data['tables'] = tables
         data['frequencies'] = freqs
 

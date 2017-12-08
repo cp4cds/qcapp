@@ -42,5 +42,6 @@ urlpatterns = [
         qcapp.views.facet_filter, name="facet-filter"),
     url(r'^data-availability-variables', qcapp.views.data_availability_variables, name="data-availability-variables"),
     url(r'^get_variable_details/(?P<variable>\S+)/(?P<table>\S+)/(?P<freq>\S+)', qcapp.views.get_variable_details, name="get_varaible_details"),
+    url(r'^all_variables/$', qcapp.views.all_variables, name="all_variables"),
 
 ]

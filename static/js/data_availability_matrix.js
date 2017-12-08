@@ -3,6 +3,7 @@
  */
 $(window).resize(setVaribleTableHeader())
 
+
 function getCookie(name) {
     // Gets cookies from the browser by name
     var cookieValue = null;
@@ -91,77 +92,162 @@ function keepChosenOpen (chosen) {
     }
 }
 
+function split_tr(table_body) {
+
+    var body_array = table_body.split("</tr>")
+
+    for (var i = 0; i < body_array.length; i++) {
+        body_array[i] = body_array[i] + "</tr>"
+    }
+
+    return body_array
+}
+
+function indexToDelete(){
+    var table_body = split_tr($('.variable-details').html())
+
+    for (var i=0; i<table_body.length; i++){
+        if (table_body[i].indexOf(str)){
+            return i
+        }
+
+    }
+    return undefined
+}
+
 // -------------------------------------------------- Main Code --------------------------------------------------------
 
 
 
 // Variables Chosen box
-var variableChosen = $(".variables").chosen({width: "95%",placeholder_text_multiple: "Start typing a variable name or click to see the list"})
+// var variableChosen = $(".variables").chosen({width: "95%",placeholder_text_multiple: "Start typing a variable name or click to see the list"})
+//
+// keepChosenOpen(variableChosen)
+//
+// variableChosen.change(function () {
+//     // Display message if the filter is changed.
+//     filterChangeMessage()
+//
+//     var data = {};
+//     var variables = $(".variables").val();
+//     data["variables"] = JSON.stringify(variables);
+//
+//     // AJAX address to load variables into dropdown
+//     var target = "/data-availability-variables";
+//
+//     // Only show the table if there is content to display
+//     if (variables.length > 0){
+//         $(".static-header").show()
+//     }
+//     else {
+//         $(".static-header").hide()
+//     }
+//
+//     // POST request to retrieve variable tables and frequencies.
+//     $.ajax({
+//         method: "POST",
+//         url: target,
+//         data: data,
+//         success: function (returned_data) {
+//             var i, variable_details = "<tr>", vari;
+//             for (i = 0; i < returned_data.variables.length; i++) {
+//                 vari = returned_data.variables[i];
+//
+//                 console.log(vari)
+//
+//                 var table_select = buildSelect(vari, "tables")
+//                 var freq_select = buildSelect(vari, "freqs")
+//
+//                 variable_details = variable_details.concat("<td id='"+ i +"-variable'>" + vari.variable + "</td><td id='"+ i +"-table'>" + table_select + "</td><td id='" + i + "-frequency'>" + freq_select + "</td>")
+//                 variable_details = variable_details.concat("</tr>")
+//             }
+//
+//             // Push content to container on page
+//             $(".variable-details").html(variable_details)
+//
+//             // Set the headers to match the content
+//             setVaribleTableHeader()
+//
+//
+//         },
+//         headers: {
+//             'X-CSRFTOKEN': getCookie('csrftoken')
+//         },
+//         dataType: "json"
+//     })
+// });
+//
+// $(".select-variable").click(function () {
+//     $('.variables option').prop('selected', true);
+//     $('.variables').trigger('chosen:updated').trigger('change')
+// });
+// $(".deselect-variable").click(function () {
+//     $('.variables option').prop('selected', false);
+//     $('.variables').trigger('chosen:updated').trigger('change')
+// });
 
-keepChosenOpen(variableChosen)
+function addVariableRow(row_data){
+    var table_body = split_tr($('.variable-details').html())
+    var elements = table_body.length
 
-variableChosen.change(function () {
-    // Display message if the filter is changed.
-    filterChangeMessage()
+    var row = "<tr>"
 
-    var data = {};
-    var variables = $(".variables").val();
-    data["variables"] = JSON.stringify(variables);
+    var table_select = buildSelect(row_data, "tables")
+    var freq_select = buildSelect(row_data, "frequencies")
 
-    // AJAX address to load variables into dropdown
-    var target = "/data-availability-variables";
+    row = row.concat("<td id='"+ elements +"-variable'><input readonly id='variables' name='variables' value="+ row_data.variable +"></td><td id='"+ elements +"-table'>" + table_select + "</td><td id='" + elements + "-frequency'>" + freq_select + "</td>")
+    row = row.concat("</tr>")
 
-    // Only show the table if there is content to display
-    if (variables.length > 0){
-        $(".static-header").show()
-    }
-    else {
-        $(".static-header").hide()
-    }
+    table_body.push(row)
 
-    // POST request to retrieve variable tables and frequencies.
-    $.ajax({
-        method: "POST",
+    $('.variable-details').html(table_body.join(''))
+
+
+
+
+}
+$('#variable-select').chosen({width:"70%"})
+
+$('#addVariable').click(function () {
+    $('.static-header').show()
+
+    var variable = $("#variable-select").val();
+
+    // // AJAX address to load variables into dropdown
+    var target = "/get_variable_details/"+ variable + "/All/All";
+
+    $.get({
         url: target,
-        data: data,
-        success: function (returned_data) {
-            var i, variable_details = "<tr>", vari;
-            for (i = 0; i < returned_data.variables.length; i++) {
-                vari = returned_data.variables[i];
-
-                console.log(vari)
-
-                // var var_select = buildSelect(vari,"variables")
-                var table_select = buildSelect(vari, "tables")
-                var freq_select = buildSelect(vari, "freqs")
-
-                variable_details = variable_details.concat("<td id='"+ i +"-variable'>" + vari.variable + "</td><td id='"+ i +"-table'>" + table_select + "</td><td id='" + i + "-frequency'>" + freq_select + "</td>")
-                variable_details = variable_details.concat("</tr>")
-            }
-
-            // Push content to container on page
-            $(".variable-details").html(variable_details)
-
-            // Set the headers to match the content
+        success: function (data) {
+            // console.log(data)
+            addVariableRow(data)
             setVaribleTableHeader()
 
 
-        },
-        headers: {
-            'X-CSRFTOKEN': getCookie('csrftoken')
-        },
-        dataType: "json"
+        }
     })
-});
 
-$(".select-variable").click(function () {
-    $('.variables option').prop('selected', true);
-    $('.variables').trigger('chosen:updated').trigger('change')
-});
-$(".deselect-variable").click(function () {
-    $('.variables option').prop('selected', false);
-    $('.variables').trigger('chosen:updated').trigger('change')
-});
+//         $.ajax({
+//         method: "POST",
+//         url: target,
+//         data: data,
+//         success: function (returned_data) {
+//             console.log(returned_data)
+//
+//             // Set the headers to match the content
+//
+//
+//         },
+//         headers: {
+//             'X-CSRFTOKEN': getCookie('csrftoken')
+//         },
+//         dataType: "json"
+//     })
+//     addVariableRow()
+//
+//
+})
+
 
 
 // Experiments Chosen box
@@ -201,6 +287,7 @@ $('#get_results').click(function () {
 
     // Get the data from the form
     var datastring = $("#filterform").serialize();
+    console.log(datastring)
     var target = "/data-availability/";
     $.ajax({
         type: "POST",
@@ -276,7 +363,7 @@ $('.variable-details').on('change','.variable-table-select',function (event) {
     var data_list = []
     var variable, table, freq, target, selector
 
-    variable = $('#'+ row_num + '-variable').html()
+    variable = $('#'+ row_num + '-variable input').val()
     table = $('#'+ row_num + '-table select').val()
     freq = $('#'+ row_num + '-frequency select').val()
 

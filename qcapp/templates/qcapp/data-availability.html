@@ -5,6 +5,7 @@
     <script src="{% static 'js/chosen.jquery.min.js' %}"></script>
     <script src="{% static 'js/export.js' %}"></script>
 
+
 {% endblock %}
 {% block contents %}
     <noscript>
@@ -34,14 +35,17 @@
             </thead>
             <tbody>
             <tr>
-                <td>
-                    <select multiple class="variables" id="variables" name="variables">
+                <td class="col-md-5">
+                    <select id="variable-select">
                         {% for variable in variables %}
                             <option>{{ variable }}</option>
                         {% endfor %}
                     </select>
+                    <button class="btn copernicus" id="addVariable" type="button">Add variable <span class="glyphicon glyphicon-plus"></span></button>
+                    <div>
                     <a class="select-variable">Select all</a> |
                     <a class="deselect-variable">Deselect all</a>
+                    </div>
                     <table class="static-header">
                         <th>Variable</th>
                         <th>Table</th>
@@ -53,7 +57,7 @@
                         </table>
                     </div>
                 </td>
-                <td>
+                <td class="col-md-5">
                     <select multiple class="experiments" id="experiments" name="experiments">
                         {% for experiment in experiments %}
                             <option>{{ experiment }}</option>
@@ -63,7 +67,7 @@
                     <a class="select-expr">Select all</a> |
                     <a class="deselect-expr">Deselect all</a>
                 </td>
-                <td>
+                <td class="col-md-2">
                     <select id="ensemble_size" name="ensemble_size" style="height: 29px; width:95%">
                         {% for i in range %}
                             <option>{{ i }}</option>
@@ -78,8 +82,8 @@
 
 
         {#    <input value="Get results" type="submit" class="btn btn-success" id="get_results">#}
-        <button type="button" class="btn copernicus" id="get_results">Get results</button>
-        <button type="button" class="btn copernicus" id="clear_filters"> Reset all filters</button>
+        <button type="button" class="btn copernicus" id="get_results" typeof="submit">Get results</button>
+        <button type="button" class="btn copernicus" id="clear_filters" typeof="button"> Reset all filters</button>
     </form>
     <hr>
     <div id="messages" style="text-align: center"></div>
@@ -109,6 +113,9 @@
         </table>
     </div>
 
+
+    <script src="{% static 'js/data_availability_matrix.js' %}"></script>
+
     {# Modal to indicate download taking place #}
     <div class="modal fade" id="downloadModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
         <div class="modal-dialog" role="document">
@@ -125,6 +132,7 @@
             </div>
         </div>
     </div>
-    <script src="{% static 'js/data_availability_matrix.js' %}"></script>
+
+
 
 {% endblock %}
