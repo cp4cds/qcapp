@@ -77,11 +77,30 @@ function filterChangeMessage(){
     }
 }
 
+function keepChosenOpen (chosen) {
+    if (chosen.data("chosen") != undefined){
+
+        // Keep Chosen box open when selecting.
+        var _fn = chosen.data("chosen").result_select;
+        chosen.data("chosen").result_select = function(evt) {
+              evt["metaKey"] = true;
+              evt["ctrlKey"] = true;
+              chosen.data('chosen').result_highlight.addClass("result-selected");
+              return _fn.call(chosen.data('chosen'), evt);
+        };
+    }
+}
+
 // -------------------------------------------------- Main Code --------------------------------------------------------
 
 
+
 // Variables Chosen box
-$(".variables").chosen({width: "95%",placeholder_text_multiple: "Start typing a variable name or click to see the list"}).change(function () {
+var variableChosen = $(".variables").chosen({width: "95%",placeholder_text_multiple: "Start typing a variable name or click to see the list"})
+
+keepChosenOpen(variableChosen)
+
+variableChosen.change(function () {
     // Display message if the filter is changed.
     filterChangeMessage()
 
@@ -110,6 +129,9 @@ $(".variables").chosen({width: "95%",placeholder_text_multiple: "Start typing a 
             for (i = 0; i < returned_data.variables.length; i++) {
                 vari = returned_data.variables[i];
 
+                console.log(vari)
+
+                // var var_select = buildSelect(vari,"variables")
                 var table_select = buildSelect(vari, "tables")
                 var freq_select = buildSelect(vari, "freqs")
 
@@ -143,7 +165,11 @@ $(".deselect-variable").click(function () {
 
 
 // Experiments Chosen box
-$(".experiments").chosen({width:"95%",placeholder_text_multiple: "Start typing an experiment name or click to see the list"}).change(function () {
+var experimentChosen = $(".experiments").chosen({width:"95%",placeholder_text_multiple: "Start typing an experiment name or click to see the list"});
+
+keepChosenOpen(experimentChosen);
+
+experimentChosen.change(function () {
     // Display message if the filter is changed.
     filterChangeMessage()
 });
@@ -162,7 +188,7 @@ $(".deselect-expr").click(function () {
 $('#ensemble_size').change(function () {
     // Display message if the filter is changed.
     filterChangeMessage()
-})
+});
 
 
 
