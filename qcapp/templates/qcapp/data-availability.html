@@ -4,6 +4,7 @@
     <link rel="stylesheet" href="{% static 'css/chosen.min.css' %}">
     <script src="{% static 'js/chosen.jquery.min.js' %}"></script>
     <script src="{% static 'js/export.js' %}"></script>
+    <script src="{% static 'js/mustache.min.js' %}"></script>
 
 
 {% endblock %}
@@ -36,9 +37,10 @@
             <tbody>
             <tr>
                 <td class="col-md-5">
-                    <select id="variable-select">
+                    <select id="variable-select" data-placeholder="Click and start typing or select variable... ">
+                            <option value=""></option>
                         {% for variable in variables %}
-                            <option>{{ variable }}</option>
+                            <option value="{{ variable }}">{{ variable }}</option>
                         {% endfor %}
                     </select>
                     <button class="btn copernicus" id="addVariable" type="button">Add variable <span class="glyphicon glyphicon-plus"></span></button>
@@ -132,6 +134,27 @@
             </div>
         </div>
     </div>
+
+    {#  Variable table row mustache template #}
+    <script id="variable-row-template" type="x-tmpl-mustache">
+        <tr id="[[ elements ]]-row">
+            <td id="[[ elements ]]-variable">
+                <input readonly id="variables" name="variables" value="[[ variable ]]">
+            </td>
+            <td id="[[ elements ]]-table">
+                [[ &table_select ]]
+            </td>
+            <td id="[[ elements ]]-frequency">
+                [[ &freq_select ]]
+            </td>
+            <td id="[[ elements ]]-delete">
+                <a class="btn delete" onclick="removeVariable([[ elements ]])">
+                    <span class="glyphicon glyphicon-trash"/>
+                </a>
+            </td>
+        </tr>
+    </script>
+
 
 
 

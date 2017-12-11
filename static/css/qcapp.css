@@ -137,3 +137,7 @@ nav div a {
 .nav-pills li a{
     color: #971e35!important;
 }
+
+.delete{
+    color: #bf0000
+}

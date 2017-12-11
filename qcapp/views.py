@@ -491,39 +491,6 @@ def facet_filter(request, model, experiment):
         filtered_data = json.dumps(facets)
         return HttpResponse(filtered_data, content_type='application/json')
 
-def all_variables(request):
-    data = {}
-    if request.is_ajax():
-        data["variables"] = list(Dataset.objects.all().values_list('variable', flat=True).distinct().order_by('variable'))
-        return HttpResponse(json.dumps(data), content_type='application/json')
-
-
-
-def data_availability_variables(request):
-    data = {}
-    if request.is_ajax():
-        selected_variables = json.loads(request.POST['variables'])
-        var_list = []
-        for var in selected_variables:
-            var_data = {}
-
-            # Make sure that only valid pairs make it through to the table.
-            pairs = list(Dataset.objects.filter(variable=var).values_list('cmor_table', 'frequency').distinct())
-
-            tables, freqs = [],[]
-            for table, freq in pairs:
-                tables.append(table)
-                freqs.append(freq)
-
-            var_data["tables"] = tables
-            var_data["freqs"] = freqs
-            var_data["variable"] = var
-            var_list.append(var_data)
-    data["variables"] = var_list
-
-    return HttpResponse(json.dumps(data), content_type='application/json' )
-
-
 def get_variable_details(request, variable, table=None, freq=None):
     data = {}
     if request.is_ajax():

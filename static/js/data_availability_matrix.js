@@ -2,6 +2,7 @@
  * Created by vdn73631 on 23/11/2017.
  */
 $(window).resize(setVaribleTableHeader())
+Mustache.tags = ['[[',']]']
 
 
 function getCookie(name) {
@@ -115,101 +116,68 @@ function indexToDelete(){
     return undefined
 }
 
-// -------------------------------------------------- Main Code --------------------------------------------------------
-
-
-
-// Variables Chosen box
-// var variableChosen = $(".variables").chosen({width: "95%",placeholder_text_multiple: "Start typing a variable name or click to see the list"})
-//
-// keepChosenOpen(variableChosen)
-//
-// variableChosen.change(function () {
-//     // Display message if the filter is changed.
-//     filterChangeMessage()
-//
-//     var data = {};
-//     var variables = $(".variables").val();
-//     data["variables"] = JSON.stringify(variables);
-//
-//     // AJAX address to load variables into dropdown
-//     var target = "/data-availability-variables";
-//
-//     // Only show the table if there is content to display
-//     if (variables.length > 0){
-//         $(".static-header").show()
-//     }
-//     else {
-//         $(".static-header").hide()
-//     }
-//
-//     // POST request to retrieve variable tables and frequencies.
-//     $.ajax({
-//         method: "POST",
-//         url: target,
-//         data: data,
-//         success: function (returned_data) {
-//             var i, variable_details = "<tr>", vari;
-//             for (i = 0; i < returned_data.variables.length; i++) {
-//                 vari = returned_data.variables[i];
-//
-//                 console.log(vari)
-//
-//                 var table_select = buildSelect(vari, "tables")
-//                 var freq_select = buildSelect(vari, "freqs")
-//
-//                 variable_details = variable_details.concat("<td id='"+ i +"-variable'>" + vari.variable + "</td><td id='"+ i +"-table'>" + table_select + "</td><td id='" + i + "-frequency'>" + freq_select + "</td>")
-//                 variable_details = variable_details.concat("</tr>")
-//             }
-//
-//             // Push content to container on page
-//             $(".variable-details").html(variable_details)
-//
-//             // Set the headers to match the content
-//             setVaribleTableHeader()
-//
-//
-//         },
-//         headers: {
-//             'X-CSRFTOKEN': getCookie('csrftoken')
-//         },
-//         dataType: "json"
-//     })
-// });
-//
-// $(".select-variable").click(function () {
-//     $('.variables option').prop('selected', true);
-//     $('.variables').trigger('chosen:updated').trigger('change')
-// });
-// $(".deselect-variable").click(function () {
-//     $('.variables option').prop('selected', false);
-//     $('.variables').trigger('chosen:updated').trigger('change')
-// });
+function removeVariable(rownumber){
+    $('#'+ rownumber + '-row').remove()
+}
 
 function addVariableRow(row_data){
-    var table_body = split_tr($('.variable-details').html())
-    var elements = table_body.length
+    var table = $('.variable-details');
+    var table_body = split_tr(table.html());
 
-    var row = "<tr>"
+    var view = {
+        table_select: buildSelect(row_data, "tables"),
+        freq_select: buildSelect(row_data, "frequencies"),
+        variable: row_data.variable,
+        elements: table_body.length
+    };
 
-    var table_select = buildSelect(row_data, "tables")
-    var freq_select = buildSelect(row_data, "frequencies")
+    var template = $('#variable-row-template').html();
+    Mustache.parse(template);
 
-    row = row.concat("<td id='"+ elements +"-variable'><input readonly id='variables' name='variables' value="+ row_data.variable +"></td><td id='"+ elements +"-table'>" + table_select + "</td><td id='" + elements + "-frequency'>" + freq_select + "</td>")
-    row = row.concat("</tr>")
+    var row = Mustache.render(template,view);
 
-    table_body.push(row)
+    table_body.push(row);
 
-    $('.variable-details').html(table_body.join(''))
+    table.html(table_body.join(''))
 
 
 
 
 }
-$('#variable-select').chosen({width:"70%"})
 
+// -------------------------------------------------- Main Code --------------------------------------------------------
+
+
+// Render variable select box as a chosen dropdown
+$('#variable-select').chosen({width:"70%",placeholder_text: "Start typing a variable name or click to see the list"})
+
+// Select all for variables
+$(".select-variable").click(function () {
+    if ($('.variable-details tr').length < 1) {
+
+        $('#variable-select option').each(function () {
+                $('#variable-select').val($(this).val())
+                $('#addVariable').trigger('click')
+            }
+        )
+    }
+});
+
+// Deselect all for variables
+$(".deselect-variable").click(function () {
+
+    $('.variable-details tr').each( function () {
+        $(this).remove()
+        $('.static-header').hide()
+        filterChangeMessage()
+    })
+
+    $('#variable-select').val('').trigger('chosen:updated');
+});
+
+// Add variable to details table
 $('#addVariable').click(function () {
-    $('.static-header').show()
+    $('.static-header').show();
 
     var variable = $("#variable-select").val();
 
@@ -220,39 +188,19 @@ $('#addVariable').click(function () {
         url: target,
         success: function (data) {
             // console.log(data)
-            addVariableRow(data)
-            setVaribleTableHeader()
-
-
+            addVariableRow(data);
+            setVaribleTableHeader();
         }
     })
 
-//         $.ajax({
-//         method: "POST",
-//         url: target,
-//         data: data,
-//         success: function (returned_data) {
-//             console.log(returned_data)
-//
-//             // Set the headers to match the content
-//
-//
-//         },
-//         headers: {
-//             'X-CSRFTOKEN': getCookie('csrftoken')
-//         },
-//         dataType: "json"
-//     })
-//     addVariableRow()
-//
-//
-})
+});
 
 
 
 // Experiments Chosen box
 var experimentChosen = $(".experiments").chosen({width:"95%",placeholder_text_multiple: "Start typing an experiment name or click to see the list"});
 
+// Don't auto close the chosen box
 keepChosenOpen(experimentChosen);
 
 experimentChosen.change(function () {
@@ -260,11 +208,13 @@ experimentChosen.change(function () {
     filterChangeMessage()
 });
 
+// Select all for experiments
 $(".select-expr").click(function () {
     $('.experiments option').prop('selected', true);
     $('.experiments').trigger('chosen:updated')
 });
 
+// Deselect all for experiments
 $(".deselect-expr").click(function () {
     $('.experiments option').prop('selected', false);
     $('.experiments').trigger('chosen:updated')
@@ -275,7 +225,6 @@ $('#ensemble_size').change(function () {
     // Display message if the filter is changed.
     filterChangeMessage()
 });
-
 
 
 // AJAX request to get the page results.
@@ -354,7 +303,7 @@ $('#get_results').click(function () {
 
 
 // Link the table and frequency columns in the variable detail table so that only valid options are submittable.
-$('.variable-details').on('change','.variable-table-select',function (event) {
+$(document).on('change','.variable-table-select',function (event) {
     // Display message if the filter is changed.
     filterChangeMessage()
 
@@ -390,9 +339,9 @@ $('.variable-details').on('change','.variable-table-select',function (event) {
     })
 })
 
+// Reset all filters
 $('#clear_filters').click(function () {
-    $('.variables option').prop('selected', false);
-    $('.variables').trigger('chosen:updated').trigger('change')
+    $(".deselect-variable").trigger('click')
     $('.experiments option').prop('selected', false);
     $('.experiments').trigger('chosen:updated')
     $('#ensemble-size').val('1')
