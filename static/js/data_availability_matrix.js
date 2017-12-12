@@ -180,6 +180,7 @@ $('#addVariable').click(function () {
     $('.static-header').show();
 
     var variable = $("#variable-select").val();
+    var variable_table = $('.variable-table-select')
 
     // // AJAX address to load variables into dropdown
     var target = "/get_variable_details/"+ variable + "/All/All";
@@ -187,14 +188,25 @@ $('#addVariable').click(function () {
     $.get({
         url: target,
         success: function (data) {
-            // console.log(data)
+
+            // Get current selection
+            var selected = []
+            variable_table.each(function () {
+            selected.push($(this).val())
+            })
+
             addVariableRow(data);
             setVaribleTableHeader();
+
+            // Reset rows to match previous selection
+            variable_table.each(function (index, value) {
+                var id = $(this).parent().attr('id')
+                $('#' + id + ' option[value="'+ selected[index] + '"]').prop('selected', true)
+            })
         }
     })
 
 });
-
 
 
 // Experiments Chosen box
@@ -236,7 +248,6 @@ $('#get_results').click(function () {
 
     // Get the data from the form
     var datastring = $("#filterform").serialize();
-    console.log(datastring)
     var target = "/data-availability/";
     $.ajax({
         type: "POST",

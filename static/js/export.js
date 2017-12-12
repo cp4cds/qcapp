@@ -101,8 +101,8 @@ function jsonToCSV(JSON, filename){
         csv.push(query.tables.join(","))
 
         // add freqs
-        query.freqs.unshift('Frequencies')
-        csv.push(query.freqs.join(","))
+        query.frequencies.unshift('Frequencies')
+        csv.push(query.frequencies.join(","))
 
         // add experiments
         query.experiments.unshift('Experiments')
