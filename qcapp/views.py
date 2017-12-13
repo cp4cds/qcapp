@@ -9,6 +9,7 @@ from qcapp.models import *
 from .models import *
 from view_functions import *
 import os, collections, json
+import view_functions as vf
 
 
 GWSDIR = "qcapp/cp4cds_gws_qc/"
@@ -32,7 +33,7 @@ def help(request):
 def cf_errors(request):
 
     title = "CF Errors: details"
-    cf_errs = cf_error_list()
+    cf_errs = vf.cf_error_list()
 
     return render(request, 'qcapp/cf-errors.html', {'page_title': title, 'cf_errs': cf_errs})
 
@@ -40,7 +41,7 @@ def cf_errors(request):
 def ceda_cc_errors(request):
 
     title = "CEDA CC Errors: details"
-    ccc_errs = cedacc_error_list()
+    ccc_errs = vf.cedacc_error_list()
 
     return render(request, 'qcapp/ceda-cc-errors.html', {'page_title': title, 'ccc_errs': ccc_errs})
 
@@ -48,7 +49,7 @@ def ceda_cc_errors(request):
 def qcerrors(request):
 
     title = "QC Errors - details"
-    ccc_errs = cedacc_error_list()
+    ccc_errs = vf.cedacc_error_list()
 
     return render(request, 'qcapp/qcerrors.html', {'page_title': title, 'ccc_errs': ccc_errs})
 
@@ -63,7 +64,7 @@ def data_spec(request):
     exptsSelected = request.GET.keys()
     dataSpec = DataSpecification.objects.filter(datarequesters__requested_by__contains=project)
     for spec in dataSpec:
-        get_no_models_per_expt(spec, exptsSelected)
+        vf.get_no_models_per_expt(spec, exptsSelected)
     title = "Data Requested by %s" % project
 
     return render(request, 'qcapp/data-spec.html', {'page_title': title, 'dataSpec': dataSpec, 'expts': exptsSelected})
@@ -186,9 +187,9 @@ def variable_qc(request, ncfile):
 
         for datafile in DataFile.objects.filter(dataset__variable=var, dataset__cmor_table=table, dataset__model=model,
                                                 dataset__experiment=expt, dataset__ensemble=ens, timeseries=True):
-            timeseries_df_errors[datafile.ncfile] = get_total_qc_errors(datafile.ncfile)
+            timeseries_df_errors[datafile.ncfile] = vf.get_total_qc_errors(datafile.ncfile)
 
-        max_errors = max_timeseries_qc_errors(timeseries_df_errors)
+        max_errors = vf.max_timeseries_qc_errors(timeseries_df_errors)
 
         return render(request, 'qcapp/variable-timeseries-qc.html',
                       {'page_title': title, 'timeseries_df_errors': timeseries_df_errors,
@@ -290,8 +291,8 @@ def variable_timeseries_qc(request, ncfile):
 
     for datafile in DataFile.objects.filter(dataset__variable=var, dataset__cmor_table=table, dataset__model=model,
                                             dataset__experiment=expt, dataset__ensemble=ens, timeseries=True):
-        timeseries_df_errors[datafile.ncfile] = get_total_qc_errors(datafile.ncfile)
-        max_errors = max_timeseries_qc_errors(timeseries_df_errors)
+        timeseries_df_errors[datafile.ncfile] = vf.get_total_qc_errors(datafile.ncfile)
+        max_errors = vf.max_timeseries_qc_errors(timeseries_df_errors)
 
     return render(request, 'qcapp/variable-timeseries-qc.html',
                   {'page_title': title, 'timeseries_df_errors': timeseries_df_errors,
@@ -408,19 +409,13 @@ def data_availability_matrix(request):
         # Get datasets that have one or other of the experiments
         datasets = Dataset.objects.filter(experiment__in=experiments)
 
-        # Filter by variables build Q object for variable filter
-        # TODO: possible to do using reduce and lambda function.
-        if len(variables) > 1:
-            q = Q(variable=variables[0], cmor_table=tables[0], frequency=freqs[0])
-            for var, table, freq in zip(variables[1:], tables[1:], freqs[1:]):
-                q = q | Q(variable=var, cmor_table=table, frequency=freq)
+        output = []
+        for v,t,f in zip(variables, tables, freqs):
+            output.append(list(datasets.filter(variable=v,cmor_table=t,frequency=f).distinct('model').values_list('model', flat=True)))
+            if len(output) > 1:
+                output = vf.list_intersect(output)
 
-            datasets = datasets.filter(q)
-        else:
-            datasets = datasets.filter(variable=variables[0], cmor_table=tables[0], frequency=freqs[0])
-
-        # Get list of distinct models which contain all the variables and at least one of the experiments.
-        models = datasets.values_list('model', flat=True).distinct().order_by('model')
+        models = output[0]
 
         return_data_list = []
         for model in models:
@@ -440,10 +435,6 @@ def data_availability_matrix(request):
                 return_data_list.append(model_data)
 
         # Generate Meta data
-
-        query_dict = {
-
-        }
 
         provenance = {}
         provenance["source"] = "This data has been provided by the ECMWF C3S Copernicus project Climate Predicitions for the Copernicus Climate Data Store (CP4CDS) provided by CEDA-STFC (c) ECWMF C3S"

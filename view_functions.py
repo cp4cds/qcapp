@@ -58,8 +58,8 @@ def get_models_availability(variables, table, frequency, experiment):
     return model_ensmeble_dict
 
 
-
-
+def list_intersect(list):
+    return [[x for x in list[0] if x in list[1]]]
 
 
 
