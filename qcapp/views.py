@@ -344,6 +344,7 @@ def model_details(request):
 
     context["models"] = Dataset.objects.values_list("model", flat=True).distinct().order_by('model')
     context["experiments"] = Dataset.objects.values_list("experiment", flat=True).distinct().order_by('experiment')
+    context["version"] = settings.VERSION
 
 
     return render(request, 'qcapp/model_details.html', context)
@@ -382,6 +383,7 @@ def variable_details(request):
     context["variables"] = Dataset.objects.values_list("variable", flat=True).distinct().order_by('variable')
     context["cmor_tables"] = Dataset.objects.values_list("cmor_table", flat=True).distinct()
     context["frequencies"] = Dataset.objects.values_list("frequency", flat=True).distinct()
+    context["version"] = settings.VERSION
 
     return render(request, 'qcapp/variable_details.html', context)
 
