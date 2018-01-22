@@ -1,4 +1,9 @@
 qcproj/settings_local.py
+
+MULTIFILE-TEST
+CF-FATAL
+test*.py
+*.csv
 *.pyc
 *.log
 OUTPUT-LOGS/

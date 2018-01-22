@@ -53,7 +53,8 @@ def get_models_availability(variables, table, frequency, experiment):
     for m in unique_models:
         ensembles = models.filter(model=m)
         distinct_ensembles = ensembles.distinct('ensemble')
-        model_ensmeble_dict[m] = [e.ensemble for e in distinct_ensembles]
+        if len(distinct_ensembles) > 2:
+            model_ensmeble_dict[m] = [e.ensemble for e in distinct_ensembles]
 
     return model_ensmeble_dict
 
