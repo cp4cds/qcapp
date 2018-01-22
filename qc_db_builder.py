@@ -3,7 +3,8 @@
 Usage:
   qc_db_builder.py  [VAR] [TABLE] [FREQ]
                     [--create] [--run_cedacc] [--parse_cedacc] [--run_cfchecker] [--parse_cfchecker]
-                    [--check_up_to_date] [--run_single_file_timechecks] [--test] [--esgf-ds-logger]
+                    [--check_up_to_date] [--run_single_file_timechecks] [--run_multi_file_timechecks]
+                    [--test] [--esgf-ds-logger] [--check_dataset_up_to_date]
 
 Arguments:
     VAR         A valid CMIP5 short variable name
@@ -20,8 +21,9 @@ Options:
     --run_cfchecker                     Run the CF-Checker for all files in all experiments with the given input parameters.
     --parse_cfchecker                   Parse the CF-Checker output for all files in all experiments with the given input parameters.
     --check_up_to_date                  Checks if the most recent version is at CEDA
-    --run_single_file_timechecks        Run the single file time-checks for all files in all experiments with the given input parameters.
-
+    --run_single_file_timechecks        Run single file time-checks for all files in all experiments with the given input parameters.
+    --run_multi_file_timechecks         Run multifile timeseries completeness checks
+    --check_dataset_up_to_date          Checks whether versions are present and up to date from the dataset level
 
   This database builder utilises global variables and settings that are defined in qc_settings.py
 """
@@ -50,138 +52,22 @@ from ceda_cc import c4
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from django.db.models import Count, Max, Min, Sum, Avg
 from qc_settings import *
-from time_checks.run_file_timechecks import main as time_checks
+from time_checks.run_file_timechecks import main as single_file_time_checks
+from time_checks.run_multifile_timechecks import main as multi_file_time_checks
 requests.packages.urllib3.disable_warnings()
 
 
-def dataset_latest_check(variable, frequency, table, experiment, node, project, fwrite):
 
-    distrib = True
-    latest = True
-    ceda_data_node = "esgf-data1.ceda.ac.uk"
-    version_qc = True
-    valid_version = True
-
-    # Get a dictionary of models that match a given search criteria
-    models, json = esgf_ds_search(URL_DS_MODEL_FACETS, 'model', project, variable, table, frequency,
-                                  experiment, '', node, distrib, latest)
-
-    for model in models.keys():
-
-        # Get a dictionary of ensemble members that match a given search criteria
-        ensembles, json = esgf_ds_search(URL_DS_ENSEMBLE_FACETS, 'ensemble', project, variable, table, frequency,
-                                         experiment, model, node, distrib, latest)
-
-        for ensemble in ensembles.keys():
-
-            url = URL_DATASET_ENSEMBLE % vars()
-            resp = requests.get(url, verify=False)
-            json = resp.json()
-            datasets = json["response"]["docs"]
-
-            versions = {}
-            nodes = []
-            for ds in datasets:
-                ds_id = ds["id"].split('|')[0]
-                dnode = ds["id"].split('|')[1]
-                nodes.append(ds["id"].split('|')[1])
-                versions[dnode] = ds["id"].split('|')[0].split('.')[-1].strip('v')
-
-            # Write DS ID as first column of output file
-            fwrite.writelines("{} ::".format(ds_id))
-
-            if ceda_data_node not in versions.keys():
-                errmsg = "UTD.001 [ERROR] :: Dataset is missing from CEDA archive"
-                fwrite.writelines(" {} \n".format(errmsg))
-                version_qc = False
-
-            # Test if Dataset exists in database
-            db_ds_id = '.'.join(ds_id.split('.')[:-1])
-            db_ds = Dataset.objects.filter(esgf_drs__startswith=db_ds_id, variable=variable)
-
-            if len(db_ds) == 0:
-                fwrite.writelines(" UTD.005 [ERROR] :: Dataset not in CP4CDS qc database \n")
-                version_qc = False
-            if len(db_ds) > 1:
-                fwrite.writelines(" UTD.008 [FATAL] :: Multiple datasets in qc database {} \n".format(versions))
-                version_qc = False
-
-            if version_qc:
-                # Get database object
-                db_ds_first = db_ds.first()
-
-                # Get latest version
-                # Handles both v<YYYYMMDD> and v<N> formats
-                all_versions = []
-                for version in versions.values():
-                    if len(version) == 8:
-                        all_versions.append(datetime.datetime(int(version[0:4]), int(version[4:6]), int(version[6:8])))
-                    if len(version) == 1:
-                        all_versions.append(int(version))
-                try:
-                    latest_version = max(all_versions)
-
-                except TypeError:
-                    errmsg = "UTD.006 [FATAL] :: Cannot perform test, no known latest version " \
-                             "as types do not match {} \n".format(versions)
-                    db_ds_first.up_to_date = False
-                    db_ds_first.up_to_date_note = errmsg
-                    fwrite.writelines(" {} \n".format(errmsg))
-                    valid_version = False
-
-                if valid_version:
-                    ceda_esgf_version_no = versions[ceda_data_node]
-                    try:
-                        ceda_db_esgf_version_no = db_ds_first.version
-
-                        if ceda_db_esgf_version_no != ceda_esgf_version_no:
-                            errmsg = "UTD.003 [ERROR] :: Mismatch between CEDA database version {} and " \
-                                     "ESGF version {}".format(ceda_db_esgf_version_no, ceda_esgf_version_no)
-                            db_ds_first.up_to_date = False
-                            db_ds_first.up_to_date_note = errmsg
-                            fwrite.writelines(" {} \n".format(errmsg))
-
-                    except AttributeError:
-                        errmsg = "UTD.004 [ERROR] :: CEDA database version unspecified"
-                        db_ds_first.up_to_date = False
-                        db_ds_first.up_to_date_note = errmsg
-                        fwrite.writelines(" {} \n".format(errmsg))
-
-                    if len(ceda_esgf_version_no) == 8:
-                        current_ceda_version = datetime.datetime(int(ceda_esgf_version_no[0:4]), int(ceda_esgf_version_no[4:6]),
-                                                                 int(ceda_esgf_version_no[6:8]))
-                    if len(ceda_esgf_version_no) == 1:
-                        current_ceda_version = ceda_esgf_version_no
-
-                    if current_ceda_version < latest_version:
-                        errmsg = "UTD.002 [ERROR] :: CEDA version is out of date. CEDA version is {}, " \
-                                 "LATEST version is {}".format(current_ceda_version, latest_version)
-                        db_ds_first.up_to_date = False
-                        db_ds_first.up_to_date_note = errmsg
-                        fwrite.writelines(" {} \n".format(errmsg))
-
-                    if current_ceda_version == latest_version:
-                        errmsg = "UTD.000 [PASS] :: CEDA version is up to date {}".format(latest_version)
-                        db_ds_first.up_to_date = True
-                        db_ds_first.up_to_date_note = errmsg
-                        fwrite.writelines(" {} \n".format(errmsg))
-
-                    if current_ceda_version > latest_version:
-                        errmsg = "UTD.007 [FATAL] :: CEDA version {} can not be greater than " \
-                                 "latest version {} \n".format(current_ceda_version, latest_version)
-                        db_ds_first.up_to_date = False
-                        db_ds_first.up_to_date_note = errmsg
-                        fwrite.writelines(" {} \n".format(errmsg))
+def file_time_checks(ifile):
 
 
-def file_time_checks(file):
-
-    institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
+    institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = ifile.split('/')[6:]
     tc_odir = os.path.join(TC_DIR, institute, model, experiment, frequency, realm, version)
+
     if not os.path.exists(tc_odir):
         os.makedirs(tc_odir)
 
-    time_checks(file, tc_odir)
+    single_file_time_checks(ifile, tc_odir)
 
 
 def is_timeseries(filepath):
@@ -337,7 +223,7 @@ def esgf_ds_search(search_template, facet_check, project, variable, table, frequ
 def create_datafile_records(var, freq, table, expt, node, distrib, latest, project):
     """
 
-    Pre-requisits: Valid qcapp Dataset objcets
+    Pre-requisites: Valid qcapp Dataset objcets
 
     For each of the qcapp Datasets for each of the given criteria (variable, frequency, cmor_table, experiment) an
     ESGF search is performed for datafiles this information is extracted and is used to populate the DataFile
@@ -795,6 +681,8 @@ def is_latest_version(archive_path, variable, table, frequency, experiment, mode
                 return uptodate, uptodateNotes
 
 
+
+
 def check_cfout():
     """
 
@@ -876,13 +764,20 @@ def test(arguments):
     print "Input argument {} is {}".format('FREQ', arguments['FREQ'])
 
 
-def esgf_dataset_uptodate_logger(var, table, freq):
-    for expt in ALLEXPTS:
-        # json_all_latest_logger(var, freq, table, expt, node, "CMIP5")
-        up_to_date_dir = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/UP-TO-DATE"
-        fname = '_'.join([var, freq, table, expt]) + '.log'
-        with open(os.path.join(up_to_date_dir, fname), 'w+') as fwrite:
-            dataset_latest_check(var, freq, table, expt, node, "CMIP5", fwrite)
+    if arguments['--check_up_to_date'] or \
+       arguments['--run_cedacc'] or \
+       arguments['--parse_cedacc'] or \
+       arguments['--run_cfchecker'] or \
+       arguments['--parse_cfchecker'] or \
+       arguments['--run_single_file_timechecks'] :
+
+        print "Running tests:"
+        for k in arguments.keys():
+             if arguments[k]:
+                 print k
+
+    else:
+        print "Not running any tests all are false"
 
 
 def create_records(var, freq, table):
@@ -892,6 +787,124 @@ def create_records(var, freq, table):
         create_datafile_records(var, freq, table, expt, node, distrib, latest, "CMIP5")
 
 
+def dataset_latest_check(datasets, variable):
+    ceda_data_node = "esgf-data1.ceda.ac.uk"
+    node = "esgf-index1.ceda.ac.uk"
+    distrib = True
+    latest = True
+    version_qc = True
+    valid_version = True
+    replica = False
+
+    for ds in datasets:
+        id = ds.esgf_drs
+        print id
+        project, output, institute, model, experiment, frequency, realm, table, ensemble = id.split('.')
+        project = project.upper()
+        url = URL_LATEST_DS_TEMPLATE % vars()
+        print url
+
+
+    #     resp = requests.get(url, verify=False)
+    #     json = resp.json()
+    #     dss = json["response"]["docs"]
+    #
+    #     versions = {}
+    #     nodes = []
+    #
+    #     for d in dss:
+    #         ds_id = d["id"].split('|')[0]
+    #         dnode = d["id"].split('|')[1]
+    #         nodes.append(d["id"].split('|')[1])
+    #         versions[dnode] = d["id"].split('|')[0].split('.')[-1].strip('v')
+    #
+    #     # Write DS ID as first column of output file
+    #     fwrite.writelines("{} ::".format(ds_id))
+    #
+    #     if ceda_data_node not in versions.keys():
+    #         errmsg = "UTD.001 [ERROR] :: Dataset is missing from CEDA archive"
+    #         fwrite.writelines(" {} \n".format(errmsg))
+    #         version_qc = False
+    #
+    #     else:
+    #         # Test if Dataset exists in database
+    #         db_ds_id = '.'.join(ds_id.split('.')[:-1])
+    #         db_ds = Dataset.objects.filter(esgf_drs__startswith=db_ds_id, variable=variable)
+    #
+    #         if len(db_ds) == 0:
+    #             fwrite.writelines(" UTD.005 [ERROR] :: Dataset not in CP4CDS qc database \n")
+    #             version_qc = False
+    #         if len(db_ds) > 1:
+    #             fwrite.writelines(" UTD.008 [FATAL] :: Multiple dss in qc database {} \n".format(versions))
+    #             version_qc = False
+    #
+    #     if version_qc:
+    #         # Get database object
+    #         db_ds_first = db_ds.first()
+    #
+    #         # Get latest version
+    #         # Handles both v<YYYYMMDD> and v<N> formats
+    #         all_versions = []
+    #         for version in versions.values():
+    #             if len(version) == 8:
+    #                 all_versions.append(datetime.datetime(int(version[0:4]), int(version[4:6]), int(version[6:8])))
+    #             if len(version) == 1:
+    #                 all_versions.append(int(version))
+    #         try:
+    #             latest_version = max(all_versions)
+    #
+    #         except TypeError:
+    #             errmsg = "UTD.006 [FATAL] :: Cannot perform test, no known latest version " \
+    #                      "as types do not match {} \n".format(versions)
+    #             db_ds_first.up_to_date = False
+    #             db_ds_first.up_to_date_note = errmsg
+    #             fwrite.writelines(" {} \n".format(errmsg))
+    #             valid_version = False
+    #
+    #         if valid_version:
+    #             ceda_esgf_version_no = versions[ceda_data_node]
+    #             try:
+    #                 ceda_db_esgf_version_no = db_ds_first.version
+    #
+    #                 if ceda_db_esgf_version_no != ceda_esgf_version_no:
+    #                     errmsg = "UTD.003 [ERROR] :: Mismatch between CEDA database version {} and " \
+    #                              "ESGF version {}".format(ceda_db_esgf_version_no, ceda_esgf_version_no)
+    #                     db_ds_first.up_to_date = False
+    #                     db_ds_first.up_to_date_note = errmsg
+    #                     fwrite.writelines(" {} \n".format(errmsg))
+    #
+    #             except AttributeError:
+    #                 errmsg = "UTD.004 [ERROR] :: CEDA database version unspecified"
+    #                 db_ds_first.up_to_date = False
+    #                 db_ds_first.up_to_date_note = errmsg
+    #                 fwrite.writelines(" {} \n".format(errmsg))
+    #
+    #             if len(ceda_esgf_version_no) == 8:
+    #                 current_ceda_version = datetime.datetime(int(ceda_esgf_version_no[0:4]), int(ceda_esgf_version_no[4:6]),
+    #                                                          int(ceda_esgf_version_no[6:8]))
+    #             if len(ceda_esgf_version_no) == 1:
+    #                 current_ceda_version = ceda_esgf_version_no
+    #
+    #             if current_ceda_version < latest_version:
+    #                 errmsg = "UTD.002 [ERROR] :: CEDA version is out of date. CEDA version is {}, " \
+    #                          "LATEST version is {}".format(current_ceda_version, latest_version)
+    #                 db_ds_first.up_to_date = False
+    #                 db_ds_first.up_to_date_note = errmsg
+    #                 fwrite.writelines(" {} \n".format(errmsg))
+    #
+    #             if current_ceda_version == latest_version:
+    #                 errmsg = "UTD.000 [PASS] :: CEDA version is up to date {}".format(latest_version)
+    #                 db_ds_first.up_to_date = True
+    #                 db_ds_first.up_to_date_note = errmsg
+    #                 fwrite.writelines(" {} \n".format(errmsg))
+    #
+    #             if current_ceda_version > latest_version:
+    #                 errmsg = "UTD.007 [FATAL] :: CEDA version {} can not be greater than " \
+    #                          "latest version {} \n".format(current_ceda_version, latest_version)
+    #                 db_ds_first.up_to_date = False
+    #                 db_ds_first.up_to_date_note = errmsg
+    #                 fwrite.writelines(" {} \n".format(errmsg))
+
 
 if __name__ == '__main__':
 
@@ -900,25 +913,85 @@ if __name__ == '__main__':
     table = arguments['TABLE']
     freq = arguments['FREQ']
 
+
     if arguments['--test']: test(arguments)
 
     if arguments['--esgf-ds-logger']: esgf_dataset_uptodate_logger(var, table, freq)
 
     if arguments['--create']: create_records(var, freq, table)
 
-    # if arguments['--run_multifile_timechecks']:
+    if arguments['--check_up_to_date'] or arguments['--run_cedacc'] or arguments['--parse_cedacc'] or \
+       arguments['--run_cfchecker'] or arguments['--parse_cfchecker'] or arguments['--run_single_file_timechecks']:
 
-    for expt in ALLEXPTS:
+        for expt in ALLEXPTS:
 
-        for df in DataFile.objects.filter(dataset__variable=var,
-                                          dataset__cmor_table=table,
-                                          dataset__frequency=freq,
-                                          dataset__experiment=expt
-                                          ):
-            file = df.archive_path
-            if arguments['--check_up_to_date']: up_to_date_check(df, file, var, table, freq, expt)
-            if arguments['--run_cedacc']: run_ceda_cc(file)
-            if arguments['--parse_cedacc']: parse_ceda_cc(file)
-            if arguments['--run_cfchecker']: run_cf_checker(file)
-            if arguments['--parse_cfchecker']: parse_cf_checker(file)
-            if arguments['--run_single_file_timechecks']: file_time_checks(file)
+            for df in DataFile.objects.filter(dataset__variable=var,
+                                              dataset__cmor_table=table,
+                                              dataset__frequency=freq,
+                                              dataset__experiment=expt
+                                              ):
+                file = df.archive_path
+                if arguments['--check_up_to_date']: up_to_date_check(df, file, var, table, freq, expt)
+                if arguments['--run_cedacc']: run_ceda_cc(file)
+                if arguments['--parse_cedacc']: parse_ceda_cc(file)
+                if arguments['--run_cfchecker']: run_cf_checker(file)
+                if arguments['--parse_cfchecker']: parse_cf_checker(file)
+                if arguments['--run_single_file_timechecks']: file_time_checks(file)
+
+    if arguments['--run_multi_file_timechecks']:
+
+        for expt in ALLEXPTS:
+            dss = Dataset.objects.filter(variable=var, cmor_table=table, frequency=freq, experiment=expt)
+            for ds in dss:
+                if ds.datafile_set.count() > 1:
+                    df = ds.datafile_set.first()
+                    dir_of_files = os.path.dirname(df.archive_path)
+                    print dir_of_files
+                    files = os.listdir(dir_of_files)
+                    filelist = []
+                    for f in files:
+                        filelist.append(os.path.join(dir_of_files, f))
+
+                    multi_file_time_checks(filelist, TS_DIR)
+
+
+    if arguments['--check_dataset_up_to_date']:
+
+        for expt in ['rcp26']:
+        # for expt in ALLEXPTS:
+
+            datasets = Dataset.objects.filter(variable=var, cmor_table=table, frequency=freq, experiment=expt)
+            dataset_latest_check(datasets, var)
+
+
+        # up_to_date_dir = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/UP-TO-DATE"
+            # fname = '_'.join([var, freq, table, expt]) + '.log'
+            #
+            # with open(os.path.join(UPTODATE_DIR, fname), 'w+') as fwrite:
+            #     dataset_latest_check(var, freq, table, expt, node, "CMIP5", fwrite)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

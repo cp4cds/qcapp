@@ -21,8 +21,8 @@ from subprocess import call
 ####
 # Specify lotus output dir here
 ####
-command_line_args = "--esgf-ds-logger"
-lotus_out = 'file-latest-check'
+command_line_args = "--run_multi_file_timechecks"
+lotus_out = 'multifile-timechecks-2'
 files = ["ancil_files/cp4cds_data_requirements.txt",
          "ancil_files/magic_additional_data.txt"]
 

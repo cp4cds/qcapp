@@ -19,6 +19,8 @@ CEDACC_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CEDACC-OUTPUT/"
 CF_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CF-OUTPUT/"
 CF_FATAL_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CF-FATAL"
 TC_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/TIMECHECKS-OUTPUT/"
+TS_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/TIMESERIES-OUTPUT/"
+UPTODATE_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/UP-TO-DATE"
 AREATABLE = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/area-type-table.xml"
 STDNAMETABLE = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/cf-standard-name-table.xml"
 FILELIST = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/ancil_filescp4cds-files.txt"
@@ -34,8 +36,8 @@ project = "CMIP5"
 URL_DS_MODEL_FACETS = 'https://%(node)s/esg-search/' \
                       'search?type=Dataset&' \
                       'project=%(project)s&' \
-                      'variable=%(variable)s' \
-                      '&cmor_table=%(table)s&' \
+                      'variable=%(variable)s&' \
+                      'cmor_table=%(table)s&' \
                       'time_frequency=%(frequency)s&' \
                       'experiment=%(experiment)s&' \
                       'latest=%(latest)s&distrib=%(distrib)s&' \
@@ -90,3 +92,15 @@ URL_LATEST_TEMPLATE = 'https://%(latest_node)s/esg-search/' \
                       'latest=%(latest_latest)s&distrib=%(distrib_latest)s&replica=%(replica_latest)s&' \
                       'format=application%%2Fsolr%%2Bjson&limit=10000'
 
+URL_LATEST_DS_TEMPLATE = 'https://%(node)s/esg-search/' \
+                         'search?type=Dataset&' \
+                         'project=%(project)s&' \
+                         'institute=%(institute)s&' \
+                         'model=%(model)s&' \
+                         'experiment=%(experiment)s&' \
+                         'time_frequency=%(frequency)s&' \
+                         'realm=%(realm)s&' \
+                         'cmor_table=%(table)s&' \
+                         'ensemble=%(ensemble)s&' \
+                         '&distrib=%(distrib)s&' \
+                         'format=application%%2Fsolr%%2Bjson&limit=10000'
