@@ -793,9 +793,8 @@ def dataset_latest_check(datasets, variable):
     node = "esgf-index1.ceda.ac.uk"
     distrib = True
     latest = True
-    version_qc = True
-    valid_version = True
     replica = False
+    version_qc = False
 
     for ds in datasets:
 
@@ -819,13 +818,12 @@ def dataset_latest_check(datasets, variable):
 
         for d in dss:
             ds_id = d["id"].split('|')[0]
-            _fname = ds_id + ".log"
+            _fname = ds_id + ".dataset.log"
             logfile = os.path.join(logdir, _fname)
             dnode = d["id"].split('|')[1]
             nodes.append(d["id"].split('|')[1])
             versions[dnode] = d["id"].split('|')[0].split('.')[-1].strip('v')
 
-            # Write DS ID as first column of output file
             with open(logfile, 'wa+') as fwrite:
                 fwrite.writelines("Checking dataset is up to date :: {} \n".format(ds_id))
 
@@ -841,10 +839,10 @@ def dataset_latest_check(datasets, variable):
 
                 if len(db_ds) == 0:
                     with open(logfile, 'a') as fw: fw.writelines("UTD.005 [ERROR] :: Dataset not in CP4CDS qc database \n")
-                    version_qc = False
+
                 if len(db_ds) > 1:
                     with open(logfile, 'a') as fw: fw.writelines("UTD.008 [FATAL] :: Multiple dss in qc database {} \n".format(versions))
-                    version_qc = False
+
                 if len(db_ds) == 1:
                     ceda_version = versions['esgf-data1.ceda.ac.uk']
                     with open(logfile, 'a') as fw:
@@ -852,11 +850,7 @@ def dataset_latest_check(datasets, variable):
                     version_qc = True
 
             if version_qc:
-                # Get ESGF dataset object
-                db_ds_first = db_ds.first()
-
-                # Get latest version
-                # Handles both v<YYYYMMDD> and v<N> formats
+                # Get latest version/ Handles both v<YYYYMMDD> and v<N> formats
                 all_versions = []
                 for version in versions.values():
                     if len(version) == 8:
@@ -870,14 +864,16 @@ def dataset_latest_check(datasets, variable):
                 except TypeError:
                     errmsg = "UTD.006 [FATAL] :: Cannot perform version_qc, no known latest version " \
                              "as types do not match {} \n".format(versions)
-                    db_ds_first.up_to_date_note = errmsg
+                    ds.up_to_date_note = errmsg
                     with open(logfile, 'a') as fw: fw.writelines("{} \n".format(errmsg))
                     valid_latest_version = False
 
                 if valid_latest_version:
                     ceda_esgf_version_no = versions[ceda_data_node]
+
                     try:
-                        ceda_db_esgf_version_no = db_ds_first.version
+                        # Get ESGF dataset object
+                        ceda_db_esgf_version_no = db_ds.first().version
 
                         if ceda_db_esgf_version_no != ceda_esgf_version_no:
                             errmsg = "UTD.003 [ERROR] :: Mismatch between CEDA database version {} and " \
@@ -897,14 +893,21 @@ def dataset_latest_check(datasets, variable):
                         current_ceda_version = ceda_esgf_version_no
 
                     if current_ceda_version < latest_version:
+                        if isinstance(current_ceda_version, datetime.datetime):
+                            current_ceda_version = current_ceda_version.strftime("%Y%m%d")
+                        if isinstance(latest_version, datetime.datetime):
+                            latest_version = latest_version.strftime("%Y%m%d")
+
                         errmsg = "UTD.002 [ERROR] :: CEDA version is out of date. CEDA version is: {}, " \
                                  "LATEST version is: {}".format(current_ceda_version, latest_version)
                         ds.up_to_date_note = errmsg
                         with open(logfile, 'a') as fw: fw.writelines("{} \n".format(errmsg))
 
                     if current_ceda_version == latest_version:
-
-                        print "version is upto date: " + ds.esgf_drs
+                        if isinstance(current_ceda_version, datetime.datetime):
+                            current_ceda_version = current_ceda_version.strftime("%Y%m%d")
+                        if isinstance(latest_version, datetime.datetime):
+                            latest_version = latest_version.strftime("%Y%m%d")
 
                         errmsg = "UTD.000 [PASS] :: CEDA version is up to date at version: {}".format(latest_version)
                         ds.up_to_date = True
@@ -912,10 +915,160 @@ def dataset_latest_check(datasets, variable):
                         with open(logfile, 'a') as fw: fw.writelines("{} \n".format(errmsg))
 
                     if current_ceda_version > latest_version:
+                        if isinstance(current_ceda_version, datetime.datetime):
+                            current_ceda_version = current_ceda_version.strftime("%Y%m%d")
+                        if isinstance(latest_version, datetime.datetime):
+                            latest_version = latest_version.strftime("%Y%m%d")
+
                         errmsg = "UTD.007 [FATAL] :: CEDA version {} can not be greater than " \
                                  "latest version: {} \n".format(current_ceda_version, latest_version)
                         ds.up_to_date_note = errmsg
                         with open(logfile, 'a') as fw: fw.writelines("{} \n".format(errmsg))
+
+        test_all_datafiles_are_latest(ds, variable)
+
+def test_all_datafiles_are_latest(dataset, variable):
+    """
+    For a given dataset test all datafiles are latest
+
+    :return:
+    """
+    ceda_data_node = "esgf-data1.ceda.ac.uk"
+    node = "esgf-index1.ceda.ac.uk"
+    distrib = True
+    latest = True
+    replica = False
+    version_qc = False
+
+    id = dataset.esgf_drs
+    datafiles = dataset.datafile_set.all()
+    for df in datafiles:
+        # Set up_to_date to be False as default will be overwritten to true if found to be true
+        df.up_to_date = False
+        ncfile = df.ncfile
+        print ncfile
+        project, output, institute, model, experiment, frequency, realm, table, ensemble = id.split('.')
+        project = project.upper()
+        logdir = os.path.join(UPTODATE_DIR, var, freq, table, expt)
+        if not os.path.isdir(logdir):
+            os.makedirs(logdir)
+
+        url = URL_LATEST_DF_TEMPLATE % vars()
+        resp = requests.get(url, verify=False)
+        json = resp.json()
+        dfs = json["response"]["docs"]
+
+        versions = {}
+        nodes = []
+
+        for d in dfs:
+            df_id = d["id"].split('|')[0]
+            _fname = df_id + ".file.log"
+            logfile = os.path.join(logdir, _fname)
+            dnode = d["id"].split('|')[1]
+            nodes.append(d["id"].split('|')[1])
+            versions[dnode] = d["id"].split('|')[0].split('.')[-1].strip('v')
+
+            with open(logfile, 'wa+') as fwrite:
+                fwrite.writelines("Checking file is up to date :: {} \n".format(df_id))
+
+            if ceda_data_node not in versions.keys():
+                errmsg = "UTD.001 [ERROR] :: Datafile is missing from CEDA archive"
+                with open(logfile, 'a') as fw: fw.writelines(" {} \n".format(errmsg))
+
+            else:
+                # Test if datafile exists in database
+                db_df_id = d[title]
+                db_df = DataFile.objects.filter(ncfile=db_df_id)
+
+                if len(db_df) == 0:
+                    with open(logfile, 'a') as fw: fw.writelines("UTD.005 [ERROR] :: Datafile not in CP4CDS qc database \n")
+                    version_qc = False
+                if len(db_df) > 1:
+                    with open(logfile, 'a') as fw: fw.writelines("UTD.008 [FATAL] :: Multiple datafiles in qc database {} \n".format(versions))
+                    version_qc = False
+                if len(db_df) == 1:
+                    ceda_version = versions['esgf-data1.ceda.ac.uk']
+                    with open(logfile, 'a') as fw:
+                        fw.writelines("UTD.000 [OK] :: Dataset in CP4CDS database at version: {} \n".format(ceda_version))
+                    version_qc = True
+
+            if version_qc:
+                # Get latest version/ Handles both v<YYYYMMDD> and v<N> formats
+                all_versions = []
+                for version in versions.values():
+                    if len(version) == 8:
+                        all_versions.append(datetime.datetime(int(version[0:4]), int(version[4:6]), int(version[6:8])))
+                    if len(version) == 1:
+                        all_versions.append(int(version))
+                try:
+                    latest_version = max(all_versions)
+                    valid_latest_version = True
+
+                except TypeError:
+                    errmsg = "UTD.006 [FATAL] :: Cannot perform version_qc, no known latest version " \
+                             "as types do not match {} \n".format(versions)
+                    ds.up_to_date_note = errmsg
+                    with open(logfile, 'a') as fw: fw.writelines("{} \n".format(errmsg))
+                    valid_latest_version = False
+
+                if valid_latest_version:
+                    ceda_esgf_version_no = versions[ceda_data_node]
+
+                    try:
+                        # Get ESGF dataset object
+                        ceda_db_esgf_version_no = db_ds.first().version
+
+                        if ceda_db_esgf_version_no != ceda_esgf_version_no:
+                            errmsg = "UTD.003 [ERROR] :: Mismatch between CEDA database version {} and " \
+                                     "ESGF version {}".format(ceda_db_esgf_version_no, ceda_esgf_version_no)
+                            ds.up_to_date_note = errmsg
+                            with open(logfile, 'a') as fw: fw.writelines("{} \n".format(errmsg))
+
+                    except AttributeError:
+                        errmsg = "UTD.004 [ERROR] :: CEDA database version unspecified"
+                        ds.up_to_date_note = errmsg
+                        with open(logfile, 'a') as fw: fw.writelines("{} \n".format(errmsg))
+
+                    if len(ceda_esgf_version_no) == 8:
+                        current_ceda_version = datetime.datetime(int(ceda_esgf_version_no[0:4]), int(ceda_esgf_version_no[4:6]),
+                                                                 int(ceda_esgf_version_no[6:8]))
+                    if len(ceda_esgf_version_no) == 1:
+                        current_ceda_version = ceda_esgf_version_no
+
+                    if current_ceda_version < latest_version:
+                        if isinstance(current_ceda_version, datetime.datetime):
+                            current_ceda_version = current_ceda_version.strftime("%Y%m%d")
+                        if isinstance(latest_version, datetime.datetime):
+                            latest_version = latest_version.strftime("%Y%m%d")
+
+                        errmsg = "UTD.002 [ERROR] :: CEDA version is out of date. CEDA version is: {}, " \
+                                 "LATEST version is: {}".format(current_ceda_version, latest_version)
+                        ds.up_to_date_note = errmsg
+                        with open(logfile, 'a') as fw: fw.writelines("{} \n".format(errmsg))
+
+                    if current_ceda_version == latest_version:
+                        if isinstance(current_ceda_version, datetime.datetime):
+                            current_ceda_version = current_ceda_version.strftime("%Y%m%d")
+                        if isinstance(latest_version, datetime.datetime):
+                            latest_version = latest_version.strftime("%Y%m%d")
+
+                        errmsg = "UTD.000 [PASS] :: CEDA version is up to date at version: {}".format(latest_version)
+                        ds.up_to_date = True
+                        ds.up_to_date_note = errmsg
+                        with open(logfile, 'a') as fw: fw.writelines("{} \n".format(errmsg))
+
+                    if current_ceda_version > latest_version:
+                        if isinstance(current_ceda_version, datetime.datetime):
+                            current_ceda_version = current_ceda_version.strftime("%Y%m%d")
+                        if isinstance(latest_version, datetime.datetime):
+                            latest_version = latest_version.strftime("%Y%m%d")
+
+                        errmsg = "UTD.007 [FATAL] :: CEDA version {} can not be greater than " \
+                                 "latest version: {} \n".format(current_ceda_version, latest_version)
+                        ds.up_to_date_note = errmsg
+                        with open(logfile, 'a') as fw: fw.writelines("{} \n".format(errmsg))
+            asdfasda
 
 
 if __name__ == '__main__':

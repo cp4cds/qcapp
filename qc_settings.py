@@ -80,17 +80,20 @@ URL_FILE_INFO = 'https://%(node)s/esg-search/' \
                 'latest=%(latest)s&distrib=%(distrib)s&' \
                 'format=application%%2Fsolr%%2Bjson&limit=10000'
 
-URL_LATEST_TEMPLATE = 'https://%(latest_node)s/esg-search/' \
-                      'search?type=File&' \
-                      'project=%(latest_project)s&' \
-                      'model=%(model)s&' \
-                      'experiment=%(experiment)s&' \
-                      'time_frequency=%(frequency)s&' \
-                      'cmor_table=%(table)s&' \
-                      'ensemble=%(ensemble)s&' \
-                      'variable=%(variable)s&' \
-                      'latest=%(latest_latest)s&distrib=%(distrib_latest)s&replica=%(replica_latest)s&' \
-                      'format=application%%2Fsolr%%2Bjson&limit=10000'
+URL_LATEST_DF_TEMPLATE = 'https://%(node)s/esg-search/' \
+                         'search?type=File&' \
+                         'project=%(project)s&' \
+                         'institute=%(institute)s&' \
+                         'model=%(model)s&' \
+                         'experiment=%(experiment)s&' \
+                         'time_frequency=%(frequency)s&' \
+                         'realm=%(realm)s&' \
+                         'cmor_table=%(table)s&' \
+                         'ensemble=%(ensemble)s&' \
+                         'variable=%(variable)s&' \
+                         'title=%(ncfile)s&' \
+                         '&distrib=%(distrib)s&' \
+                         'format=application%%2Fsolr%%2Bjson&limit=10000'
 
 URL_LATEST_DS_TEMPLATE = 'https://%(node)s/esg-search/' \
                          'search?type=Dataset&' \
