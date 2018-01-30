@@ -4,7 +4,7 @@ Usage:
   qc_db_builder.py  [VAR] [TABLE] [FREQ]
                     [--create] [--run_cedacc] [--parse_cedacc] [--run_cfchecker] [--parse_cfchecker]
                     [--check_up_to_date] [--run_single_file_timechecks] [--run_multi_file_timechecks]
-                    [--test] [--esgf-ds-logger] [--check_dataset_up_to_date]
+                    [--test] [--esgf-ds-logger] [--check_dataset_up_to_date] [--check_datafile_up_to_date ]
 
 Arguments:
     VAR         A valid CMIP5 short variable name
@@ -24,8 +24,9 @@ Options:
     --run_single_file_timechecks        Run single file time-checks for all files in all experiments with the given input parameters.
     --run_multi_file_timechecks         Run multifile timeseries completeness checks
     --check_dataset_up_to_date          Checks whether versions are present and up to date from the dataset level
+    --check_datafile_up_to_date         Checks whether versions are present and up to date from the datafile level
 
-  This database builder utilises global variables and settings that are defined in qc_settings.py
+    This database builder utilises global variables and settings that are defined in qc_settings.py
 """
 import django
 django.setup()
@@ -793,12 +794,8 @@ def is_latest_dataset_cache(datasets, variable):
     distrib = True
     latest = True
     replica = False
-    version_qc = False
 
     for ds in datasets:
-
-        # Set up_to_date to be False as default will be overwritten to true if found to be true
-        ds.up_to_date = False
 
         id = ds.esgf_drs
         project, output, institute, model, experiment, frequency, realm, table, ensemble = id.split('.')
@@ -816,6 +813,40 @@ def is_latest_dataset_cache(datasets, variable):
         json = resp.json()
         with open(json_file, 'w') as fw:
             jsn.dump(json, fw)
+
+
+def is_latest_datafile_cache(datasets, variable):
+
+    ceda_data_node = "esgf-data1.ceda.ac.uk"
+
+    for ds in datasets:
+
+        id = ds.esgf_drs
+        project, output, institute, model, experiment, frequency, realm, table, ensemble = id.split('.')
+        project = project.upper()
+        institute = institute.upper()
+        logdir = os.path.join(DATAFILE_LATEST_DIR, experiment)
+        logfile = id + ".json"
+        json_file = os.path.join(logdir, logfile)
+
+        if not os.path.isdir(logdir):
+            os.makedirs(logdir)
+
+        dfs = ds.datafile_set.all()
+
+        for df in dfs:
+
+            ncfile = df.ncfile
+            url = URL_LATEST_DF_TEMPLATE.format(node="esgf-index1.ceda.ac.uk", project=project, institute=institute,
+                                                model=model, experiment=experiment, frequency=frequency, realm=realm,
+                                                table=table, ensemble=ensemble, variable=variable, ncfile=ncfile,
+                                                distrib=True, latest=True)
+
+            resp = requests.get(url, verify=False)
+            json = resp.json()
+            with open(json_file, 'w') as fw:
+                jsn.dump(json, fw)
+
 
 
 def dataset_latest_check(datasets, variable):
@@ -1157,4 +1188,12 @@ if __name__ == '__main__':
 
             datasets = Dataset.objects.filter(variable=var, cmor_table=table, frequency=freq, experiment=expt)
             is_latest_dataset_cache(datasets, var)
+            #dataset_latest_check(datasets, var)
+
+    if arguments['--check_datafile_up_to_date']:
+
+        for expt in ALLEXPTS:
+
+            datasets = Dataset.objects.filter(variable=var, cmor_table=table, frequency=freq, experiment=expt)
+            is_latest_datafile_cache(datasets, var)
             #dataset_latest_check(datasets, var)
