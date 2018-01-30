@@ -577,6 +577,110 @@ def generate_filelist(FILELIST):
             fw.writelines([df.archive_path, "\n"])
 
 
+def check_cfout():
+    """
+
+    Checks the CF output for erroneous *.cf-err.txt files
+    If a *.cf-err.txt file exists then the CF checker is re-run to ensure that the output is not erroneous.
+
+    TODO this needs to be integrated into the main CF-Checking routines
+
+    This does not run in parallel context only a debugging function
+
+    """
+    basedir = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CF-OUTPUT'
+    institutes = os.listdir(basedir)
+    for i in institutes:
+        expts = os.listdir(os.path.join(basedir, i))
+        for e in expts:
+            realms = os.listdir(os.path.join(basedir, i, e))
+            for r in realms:
+                for f in os.listdir(os.path.join(basedir, i, e, r)):
+                    if f.endswith('cf-err.txt'):
+                        if os.path.getsize(os.path.join(basedir, i, e, r, f)) != 0:
+                            print os.path.join(basedir, i, e, r, f)
+                            err_file = os.path.join(basedir, i, e, r, f)
+                            log_file = os.path.join(basedir, i, e, r, f.replace("-err", "-log"))
+                            if os.path.getsize(log_file) != 0:
+                                with open(log_file, 'r') as reader:
+                                    data = reader.readlines()
+                                    datafile = data[1].strip('\n').strip('CHECKING NetCDF FILE: ')
+                                    print datafile
+                                    run_cf_checker(datafile)
+                            else:
+                                with open('fatal_no_cf_checks.log', 'a') as elog:
+                                    elog.writelines([err_file, '\n'])
+
+
+def convert_archivepath_to_gwspath(arch_path):
+
+    institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = arch_path.split('/')[6:]
+    alpha_base = "/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1"
+    gws_path = os.path.join(alpha_base, institute, model, experiment, frequency, realm, table, ensemble, variable,
+                            'latest', ncfile)
+    return gws_path
+
+
+def clear_cedacc_ouptut():
+    """
+    Tidy up any ceda-cc output files
+    Move ceda-cc output files to a log_dir
+
+    :return:
+    """
+
+    # Ensure log_dir exists
+    logdir = os.path.join(QCAPP_PATH, 'log_dir')
+    if not os.path.isdir(logdir):
+        os.makedirs(logdir)
+
+    # List of ceda-cc output files
+    cedacc_ofiles = ["cccc_atMapLog.txt",
+                     "amapDraft.txt"
+                     "Rec.json",
+                     "Rec.txt"]
+
+    # If CEDA-CC output exists put this into a log_dir
+    for f in cedacc_ofiles:
+        filepath = os.path.join(QCAPP_PATH, f)
+        if os.path.isfile(filepath):
+            mv_cmd = ['mv', filepath, logdir]
+            res = call(mv_cmd)
+
+
+def test(arguments):
+    var = arguments['VAR']
+    table = arguments['TABLE']
+    freq = arguments['FREQ']
+
+    print "Input argument {} is {}".format('VAR', arguments['VAR'])
+    print "Input argument {} is {}".format('TABLE', arguments['TABLE'])
+    print "Input argument {} is {}".format('FREQ', arguments['FREQ'])
+
+
+    if arguments['--check_up_to_date'] or \
+       arguments['--run_cedacc'] or \
+       arguments['--parse_cedacc'] or \
+       arguments['--run_cfchecker'] or \
+       arguments['--parse_cfchecker'] or \
+       arguments['--run_single_file_timechecks'] :
+
+        print "Running tests:"
+        for k in arguments.keys():
+             if arguments[k]:
+                 print k
+
+    else:
+        print "Not running any tests all are false"
+
+
+def create_records(var, freq, table):
+    for expt in ALLEXPTS:
+        dspec = create_dataspec(requester, var, freq, table)
+        create_dataset_records(var, freq, table, expt, node, distrib, latest, dspec, "CMIP5")
+        create_datafile_records(var, freq, table, expt, node, distrib, latest, "CMIP5")
+
+
 def up_to_date_check(df, file, variable, table, frequency, experiment):
     """
 
@@ -682,109 +786,36 @@ def is_latest_version(archive_path, variable, table, frequency, experiment, mode
 
 
 
+def is_latest_dataset_cache(datasets, variable):
 
-def check_cfout():
-    """
+    ceda_data_node = "esgf-data1.ceda.ac.uk"
+    node = "esgf-index1.ceda.ac.uk"
+    distrib = True
+    latest = True
+    replica = False
+    version_qc = False
 
-    Checks the CF output for erroneous *.cf-err.txt files
-    If a *.cf-err.txt file exists then the CF checker is re-run to ensure that the output is not erroneous.
+    for ds in datasets:
 
-    TODO this needs to be integrated into the main CF-Checking routines
+        # Set up_to_date to be False as default will be overwritten to true if found to be true
+        ds.up_to_date = False
 
-    This does not run in parallel context only a debugging function
+        id = ds.esgf_drs
+        project, output, institute, model, experiment, frequency, realm, table, ensemble = id.split('.')
+        project = project.upper()
+        institute = institute.upper()
+        logdir = DATASET_LATEST_DIR
+        logfile = id + ".json"
+        json_file = os.path.join(logdir, logfile)
+        if not os.path.isdir(logdir):
+            os.makedirs(logdir)
 
-    """
-    basedir = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CF-OUTPUT'
-    institutes = os.listdir(basedir)
-    for i in institutes:
-        expts = os.listdir(os.path.join(basedir, i))
-        for e in expts:
-            realms = os.listdir(os.path.join(basedir, i, e))
-            for r in realms:
-                for f in os.listdir(os.path.join(basedir, i, e, r)):
-                    if f.endswith('cf-err.txt'):
-                        if os.path.getsize(os.path.join(basedir, i, e, r, f)) != 0:
-                            print os.path.join(basedir, i, e, r, f)
-                            err_file = os.path.join(basedir, i, e, r, f)
-                            log_file = os.path.join(basedir, i, e, r, f.replace("-err", "-log"))
-                            if os.path.getsize(log_file) != 0:
-                                with open(log_file, 'r') as reader:
-                                    data = reader.readlines()
-                                    datafile = data[1].strip('\n').strip('CHECKING NetCDF FILE: ')
-                                    print datafile
-                                    run_cf_checker(datafile)
-                            else:
-                                with open('fatal_no_cf_checks.log', 'a') as elog:
-                                    elog.writelines([err_file, '\n'])
-
-
-def convert_archivepath_to_gwspath(arch_path):
-
-    institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = arch_path.split('/')[6:]
-    alpha_base = "/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1"
-    gws_path = os.path.join(alpha_base, institute, model, experiment, frequency, realm, table, ensemble, variable,
-                            'latest', ncfile)
-    return gws_path
-
-
-def clear_cedacc_ouptut():
-    """
-    Tidy up any ceda-cc output files
-    Move ceda-cc output files to a log_dir
-
-    :return:
-    """
-
-    # Ensure log_dir exists
-    logdir = os.path.join(QCAPP_PATH, 'log_dir')
-    if not os.path.isdir(logdir):
-        os.makedirs(logdir)
-
-    # List of ceda-cc output files
-    cedacc_ofiles = ["cccc_atMapLog.txt",
-                     "amapDraft.txt"
-                     "Rec.json",
-                     "Rec.txt"]
-
-    # If CEDA-CC output exists put this into a log_dir
-    for f in cedacc_ofiles:
-        filepath = os.path.join(QCAPP_PATH, f)
-        if os.path.isfile(filepath):
-            mv_cmd = ['mv', filepath, logdir]
-            res = call(mv_cmd)
-
-
-def test(arguments):
-    var = arguments['VAR']
-    table = arguments['TABLE']
-    freq = arguments['FREQ']
-
-    print "Input argument {} is {}".format('VAR', arguments['VAR'])
-    print "Input argument {} is {}".format('TABLE', arguments['TABLE'])
-    print "Input argument {} is {}".format('FREQ', arguments['FREQ'])
-
-
-    if arguments['--check_up_to_date'] or \
-       arguments['--run_cedacc'] or \
-       arguments['--parse_cedacc'] or \
-       arguments['--run_cfchecker'] or \
-       arguments['--parse_cfchecker'] or \
-       arguments['--run_single_file_timechecks'] :
-
-        print "Running tests:"
-        for k in arguments.keys():
-             if arguments[k]:
-                 print k
-
-    else:
-        print "Not running any tests all are false"
-
-
-def create_records(var, freq, table):
-    for expt in ALLEXPTS:
-        dspec = create_dataspec(requester, var, freq, table)
-        create_dataset_records(var, freq, table, expt, node, distrib, latest, dspec, "CMIP5")
-        create_datafile_records(var, freq, table, expt, node, distrib, latest, "CMIP5")
+        url = URL_LATEST_DS_TEMPLATE % vars()
+        print url
+        resp = requests.get(url, verify=False)
+        json = resp.json()
+        with open(json_file, 'w') as fw:
+            jsn.dump(json, fw)
 
 
 def dataset_latest_check(datasets, variable):
@@ -1122,41 +1153,8 @@ if __name__ == '__main__':
 
     if arguments['--check_dataset_up_to_date']:
 
-        for expt in ['rcp26']:
-        # for expt in ALLEXPTS:
+        for expt in ALLEXPTS:
 
             datasets = Dataset.objects.filter(variable=var, cmor_table=table, frequency=freq, experiment=expt)
-            dataset_latest_check(datasets, var)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+            is_latest_dataset_cache(datasets, var)
+            #dataset_latest_check(datasets, var)

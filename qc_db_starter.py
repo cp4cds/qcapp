@@ -21,8 +21,8 @@ from subprocess import call
 ####
 # Specify lotus output dir here
 ####
-command_line_args = "--run_multi_file_timechecks"
-lotus_out = 'multifile-timechecks-2'
+command_line_args = "--check_dataset_up_to_date"
+lotus_out = 'latest_dataset_cache'
 files = ["ancil_files/cp4cds_data_requirements.txt",
          "ancil_files/magic_additional_data.txt"]
 
