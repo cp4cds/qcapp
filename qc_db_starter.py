@@ -21,8 +21,8 @@ from subprocess import call
 ####
 # Specify lotus output dir here
 ####
-command_line_args = "--check_datafile_up_to_date"
-lotus_out = 'latest_datafile_cache'
+command_line_args = "--check_data_is_latest --generate_latest_cache"
+lotus_out = 'latest_data_cache'
 files = ["ancil_files/cp4cds_data_requirements.txt",
          "ancil_files/magic_additional_data.txt"]
 
