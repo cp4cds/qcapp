@@ -59,6 +59,7 @@ requests.packages.urllib3.disable_warnings()
 
 
 
+
 def file_time_checks(ifile):
 
 
@@ -787,6 +788,7 @@ def is_latest_version(archive_path, variable, table, frequency, experiment, mode
 
 
 
+
 def is_latest_dataset_cache(datasets, variable):
 
     ceda_data_node = "esgf-data1.ceda.ac.uk"
@@ -836,16 +838,55 @@ def is_latest_datafile_cache(datasets, variable):
 
         for df in dfs:
 
-            ncfile = df.ncfile
-            url = URL_LATEST_DF_TEMPLATE.format(node="esgf-index1.ceda.ac.uk", project=project, institute=institute,
-                                                model=model, experiment=experiment, frequency=frequency, realm=realm,
-                                                table=table, ensemble=ensemble, variable=variable, ncfile=ncfile,
-                                                distrib=True, latest=True)
+            f = EsgfDict([
+                            ("node", "esgf-index1.ceda.ac.uk"),
+                            ("project", project),
+                            ("institute", institute),
+                            ("model", model),
+                            ("experiment", experiment),
+                            ("frequency", frequency),
+                            ("realm", realm),
+                            ("table", table),
+                            ("ensemble", ensemble),
+                            ("variable", variable),
+                            ("ncfile", df.ncfile),
+                            ("distrib", True),
+                            ("latest", True),
+                        ])
 
-            resp = requests.get(url, verify=False)
-            json = resp.json()
-            with open(json_file, 'w') as fw:
-                jsn.dump(json, fw)
+            url = f.format_is_latest_url()
+            f.esgf_query(url, json_file)
+            STOPPING
+
+class EsgfDict(dict):
+
+    def _format_gen_url(self, template, **kwargs):
+        return template.format(**kwargs)
+
+
+    def esgf_query(self, url, logfile):
+        resp = requests.get(url, verify=False)
+        json = resp.json()
+        with open(logfile, 'w') as fw:
+            jsn.dump(json, fw)
+
+    def format_is_latest_url(self):
+        template="https://{node}/esg-search/search?type=File&project={project}&institute={institute}&" \
+                 "time_frequency={frequency}&realm={realm}&title={ncfile}&distrib={distrib}&latest={latest}" \
+                 "&format=application%2Fsolr%2Bjson&limit=10000"
+
+        return self._format_gen_url(template,
+                                    node=self['node'],
+                                    project=self['project'],
+                                    institute=self['institute'],
+                                    frequency=self['frequency'],
+                                    realm=self['realm'],
+                                    ncfile=self['ncfile'],
+                                    distrib=self['distrib'],
+                                    latest=self['latest'],
+                                    )
+
+
 
 
 
@@ -989,6 +1030,7 @@ def dataset_latest_check(datasets, variable):
 
         test_all_datafiles_are_latest(ds, variable)
 
+
 def test_all_datafiles_are_latest(dataset, variable):
     """
     For a given dataset test all datafiles are latest
@@ -1131,6 +1173,9 @@ def test_all_datafiles_are_latest(dataset, variable):
                         ds.up_to_date_note = errmsg
                         with open(logfile, 'a') as fw: fw.writelines("{} \n".format(errmsg))
             asdfasda
+
+
+
 
 
 if __name__ == '__main__':
