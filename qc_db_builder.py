@@ -793,7 +793,7 @@ def is_latest_version(archive_path, variable, table, frequency, experiment, mode
 def is_latest_dataset_cache(datasets, variable, esgf_dict):
 
     for ds in datasets:
-        esgf_dict, json_file = esgf_dict._generate_local_logdir(DATASET_LATEST_DIR, ds, esgf_dict, subdir=None, rw='w')
+        esgf_dict, json_file = esgf_dict._generate_local_logdir(DATASET_LATEST_CACHE, ds, esgf_dict, subdir=None, rw='w')
         url = esgf_dict.format_is_latest_dataset_url()
         esgf_dict.esgf_query(url, json_file)
 
@@ -801,7 +801,7 @@ def is_latest_dataset_cache(datasets, variable, esgf_dict):
 def is_latest_datafile_cache(datasets, variable, esgf_dict):
 
     for ds in datasets:
-        esgf_dict, json_file = esgf_dict._generate_local_logdir(DATAFILE_LATEST_DIR, ds, esgf_dict, subdir="exper", rw='w')
+        esgf_dict, json_file = esgf_dict._generate_local_logdir(DATAFILE_LATEST_CACHE, ds, esgf_dict, subdir="exper", rw='w')
         dfs = ds.datafile_set.all()
 
         for df in dfs:
@@ -840,6 +840,8 @@ class EsgfDict(dict):
         json = resp.json()
         with open(logfile, 'w') as fw:
             jsn.dump(json, fw)
+
+
 
     def format_is_latest_datafile_url(self):
         template="https://{node}/esg-search/search?type=File&project={project}&institute={institute}&" \
@@ -880,6 +882,17 @@ class EsgfDict(dict):
                                     )
 
 
+def get_all_versions(dfs, versions, logfile):
+
+    for df in dfs:
+        dataset_id = df["id"].split('|')[0]
+        with open(logfile, 'w') as fw:
+            fw.writelines("Checking dataset is up to date :: {} \n".format(dataset_id))
+
+        data_node = df["id"].split('|')[1]
+        versions[data_node] = df["id"].split('|')[0].split('.')[-1].strip('v')
+
+    return versions
 
 def dataset_latest_check(datasets, variable, esgf_dict):
 
@@ -892,25 +905,22 @@ def dataset_latest_check(datasets, variable, esgf_dict):
         ds.up_to_date = False
 
         # Open and read cached JSON file
-        esgf_dict, json_file = esgf_dict._generate_local_logdir(DATASET_LATEST_DIR, ds, esgf_dict, subdir=None, rw='r')
+        esgf_dict, json_file = esgf_dict._generate_local_logdir(DATASET_LATEST_CACHE, ds, esgf_dict, subdir=None, rw='r')
         json_data = open(json_file).read()
         _data = jsn.loads(json_data)
         dss = _data["response"]["docs"]
 
+
+        logfile = os.path.join(DATASET_LATEST_DIR, os.path.basename(json_file).replace(".json", ".dataset.log"))
+        print json_file
+        print logfile
+        asdfasdasdfasdf
+
+        asdfsadf
         # versions is a dictionary where the key is the datanode and value is the published version
         versions = {}
-    
-        for d in dss:
+        versions = esgf_dict.get_all_versions(dfs, versions, logfile)
 
-            ds_id = d["id"].split('|')[0]
-            _fname = ds_id + ".dataset.log"
-            logfile = os.path.join(logdir, _fname)
-            with open(logfile, 'w') as fwrite:
-                fwrite.writelines("Checking dataset is up to date :: {} \n".format(ds_id))
-
-            dnode = d["id"].split('|')[1]
-            versions[dnode] = d["id"].split('|')[0].split('.')[-1].strip('v')
-            
         if ceda_data_node not in versions.keys():
             errmsg = "LATEST.001 [ERROR] :: Dataset is missing from CEDA archive"
             with open(logfile, 'a+') as fw: fw.writelines(" {} \n".format(errmsg))
@@ -1018,34 +1028,29 @@ def test_all_datafiles_are_latest(dataset, variable):
     :return:
     """
     ceda_data_node = "esgf-data1.ceda.ac.uk"
-    node = "esgf-index1.ceda.ac.uk"
-    distrib = True
-    latest = True
-    replica = False
     version_qc = False
 
-    id = dataset.esgf_drs
-    datafiles = dataset.datafile_set.all()
-    for df in datafiles:
+
+    for df in dataset.datafile_set.all():
+
         # Set up_to_date to be False as default will be overwritten to true if found to be true
         df.up_to_date = False
-        ncfile = df.ncfile
-        print ncfile
-        project, output, institute, model, experiment, frequency, realm, table, ensemble = id.split('.')
-        project = project.upper()
-        logdir = os.path.join(UPTODATE_DIR, var, freq, table, expt)
-        if not os.path.isdir(logdir):
-            os.makedirs(logdir)
 
-        url = URL_LATEST_DF_TEMPLATE % vars()
-        resp = requests.get(url, verify=False)
-        json = resp.json()
-        dfs = json["response"]["docs"]
+        esgf_dict["ncfile"] = df.ncfile
+        esgf_dict, json_file = esgf_dict._generate_local_logdir(DATASET_LATEST_DIR, ds, esgf_dict, subdir='exper', rw='r')
+        json_data = open(json_file).read()
+        _data = jsn.loads(json_data)
+        dfs = _data["response"]["docs"]
 
         versions = {}
-        nodes = []
+
+        versions = esgf_dict.get_all_versions(dfs, versions)
+
 
         for d in dfs:
+
+            versions = esgf_dict.get_all_versions(dfs)
+
             df_id = d["id"].split('|')[0]
             _fname = df_id + ".file.log"
             logfile = os.path.join(logdir, _fname)

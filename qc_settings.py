@@ -20,8 +20,10 @@ CF_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CF-OUTPUT/"
 CF_FATAL_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CF-FATAL"
 TC_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/TIMECHECKS-OUTPUT/"
 TS_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/TIMESERIES-OUTPUT/"
-DATASET_LATEST_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/LATEST_DATASET"
-DATAFILE_LATEST_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/LATEST_DATAFILE"
+DATASET_LATEST_CACHE = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/LATEST_DATASET_CACHE"
+DATAFILE_LATEST_CACHE = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/LATEST_DATAFILE_CACHE"
+DATASET_LATEST_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/LATEST_DATASET_LOGS"
+DATAFILE_LATEST_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/LATEST_DATAFILE_LOGS"
 AREATABLE = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/area-type-table.xml"
 STDNAMETABLE = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/cf-standard-name-table.xml"
 FILELIST = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/ancil_filescp4cds-files.txt"
@@ -81,35 +83,6 @@ URL_FILE_INFO = 'https://%(node)s/esg-search/' \
                 'latest=%(latest)s&distrib=%(distrib)s&' \
                 'format=application%%2Fsolr%%2Bjson&limit=10000'
 
-# URL_LATEST_DF_TEMPLATE = 'https://%(node)s/esg-search/' \
-#                          'search?type=File&' \
-#                          'project=%(project)s&' \
-#                          'institute=%(institute)s&' \
-#                          'model=%(model)s&' \
-#                          'experiment=%(experiment)s&' \
-#                          'time_frequency=%(frequency)s&' \
-#                          'realm=%(realm)s&' \
-#                          'cmor_table=%(table)s&' \
-#                          'ensemble=%(ensemble)s&' \
-#                          'variable=%(variable)s&' \
-#                          'title=%(ncfile)s&' \
-#                          '&distrib=%(distrib)s&' \
-#                          'format=application%%2Fsolr%%2Bjson&limit=10000'
-
-URL_LATEST_DF_TEMPLATE = 'https://{node}/esg-search/' \
-                         'search?type=File&' \
-                         'project={project}&' \
-                         'institute={institute}&' \
-                         'model={model}&' \
-                         'experiment={experiment}&' \
-                         'time_frequency={frequency}&' \
-                         'realm={realm}&' \
-                         'cmor_table={table}&' \
-                         'ensemble={ensemble}&' \
-                         'variable={variable}&' \
-                         'title={ncfile}&' \
-                         '&distrib={distrib}&' \
-                         'format=application%2Fsolr%2Bjson&limit=10000'
 
 
 URL_LATEST_DS_TEMPLATE = 'https://%(node)s/esg-search/' \
