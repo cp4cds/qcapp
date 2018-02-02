@@ -58,6 +58,76 @@ from time_checks.run_multifile_timechecks import main as multi_file_time_checks
 requests.packages.urllib3.disable_warnings()
 
 
+class EsgfDict(dict):
+
+    def _format_gen_url(self, template, **kwargs):
+        return template.format(**kwargs)
+
+    def _generate_local_logdir(self, basedir, ds, edict, subdir=None, rw='r'):
+
+        edict["institute"] = ds.institute
+        edict["model"] = ds.model
+        edict["realm"] = ds.realm
+        edict["ensemble"] = ds.ensemble
+
+        if subdir == None: logdir = basedir
+        if subdir == "exper": logdir = os.path.join(basedir, edict["experiment"])
+
+        logfile = ds.esgf_drs + ".json"
+        json_file = os.path.join(logdir, logfile)
+
+        if rw == 'w':
+            if not os.path.isdir(logdir):
+                os.makedirs(logdir)
+
+        return esgf_dict, json_file
+
+
+    def esgf_query(self, url, logfile):
+        resp = requests.get(url, verify=False)
+        json = resp.json()
+        with open(logfile, 'w') as fw:
+            jsn.dump(json, fw)
+
+
+
+    def format_is_latest_datafile_url(self):
+        template="https://{node}/esg-search/search?type=File&project={project}&institute={institute}&" \
+                 "time_frequency={frequency}&realm={realm}&title={ncfile}&distrib={distrib}&latest={latest}" \
+                 "&format=application%2Fsolr%2Bjson&limit=10000"
+
+        return self._format_gen_url(template,
+                                    node=self['node'],
+                                    project=self['project'],
+                                    institute=self['institute'],
+                                    frequency=self['frequency'],
+                                    realm=self['realm'],
+                                    ncfile=self['ncfile'],
+                                    distrib=self['distrib'],
+                                    latest=self['latest'],
+                                    )
+
+
+    def format_is_latest_dataset_url(self):
+
+        template="https://{node}/esg-search/search?type=Dataset&project={project}&institute={institute}&model={model}&" \
+                 "experiment={experiment}&time_frequency={frequency}&realm={realm}&cmor_table={table}&ensemble={ensemble}&" \
+                 "distrib={distrib}&latest={latest}" \
+                 "&format=application%2Fsolr%2Bjson&limit=10000"
+
+        return self._format_gen_url(template,
+                                    node=self['node'],
+                                    project=self['project'],
+                                    institute=self['institute'],
+                                    model=self['model'],
+                                    experiment=self['experiment'],
+                                    frequency=self['frequency'],
+                                    realm=self['realm'],
+                                    table=self['table'],
+                                    ensemble=self['ensemble'],
+                                    distrib=self['distrib'],
+                                    latest=self['latest'],
+                                    )
 
 
 def file_time_checks(ifile):
@@ -154,46 +224,6 @@ def get_start_end_times(frequency, fname):
         end_time = datetime.date(1999, 12, 31)
 
     return start_time, end_time
-
-
-def json_all_latest_logger(variable, frequency, table, experiment, node, project):
-
-    distrib = True
-    latest = True
-    # Get a dictionary of models that match a given search criteria
-    models, json = esgf_ds_search(URL_DS_MODEL_FACETS, 'model', project, variable, table, frequency,
-                                  experiment, '', node, distrib, latest)
-
-    for model in models.keys():
-
-        # Get a dictionary of ensemble members that match a given search criteria
-        ensembles, json = esgf_ds_search(URL_DS_ENSEMBLE_FACETS, 'ensemble', project, variable, table, frequency,
-                                         experiment, model, node, distrib, latest)
-
-        json_dir = os.path.join(JSONDIR, model, experiment, table)
-        if not os.path.exists(json_dir):
-            os.makedirs(json_dir)
-
-        for ensemble in ensembles:
-
-            url = URL_FILE_INFO % vars()
-            resp = requests.get(url, verify=False)
-            json = resp.json()
-            datafiles = json["response"]["docs"]
-
-            # for df in range(len(datafiles)):
-            #
-            #     ds_id = datafiles[df]["id"].split('|')[0]
-            #     node = datafiles[df]["id"].split('|')[1]
-            #     node = node.replace('.', '-')
-            #     ds_id = '_'.join(ds_id.split('.')[3:-1])
-            # filename = ds_id + '_' + node + '.json'
-            filename = '_'.join([variable, model, experiment, table, frequency, ensemble]) + ".json"
-            json_file = os.path.join(json_dir, filename)
-
-            with open(json_file, 'w') as fw:
-                jsn.dump(datafiles, fw)
-
 
 
 def esgf_ds_search(search_template, facet_check, project, variable, table, frequency, experiment, model, node, distrib,
@@ -813,77 +843,6 @@ def is_latest_datafile_cache(datasets, variable, esgf_dict):
             esgf_dict.esgf_query(url, json_file)
 
 
-class EsgfDict(dict):
-
-    def _format_gen_url(self, template, **kwargs):
-        return template.format(**kwargs)
-
-    def _generate_local_logdir(self, basedir, ds, edict, subdir=None, rw='r'):
-
-        edict["institute"] = ds.institute
-        edict["model"] = ds.model
-        edict["realm"] = ds.realm
-        edict["ensemble"] = ds.ensemble
-
-        if subdir == None: logdir = basedir
-        if subdir == "exper": logdir = os.path.join(basedir, edict["experiment"])
-
-        logfile = ds.esgf_drs + ".json"
-        json_file = os.path.join(logdir, logfile)
-
-        if rw == 'w':
-            if not os.path.isdir(logdir):
-                os.makedirs(logdir)
-
-        return esgf_dict, json_file
-
-
-    def esgf_query(self, url, logfile):
-        resp = requests.get(url, verify=False)
-        json = resp.json()
-        with open(logfile, 'w') as fw:
-            jsn.dump(json, fw)
-
-
-
-    def format_is_latest_datafile_url(self):
-        template="https://{node}/esg-search/search?type=File&project={project}&institute={institute}&" \
-                 "time_frequency={frequency}&realm={realm}&title={ncfile}&distrib={distrib}&latest={latest}" \
-                 "&format=application%2Fsolr%2Bjson&limit=10000"
-
-        return self._format_gen_url(template,
-                                    node=self['node'],
-                                    project=self['project'],
-                                    institute=self['institute'],
-                                    frequency=self['frequency'],
-                                    realm=self['realm'],
-                                    ncfile=self['ncfile'],
-                                    distrib=self['distrib'],
-                                    latest=self['latest'],
-                                    )
-
-
-    def format_is_latest_dataset_url(self):
-
-        template="https://{node}/esg-search/search?type=Dataset&project={project}&institute={institute}&model={model}&" \
-                 "experiment={experiment}&time_frequency={frequency}&realm={realm}&cmor_table={table}&ensemble={ensemble}&" \
-                 "distrib={distrib}&latest={latest}" \
-                 "&format=application%2Fsolr%2Bjson&limit=10000"
-
-        return self._format_gen_url(template,
-                                    node=self['node'],
-                                    project=self['project'],
-                                    institute=self['institute'],
-                                    model=self['model'],
-                                    experiment=self['experiment'],
-                                    frequency=self['frequency'],
-                                    realm=self['realm'],
-                                    table=self['table'],
-                                    ensemble=self['ensemble'],
-                                    distrib=self['distrib'],
-                                    latest=self['latest'],
-                                    )
-
 
 def get_all_versions(json_resp, versions, logfile, type):
 
@@ -894,11 +853,32 @@ def get_all_versions(json_resp, versions, logfile, type):
 
         data_node = d["id"].split('|')[1]
 
-        if type == 
-
         versions[data_node] = d["id"].split('|')[0].split('.')[-1].strip('v')
 
     return versions
+
+
+def get_all_checksums(json_resp, cksums, logfile, type):
+
+    for d in json_resp:
+        dataset_id = d["id"].split('|')[0]
+        with open(logfile, 'w') as fw:
+            fw.writelines("Checking {} is up to date :: {} \n".format(type, dataset_id))
+
+        data_node = d["id"].split('|')[1]
+        version = d["dataset_id"].split('|')[0].split('.')[-1].strip('v')
+        try:
+            cksum = d["checksum"][0].strip()
+        except KeyError:
+            cksum = d["checksum"]
+        cksum_type = d["checksum_type"][0].strip()
+        replica = d["replica"]
+
+        cksums[data_node] = {'replica': replica, 'version': version, 'cksum_type': cksum_type, 'cksum': cksum}
+
+    return cksums
+
+
 
 
 def convert_version(iversion):
@@ -912,8 +892,9 @@ def convert_version(iversion):
 
 def get_latest_version(db_obj, versions, logfile):
     # Get latest version/ Handles both v<YYYYMMDD> and v<N> formats
+
     dt_versions = []
-    for version in versions.values():
+    for version in versions:
         dt_versions.append(convert_version(version))
 
     try:
@@ -930,6 +911,61 @@ def get_latest_version(db_obj, versions, logfile):
         valid_latest_version = False
 
     return valid_latest_version, latest_version
+
+
+def _def_latest_checksum_dict(node, version, cksum_type, cksum):
+    cksum_dict = {}
+    cksum_dict['node'] = node
+    cksum_dict['version'] = version
+    cksum_dict['cksum_type'] = cksum_type
+    cksum_dict['cksum'] = cksum
+
+    return cksum_dict
+
+def get_latest_checksum(db_obj, cksums, logfile):
+    """
+    cksums[data_node] = {'replica': replica, 'version': version, 'cksum_type': cksum_type, 'cksum': cksum}
+
+    :param db_obj:
+    :param cksums:
+    :param logfile:
+    :return:
+    """
+
+
+    latest_checksum = {}
+    versions = []
+
+    for key, values in cksums.items():
+        if values["replica"] == False: # i.e. master record
+            latest_checksum = _def_latest_checksum_dict(key, values['version'], values['cksum_type'], values['cksum'])
+            valid_latest_checksum = True
+            return valid_latest_checksum, latest_checksum
+
+        versions.append(values['version'])
+
+    valid_latest_checksum, latest_cksum = get_latest_version(db_obj, versions, logfile)
+    if isinstance(latest_cksum, datetime.datetime): latest_cksum = latest_cksum.strftime('%Y%m%d')
+
+    if valid_latest_checksum:
+        for key, values in cksums.items():
+            if values['version'] == latest_cksum and values['cksum_type']=='SHA256':
+               latest_checksum = _def_latest_checksum_dict(key, values['version'], values['cksum_type'], values['cksum'])
+               return valid_latest_checksum, latest_checksum
+        for key, values in cksums.items():
+            if values['version'] == latest_cksum:
+               latest_checksum = _def_latest_checksum_dict(key, values['version'], values['cksum_type'], values['cksum'])
+               return valid_latest_checksum, latest_checksum
+    else:
+        errmsg = "LATEST.009 [FATAL] :: Cannot determine latest checksum in get_latest_checksum"
+        db_obj.up_to_date_note = errmsg
+        with open(logfile, 'a') as fw:
+            fw.writelines("{} \n".format(errmsg))
+        valid_latest_checksum = False
+        latest_checksum = _def_latest_checksum_dict(None, None, None, None)
+        return valid_latest_checksum, latest_checksum
+
+
 
 
 def _check_published_and_db_versions_match(db_obj, ceda_publish_version_no, ceda_database_version_no, logfile):
@@ -957,7 +993,32 @@ def _check_published_and_db_versions_match(db_obj, ceda_publish_version_no, ceda
         return False
 
 
-def check_version(db_obj, versions, latest_version, ceda_data_node, logfile):
+
+def _check_published_and_db_checksums_match(db_obj, ceda_published_cksum, ceda_database_cksum, logfile):
+    try:
+        if ceda_database_cksum == ceda_published_cksum:
+            logmsg = "LATEST.003 [PASS] :: MATCH - CEDA database version {} and published " \
+                     "ESGF version {} are the same".format(ceda_database_cksum, ceda_published_cksum)
+            with open(logfile, 'a') as fw: fw.writelines("{} \n".format(logmsg))
+            return True
+
+        if ceda_database_cksum != ceda_published_cksum:
+            errmsg = "LATEST.003 [ERROR] :: Mismatch between CEDA database version {} and " \
+                     "ESGF version {}".format(ceda_database_cksum, ceda_published_cksum)
+            db_obj.up_to_date_note = errmsg
+            with open(logfile, 'a') as fw: fw.writelines("{} \n".format(errmsg))
+
+            return False
+
+    except AttributeError:
+        errmsg = "LATEST.004 [ERROR] :: CEDA database version unspecified"
+        db_obj.up_to_date_note = errmsg
+        with open(logfile, 'a') as fw:
+            fw.writelines("{} \n".format(errmsg))
+
+        return False
+
+def check_dataset_version(db_obj, versions, latest_version, ceda_data_node, logfile):
     ceda_published_version_no = versions[ceda_data_node]
     ceda_database_version_no = db_obj.version
 
@@ -967,6 +1028,54 @@ def check_version(db_obj, versions, latest_version, ceda_data_node, logfile):
     if is_match_ceda_versions:
         ceda_version = convert_version(ceda_published_version_no)
         ceda_version_is_latest = compare_ceda_with_latest_version(db_obj, ceda_version, latest_version, logfile)
+
+
+def check_datafile_version(db_obj, all_cksums, latest_cksum, ceda_data_node, logfile):
+    """
+
+    :param db_obj:
+    :param all_cksums: {{{'node': {'replica': Boolean, 'cksum_type': 'checksum type', 'version': 'version', 'cksum': 'checksum'}}
+    :param latest_cksums: {'node': 'node', 'version': 'version', 'cksum_type': 'cheksum type', 'cksum': 'checksum'}
+    :param ceda_data_node:
+    :param logfile:
+    :return:
+    """
+    ceda_published_checksum = all_cksums[ceda_data_node]['cksum']
+    ceda_database_checksum = db_obj.sha256_checksum
+
+    is_match_ceda_cksums = _check_published_and_db_checksums_match(db_obj, ceda_published_checksum,
+                                                                     ceda_database_checksum, logfile)
+
+
+    if latest_cksum['cksum_type'] == "md5":
+        ceda_database_checksum = db_obj.md5_checksum
+
+    if is_match_ceda_cksums:
+        ceda_cksum_is_latest = compare_ceda_with_latest_cksum(db_obj, ceda_database_checksum, latest_cksum['cksum'], logfile)
+        return ceda_cksum_is_latest
+    else:
+        ceda_cksum_is_latest = False
+        return ceda_cksum_is_latest
+
+
+def compare_ceda_with_latest_cksum(db_obj, ceda_version, latest_version, logfile):
+
+    if ceda_version == latest_version:
+        logmsg = "LATEST.000 [PASS] :: CEDA version is up to date at version: {}".format(latest_version)
+        db_obj.up_to_date = True
+        db_obj.up_to_date_note = logmsg
+        with open(logfile, 'a') as fw:
+            fw.writelines("{} \n".format(logmsg))
+        return True
+
+
+    if ceda_version != latest_version:
+        errmsg = "LATEST.002 [ERROR] :: CEDA version is out of date. CEDA version is: {}, " \
+                 "LATEST version is: {}".format(ceda_version, latest_version)
+        db_obj.up_to_date_note = errmsg
+        with open(logfile, 'a') as fw:
+            fw.writelines("{} \n".format(errmsg))
+        return False
 
 
 def compare_ceda_with_latest_version(db_obj, ceda_version, latest_version, logfile):
@@ -1036,7 +1145,7 @@ def dataset_latest_check(datasets, variable, esgf_dict):
         else:
             valid_latest_version, latest_version = get_latest_version(ds, versions, logfile)
             if valid_latest_version:
-                check_version(ds, versions, latest_version, ceda_data_node, logfile)
+                check_dataset_version(ds, versions, latest_version, ceda_data_node, logfile)
 
 
 
@@ -1054,7 +1163,7 @@ def datafile_latest_check(dataset, variable, esgf_dict):
         dfs = ds.datafile_set.all()
 
         for df in dfs:
-
+            df.up_to_date = False
             # Open and read cached JSON file
             esgf_dict, json_file = esgf_dict._generate_local_logdir(DATAFILE_LATEST_CACHE, ds, esgf_dict, subdir="exper", rw='r')
             json_data = open(json_file).read()
@@ -1062,22 +1171,45 @@ def datafile_latest_check(dataset, variable, esgf_dict):
             json_resp = _data["response"]["docs"]
             logfile = os.path.join(DATAFILE_LATEST_DIR, os.path.basename(json_file).replace(".json", ".datafile.log"))
 
+            print json_file
+
             # versions is a dictionary where the key is the datanode and value is the published version
-            versions = {}
-            versions = get_all_versions(json_resp, versions, logfile, type="datafile")
-            print versions
-            if ceda_data_node not in versions.keys():
+            checksums = {}
+            checksums = get_all_checksums(json_resp, checksums, logfile, type="datafile")
+            if ceda_data_node in checksums.keys():
+                valid_latest_datafile, latest_checksum = get_latest_checksum(df, checksums, logfile)
+                if valid_latest_datafile:
+                    ceda_cksum_is_latest = check_datafile_version(df, checksums, latest_checksum, ceda_data_node, logfile)
+                else:
+                    errmsg = "LATEST.009 [ERROR] :: No latest datafile found"
+                    with open(logfile, 'a+') as fw: fw.writelines(" {} \n".format(errmsg))
+            else:
                 errmsg = "LATEST.001 [ERROR] :: Datafile is missing from CEDA archive"
                 with open(logfile, 'a+') as fw: fw.writelines(" {} \n".format(errmsg))
-            else:
-                valid_latest_version, latest_version = get_latest_version(df, versions, logfile)
-                if valid_latest_version:
-                    check_version(df, versions, latest_version, ceda_data_node, logfile)
+                ceda_cksum_is_latest = False
 
-            print df.archive_path
-            print json_file
-            print logfile
-            STOPPPING-FIRST-DONE
+            if ceda_cksum_is_latest:
+                df.up_to_date = True
+                logmsg = "LATEST.000 [PASS] :: CEDA datafile is up to date \n " \
+                         "CEDA checksum :: {} \n " \
+                         "LATEST checksum {} \n " \
+                         "LATEST source {}".format(checksums[ceda_data_node]['cksum'],
+                                                   latest_checksum['cksum'],
+                                                   latest_checksum['node']
+                                                   )
+                with open(logfile, 'a+') as fw: fw.writelines(" {} \n".format(logmsg))
+                print "SUCCESS a valid datafile was found for {}".format(df.ncfile)
+            else:
+                logmsg = "LATEST.009 [FAIL] :: CEDA datafile is not latest version \n " \
+                         "CEDA checksum :: {} \n " \
+                         "LATEST checksum {} \n " \
+                         "LATEST source {}".format(checksums[ceda_data_node]['cksum'],
+                                                   latest_checksum['cksum'],
+                                                   latest_checksum['node']
+                                                   )
+                with open(logfile, 'a+') as fw: fw.writelines(" {} \n".format(logmsg))
+                print "FAIL a valid datafile was not found or is missing for {}".format(df.ncfile)
+
 
 
 
