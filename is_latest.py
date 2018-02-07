@@ -146,10 +146,15 @@ def _get_latest_checksum_dict(node, version, cksum_type, cksum):
     return cksum_dict
 
 
-def log_message(logfile, message):
+def log_message(dbobj, logfile, message, set_uptodate=False):
 
     with open(logfile, 'a') as fw:
         fw.writelines("{} \n".format(message))
+
+    if set_uptodate:
+        db_obj.up_to_date = True
+    db_obj.up_to_date_note = message
+    db_obj.save()
 
 
 def get_latest_checksum(db_obj, cksums, logfile):
@@ -194,94 +199,51 @@ def get_latest_checksum(db_obj, cksums, logfile):
                     valid_latest_checksum = True
                     return valid_latest_checksum, latest_checksum
         else:
-            log_message(logfile, "LATEST :: no valid master copy")
+            log_message(db_obj, logfile, "LATEST [ERROR]:: no valid master copy")
             valid_latest_checksum = False
             latest_checksum = _get_latest_checksum_dict(None, None, None, None)
             return valid_latest_checksum, latest_checksum
 
     elif len(latest_checksums) == 0:
-        log_message(logfile, "LATEST :: no latest checksums")
+        log_message(db_obj, logfile, "LATEST [ERROR] :: no latest checksums")
         valid_latest_checksum = False
         latest_checksum = _get_latest_checksum_dict(None, None, None, None)
         return valid_latest_checksum, latest_checksum
-
-    # valid_latest_version, latest_version = get_latest_version(db_obj, versions, logfile)
-    #
-    # if isinstance(latest_version, datetime.datetime): latest_version = latest_version.strftime('%Y%m%d')
-    #
-    # if valid_latest_version:
-    #     for key, values in cksums.items():
-    #         if values['version'] == latest_version and values['cksum_type'] == 'SHA256':
-    #             latest_checksum[key] = values
-    #             valid_latest_checksum = True
-    #             return valid_latest_checksum, latest_checksum
-    #     for key, values in cksums.items():
-    #         if values['version'] == latest_cksum:
-    #             latest_checksum[key] = values
-    #             valid_latest_checksum = True
-    #             return valid_latest_checksum, latest_checksum
-    # else:
-    #     errmsg = "LATEST.009 [FATAL] :: Cannot determine latest checksum in get_latest_checksum"
-    #     db_obj.up_to_date_note = errmsg
-    #     db_obj.save()
-    #     with open(logfile, 'a') as fw:
-    #         fw.writelines("{} \n".format(errmsg))
-    #     valid_latest_checksum = False
-    #     latest_checksum = _get_latest_checksum_dict(None, None, None, None)
-    #     return valid_latest_checksum, latest_checksum
 
 
 def _check_published_and_db_versions_match(db_obj, ceda_publish_version_no, ceda_database_version_no, logfile):
     try:
         if ceda_database_version_no == ceda_publish_version_no:
-            logmsg = "LATEST.003 [PASS] :: MATCH - CEDA database version {} and published " \
-                     "ESGF version {} are the same".format(ceda_database_version_no, ceda_publish_version_no)
-            with open(logfile, 'a') as fw: fw.writelines("{} \n".format(logmsg))
+            log_message(db_obj, logfile, "LATEST.003 [PASS] :: MATCH - CEDA database version {} and published " \
+                        "ESGF version {} are the same".format(ceda_database_version_no, ceda_publish_version_no),
+                        set_uptodate=True)
             return True
 
         if ceda_database_version_no != ceda_publish_version_no:
-            errmsg = "LATEST.003 [ERROR] :: Mismatch between CEDA database version {} and " \
-                     "ESGF version {}".format(ceda_database_version_no, ceda_publish_version_no)
-            db_obj.up_to_date_note = errmsg
-            db_obj.save()
-            with open(logfile, 'a') as fw: fw.writelines("{} \n".format(errmsg))
-
+            log_message(db_obj, logfile, "LATEST.003 [ERROR] :: Mismatch between CEDA database version {} and " \
+                                 "ESGF version {}".format(ceda_database_version_no, ceda_publish_version_no))
             return False
 
     except AttributeError:
-        errmsg = "LATEST.004 [ERROR] :: CEDA database version unspecified"
-        db_obj.up_to_date_note = errmsg
-        db_obj.save()
-        with open(logfile, 'a') as fw:
-            fw.writelines("{} \n".format(errmsg))
-
-        return False
+         log_message(db_obj, logfile, "LATEST.004 [ERROR] :: CEDA database version unspecified")
+         return False
 
 
 def _check_published_and_db_checksums_match(db_obj, ceda_published_cksum, ceda_database_cksum, logfile):
     try:
         if ceda_database_cksum == ceda_published_cksum:
-            logmsg = "LATEST.003 [PASS] :: MATCH - CEDA database version {} and published " \
-                     "ESGF version {} are the same".format(ceda_database_cksum, ceda_published_cksum)
-            with open(logfile, 'a') as fw: fw.writelines("{} \n".format(logmsg))
+            log_message(db_obj, logfile, "LATEST.003 [PASS] :: MATCH - CEDA database version {} and published) " \
+                        "ESGF version {} are the same".format(ceda_database_cksum, ceda_published_cksum),
+                        set_uptodate=True)
             return True
 
         if ceda_database_cksum != ceda_published_cksum:
-            errmsg = "LATEST.003 [ERROR] :: Mismatch between CEDA database version {} and " \
-                     "ESGF version {}".format(ceda_database_cksum, ceda_published_cksum)
-            db_obj.up_to_date_note = errmsg
-            db_obj.save()
-            with open(logfile, 'a') as fw: fw.writelines("{} \n".format(errmsg))
-
+            log_message(db_obj, logfile, "LATEST.003 [ERROR] :: Mismatch between CEDA database version {} and " \
+                                "ESGF version {}".format(ceda_database_cksum, ceda_published_cksum))
             return False
 
     except AttributeError:
-        errmsg = "LATEST.004 [ERROR] :: CEDA database version unspecified"
-        db_obj.up_to_date_note = errmsg
-        db_obj.save()
-        with open(logfile, 'a') as fw:
-            fw.writelines("{} \n".format(errmsg))
-
+        log_message(db_obj, logfile, "LATEST.004 [ERROR] :: CEDA database version unspecified")
         return False
 
 
@@ -316,7 +278,7 @@ def check_datafile_version(db_obj, all_cksums, latest_cksum, ceda_data_node, log
         ceda_database_checksum = db_obj.md5_checksum
     else:
         ceda_cksum_is_latest = False
-        log_message(logfile, "LATEST [ERROR] :: No valid checksum type")
+        log_message(db_obj, logfile, "LATEST [ERROR] :: No valid checksum type")
         return ceda_cksum_is_latest
 
     is_match_ceda_cksums = _check_published_and_db_checksums_match(db_obj, ceda_published_checksum,
@@ -333,22 +295,13 @@ def check_datafile_version(db_obj, all_cksums, latest_cksum, ceda_data_node, log
 def compare_ceda_with_latest_cksum(db_obj, ceda_version, latest_version, logfile):
 
     if ceda_version == latest_version:
-        logmsg = "LATEST.000 [PASS] :: CEDA version is up to date at version: {}".format(latest_version)
-        db_obj.up_to_date = True
-        db_obj.up_to_date_note = logmsg
-        db_obj.save()
-        with open(logfile, 'a') as fw:
-            fw.writelines("{} \n".format(logmsg))
+        log_message(db_obj, logfile, "LATEST.000 [PASS] :: CEDA version is up to date at version: {}".format(latest_version), set_uptodate=True)
         return True
 
 
     if ceda_version != latest_version:
-        errmsg = "LATEST.002 [ERROR] :: CEDA version is out of date. CEDA version is: {}, " \
-                 "LATEST version is: {}".format(ceda_version, latest_version)
-        db_obj.up_to_date_note = errmsg
-        db_obj.save()
-        with open(logfile, 'a') as fw:
-            fw.writelines("{} \n".format(errmsg))
+        log_message(db_obj, logfile, "LATEST.002 [ERROR] :: CEDA version is out of date. CEDA version is: {}, " \
+                                    "LATEST version is: {}".format(ceda_version, latest_version))
         return False
 
 
@@ -357,25 +310,16 @@ def compare_ceda_with_latest_version(db_obj, ceda_version, latest_version, logfi
         if isinstance(ceda_version, datetime.datetime): ceda_version = ceda_version.strftime("%Y%m%d")
         if isinstance(latest_version, datetime.datetime): latest_version = latest_version.strftime("%Y%m%d")
 
-        errmsg = "LATEST.002 [ERROR] :: CEDA version is out of date. CEDA version is: {}, " \
-                 "LATEST version is: {}".format(ceda_version, latest_version)
-        db_obj.up_to_date_note = errmsg
-        db_obj.save()
-        with open(logfile, 'a') as fw:
-            fw.writelines("{} \n".format(errmsg))
-
+        log_message(db_obj, logfile, "LATEST.002 [ERROR] :: CEDA version is out of date. CEDA version is: {}, "
+                                     "LATEST version is: {}".format(ceda_version, latest_version))
         return False
 
     if ceda_version == latest_version:
         if isinstance(ceda_version, datetime.datetime): ceda_version = ceda_version.strftime("%Y%m%d")
         if isinstance(latest_version, datetime.datetime): latest_version = latest_version.strftime("%Y%m%d")
 
-        errmsg = "LATEST.000 [PASS] :: CEDA version is up to date at version: {}".format(latest_version)
-        db_obj.up_to_date = True
-        db_obj.up_to_date_note = errmsg
-        db_obj.save()
-        with open(logfile, 'a') as fw:
-            fw.writelines("{} \n".format(errmsg))
+        log_message(db_obj, logfile, "LATEST.000 [PASS] :: CEDA version is up to date at version: {}".format(latest_version),
+                    set_uptodate=True)
         return True
 
     if ceda_version > latest_version:
@@ -384,12 +328,8 @@ def compare_ceda_with_latest_version(db_obj, ceda_version, latest_version, logfi
         if isinstance(latest_version, datetime.datetime):
             latest_version = latest_version.strftime("%Y%m%d")
 
-        errmsg = "LATEST.007 [FATAL] :: CEDA version {} can not be greater than " \
-                 "latest version: {} \n".format(ceda_version, latest_version)
-        db_obj.up_to_date_note = errmsg
-        db_obj.save()
-        with open(logfile, 'a') as fw:
-            fw.writelines("{} \n".format(errmsg))
+        log_message(db_obj, logfile, "LATEST.007 [FATAL] :: CEDA version {} can not be greater than "
+                                     "latest version: {} \n".format(ceda_version, latest_version))
         return False
 
 
@@ -417,8 +357,7 @@ def dataset_latest_check(datasets, variable, esgf_dict):
         versions = get_all_versions(json_resp, versions, logfile, type="dataset")
 
         if ceda_data_node not in versions.keys():
-            errmsg = "LATEST.001 [ERROR] :: Dataset is missing from CEDA archive"
-            with open(logfile, 'a+') as fw: fw.writelines(" {} \n".format(errmsg))
+            log_message(dbobj, logfile, "LATEST.001 [ERROR] :: Dataset is missing from CEDA archive")
         else:
             valid_latest_version, latest_version = get_latest_version(ds, versions, logfile)
             if valid_latest_version:
