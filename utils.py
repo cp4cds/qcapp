@@ -10,6 +10,15 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from qc_settings import *
 from esgf_dict import EsgfDict
 
+
+
+def _generate_datafile_url(fname):
+
+    template = "https://esgf-index1.ceda.ac.uk/esg-search/search/?type=File&" \
+               "latest=true&distrib=true&project=CMIP5&title={}&format=application%2Fsolr%2Bjson".format(fname)
+
+    return template
+
 def is_timeseries(filepath):
     """
 

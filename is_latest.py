@@ -6,7 +6,7 @@ import glob
 import json as jsn
 from qc_settings import *
 
-from utils import *
+import utils
 from esgf_dict import EsgfDict
 
 
@@ -29,6 +29,8 @@ def is_latest_datafile_cache(datasets, variable, esgf_dict):
         for df in dfs:
             esgf_dict["ncfile"] = df.ncfile
             url = esgf_dict.format_is_latest_datafile_url()
+            if esgf_dict["model"] == "CNRM-CM5":
+                print url
             esgf_dict.esgf_query(url, json_file)
 
 
@@ -48,19 +50,23 @@ def get_all_versions(json_resp, versions, logfile, type):
 
 def get_all_checksums(json_resp, cksums, logfile, type):
 
-    for d in json_resp:
-        dataset_id = d["id"].split('|')[0]
+    for res in json_resp:
+        dataset_id = res["id"].split('|')[0]
         with open(logfile, 'w') as fw:
             fw.writelines("Checking {} is up to date :: {} \n".format(type, dataset_id))
 
-        data_node = d["id"].split('|')[1]
-        version = d["dataset_id"].split('|')[0].split('.')[-1].strip('v')
+        data_node = res["id"].split('|')[1]
+        version = res["dataset_id"].split('|')[0].split('.')[-1].strip('v')
         try:
-            cksum = d["checksum"][0].strip()
+            cksum = res["checksum"][0].strip()
         except KeyError:
-            cksum = d["checksum"]
-        cksum_type = d["checksum_type"][0].strip()
-        replica = d["replica"]
+            cksum = "Missing"
+
+        try:
+            cksum_type = res["checksum_type"][0].strip()
+        except KeyError:
+            cksum_type = "Unknown"
+        replica = res["replica"]
 
         cksums[data_node] = {'replica': replica, 'version': version, 'cksum_type': cksum_type, 'cksum': cksum}
 
@@ -91,6 +97,7 @@ def get_latest_version(db_obj, versions, logfile):
         errmsg = "LATEST.006 [FATAL] :: Cannot perform version_qc, no known latest version " \
                  "as types do not match {} \n".format(versions)
         db_obj.up_to_date_note = errmsg
+        db_obj.save()
         with open(logfile, 'a') as fw:
             fw.writelines("{} \n".format(errmsg))
         latest_version = None
@@ -99,7 +106,37 @@ def get_latest_version(db_obj, versions, logfile):
     return valid_latest_version, latest_version
 
 
-def _def_latest_checksum_dict(node, version, cksum_type, cksum):
+
+def _get_latest_checksum(insts, versions, cksum_types, cksum):
+
+
+    print insts, versions, cksum_types, cksum
+    asdafasdfdsf
+    valid_latest_cksum = None
+    latest_cksum = None
+
+    dt_versions = []
+    for version in versions:
+        dt_versions.append(convert_version(version))
+
+    try:
+        latest_version = max(dt_versions)
+        valid_latest_version = True
+
+    except TypeError:
+        errmsg = "LATEST.006 [FATAL] :: Cannot perform version_qc, no known latest version " \
+                 "as types do not match {} \n".format(versions)
+        db_obj.up_to_date_note = errmsg
+        db_obj.save()
+        with open(logfile, 'a') as fw:
+            fw.writelines("{} \n".format(errmsg))
+        latest_version = None
+        valid_latest_version = False
+
+    return valid_latest_cksum, latest_cksum
+
+
+def _get_latest_checksum_dict(node, version, cksum_type, cksum):
     cksum_dict = {}
     cksum_dict['node'] = node
     cksum_dict['version'] = version
@@ -119,38 +156,47 @@ def get_latest_checksum(db_obj, cksums, logfile):
     :return:
     """
 
-
     latest_checksum = {}
     versions = []
 
     for key, values in cksums.items():
         if values["replica"] == False: # i.e. master record
-            latest_checksum = _def_latest_checksum_dict(key, values['version'], values['cksum_type'], values['cksum'])
+            latest_checksum = _get_latest_checksum_dict(key, values['version'], values['cksum_type'], values['cksum'])
             valid_latest_checksum = True
             return valid_latest_checksum, latest_checksum
 
         versions.append(values['version'])
 
-    valid_latest_checksum, latest_cksum = get_latest_version(db_obj, versions, logfile)
-    if isinstance(latest_cksum, datetime.datetime): latest_cksum = latest_cksum.strftime('%Y%m%d')
+    valid_latest_checksum = False
+    latest_checksum = _get_latest_checksum_dict(None, None, None, None)
+    return valid_latest_checksum, latest_checksum
 
-    if valid_latest_checksum:
-        for key, values in cksums.items():
-            if values['version'] == latest_cksum and values['cksum_type']=='SHA256':
-               latest_checksum = _def_latest_checksum_dict(key, values['version'], values['cksum_type'], values['cksum'])
-               return valid_latest_checksum, latest_checksum
-        for key, values in cksums.items():
-            if values['version'] == latest_cksum:
-               latest_checksum = _def_latest_checksum_dict(key, values['version'], values['cksum_type'], values['cksum'])
-               return valid_latest_checksum, latest_checksum
-    else:
-        errmsg = "LATEST.009 [FATAL] :: Cannot determine latest checksum in get_latest_checksum"
-        db_obj.up_to_date_note = errmsg
-        with open(logfile, 'a') as fw:
-            fw.writelines("{} \n".format(errmsg))
-        valid_latest_checksum = False
-        latest_checksum = _def_latest_checksum_dict(None, None, None, None)
-        return valid_latest_checksum, latest_checksum
+
+
+    # valid_latest_version, latest_version = get_latest_version(db_obj, versions, logfile)
+    #
+    # if isinstance(latest_version, datetime.datetime): latest_version = latest_version.strftime('%Y%m%d')
+    #
+    # if valid_latest_version:
+    #     for key, values in cksums.items():
+    #         if values['version'] == latest_version and values['cksum_type'] == 'SHA256':
+    #             latest_checksum[key] = values
+    #             valid_latest_checksum = True
+    #             return valid_latest_checksum, latest_checksum
+    #     for key, values in cksums.items():
+    #         if values['version'] == latest_cksum:
+    #             latest_checksum[key] = values
+    #             valid_latest_checksum = True
+    #             return valid_latest_checksum, latest_checksum
+    # else:
+    #     errmsg = "LATEST.009 [FATAL] :: Cannot determine latest checksum in get_latest_checksum"
+    #     db_obj.up_to_date_note = errmsg
+    #     db_obj.save()
+    #     with open(logfile, 'a') as fw:
+    #         fw.writelines("{} \n".format(errmsg))
+    #     valid_latest_checksum = False
+    #     latest_checksum = _get_latest_checksum_dict(None, None, None, None)
+    #     return valid_latest_checksum, latest_checksum
 
 
 def _check_published_and_db_versions_match(db_obj, ceda_publish_version_no, ceda_database_version_no, logfile):
@@ -165,6 +211,7 @@ def _check_published_and_db_versions_match(db_obj, ceda_publish_version_no, ceda
             errmsg = "LATEST.003 [ERROR] :: Mismatch between CEDA database version {} and " \
                      "ESGF version {}".format(ceda_database_version_no, ceda_publish_version_no)
             db_obj.up_to_date_note = errmsg
+            db_obj.save()
             with open(logfile, 'a') as fw: fw.writelines("{} \n".format(errmsg))
 
             return False
@@ -172,6 +219,7 @@ def _check_published_and_db_versions_match(db_obj, ceda_publish_version_no, ceda
     except AttributeError:
         errmsg = "LATEST.004 [ERROR] :: CEDA database version unspecified"
         db_obj.up_to_date_note = errmsg
+        db_obj.save()
         with open(logfile, 'a') as fw:
             fw.writelines("{} \n".format(errmsg))
 
@@ -190,6 +238,7 @@ def _check_published_and_db_checksums_match(db_obj, ceda_published_cksum, ceda_d
             errmsg = "LATEST.003 [ERROR] :: Mismatch between CEDA database version {} and " \
                      "ESGF version {}".format(ceda_database_cksum, ceda_published_cksum)
             db_obj.up_to_date_note = errmsg
+            db_obj.save()
             with open(logfile, 'a') as fw: fw.writelines("{} \n".format(errmsg))
 
             return False
@@ -197,6 +246,7 @@ def _check_published_and_db_checksums_match(db_obj, ceda_published_cksum, ceda_d
     except AttributeError:
         errmsg = "LATEST.004 [ERROR] :: CEDA database version unspecified"
         db_obj.up_to_date_note = errmsg
+        db_obj.save()
         with open(logfile, 'a') as fw:
             fw.writelines("{} \n".format(errmsg))
 
@@ -225,15 +275,22 @@ def check_datafile_version(db_obj, all_cksums, latest_cksum, ceda_data_node, log
     :param logfile:
     :return:
     """
+
     ceda_published_checksum = all_cksums[ceda_data_node]['cksum']
-    ceda_database_checksum = db_obj.sha256_checksum
+    if latest_cksum['cksum_type'] == "SHA256":
+        ceda_database_checksum = db_obj.sha256_checksum
+    elif latest_cksum['cksum_type'] == "md5":
+        ceda_database_checksum = db_obj.md5_checksum
+    else:
+        ceda_cksum_is_latest = False
+        return ceda_cksum_is_latest
+        # raise Exception("ChecksumTypeError")
+        # todo catch error
+
+
 
     is_match_ceda_cksums = _check_published_and_db_checksums_match(db_obj, ceda_published_checksum,
                                                                      ceda_database_checksum, logfile)
-
-
-    if latest_cksum['cksum_type'] == "md5":
-        ceda_database_checksum = db_obj.md5_checksum
 
     if is_match_ceda_cksums:
         ceda_cksum_is_latest = compare_ceda_with_latest_cksum(db_obj, ceda_database_checksum, latest_cksum['cksum'], logfile)
@@ -249,6 +306,7 @@ def compare_ceda_with_latest_cksum(db_obj, ceda_version, latest_version, logfile
         logmsg = "LATEST.000 [PASS] :: CEDA version is up to date at version: {}".format(latest_version)
         db_obj.up_to_date = True
         db_obj.up_to_date_note = logmsg
+        db_obj.save()
         with open(logfile, 'a') as fw:
             fw.writelines("{} \n".format(logmsg))
         return True
@@ -258,6 +316,7 @@ def compare_ceda_with_latest_cksum(db_obj, ceda_version, latest_version, logfile
         errmsg = "LATEST.002 [ERROR] :: CEDA version is out of date. CEDA version is: {}, " \
                  "LATEST version is: {}".format(ceda_version, latest_version)
         db_obj.up_to_date_note = errmsg
+        db_obj.save()
         with open(logfile, 'a') as fw:
             fw.writelines("{} \n".format(errmsg))
         return False
@@ -271,6 +330,7 @@ def compare_ceda_with_latest_version(db_obj, ceda_version, latest_version, logfi
         errmsg = "LATEST.002 [ERROR] :: CEDA version is out of date. CEDA version is: {}, " \
                  "LATEST version is: {}".format(ceda_version, latest_version)
         db_obj.up_to_date_note = errmsg
+        db_obj.save()
         with open(logfile, 'a') as fw:
             fw.writelines("{} \n".format(errmsg))
 
@@ -283,6 +343,7 @@ def compare_ceda_with_latest_version(db_obj, ceda_version, latest_version, logfi
         errmsg = "LATEST.000 [PASS] :: CEDA version is up to date at version: {}".format(latest_version)
         db_obj.up_to_date = True
         db_obj.up_to_date_note = errmsg
+        db_obj.save()
         with open(logfile, 'a') as fw:
             fw.writelines("{} \n".format(errmsg))
         return True
@@ -296,6 +357,7 @@ def compare_ceda_with_latest_version(db_obj, ceda_version, latest_version, logfi
         errmsg = "LATEST.007 [FATAL] :: CEDA version {} can not be greater than " \
                  "latest version: {} \n".format(ceda_version, latest_version)
         db_obj.up_to_date_note = errmsg
+        db_obj.save()
         with open(logfile, 'a') as fw:
             fw.writelines("{} \n".format(errmsg))
         return False
@@ -310,7 +372,7 @@ def dataset_latest_check(datasets, variable, esgf_dict):
 
         # Set up_to_date to be False as default will be overwritten to true if found to be true
         ds.up_to_date = False
-
+        ds.save()
         # Open and read cached JSON file
         esgf_dict, json_file = esgf_dict._generate_local_logdir(DATASET_LATEST_CACHE, ds, esgf_dict, subdir=None, rw='r')
         json_data = open(json_file).read()
@@ -347,9 +409,9 @@ def datafile_latest_check(datasets, variable, esgf_dict):
         dfs = ds.datafile_set.all()
 
         for df in dfs:
-
+            print df.archive_path
             df.up_to_date = False
-
+            df.save()
             # Open and read cached JSON file
             esgf_dict, json_file = esgf_dict._generate_local_logdir(DATAFILE_LATEST_CACHE, ds, esgf_dict, subdir="exper")
             json_data = open(json_file).read()
@@ -375,6 +437,7 @@ def datafile_latest_check(datasets, variable, esgf_dict):
 
             if ceda_cksum_is_latest:
                 df.up_to_date = True
+                df.save()
                 logmsg = "LATEST.000 [PASS] :: CEDA datafile is up to date \n " \
                          "CEDA checksum :: {} \n " \
                          "LATEST checksum {} \n " \
@@ -394,4 +457,8 @@ def datafile_latest_check(datasets, variable, esgf_dict):
                                                    )
                 with open(logfile, 'a+') as fw: fw.writelines(" {} \n".format(logmsg))
                 print "FAIL a valid datafile was not found or is missing for {}".format(df.ncfile)
+                print logmsg
+                url = utils._generate_datafile_url(df.ncfile)
+                print url
+
 
