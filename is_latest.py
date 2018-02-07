@@ -146,6 +146,12 @@ def _get_latest_checksum_dict(node, version, cksum_type, cksum):
     return cksum_dict
 
 
+def log_message(logfile, message):
+
+    with open(logfile, 'a') as fw:
+        fw.writelines("{} \n".format(message))
+
+
 def get_latest_checksum(db_obj, cksums, logfile):
     """
     cksums[data_node] = {'replica': replica, 'version': version, 'cksum_type': cksum_type, 'cksum': cksum}
@@ -157,21 +163,47 @@ def get_latest_checksum(db_obj, cksums, logfile):
     """
 
     latest_checksum = {}
+    latest_checksums = []
     versions = []
-
+    n_masters = 0
     for key, values in cksums.items():
         if values["replica"] == False: # i.e. master record
-            latest_checksum = _get_latest_checksum_dict(key, values['version'], values['cksum_type'], values['cksum'])
-            valid_latest_checksum = True
-            return valid_latest_checksum, latest_checksum
-
+            latest_checksums.append(_get_latest_checksum_dict(key, values['version'], values['cksum_type'], values['cksum']))
+            n_masters +=1
         versions.append(values['version'])
 
-    valid_latest_checksum = False
-    latest_checksum = _get_latest_checksum_dict(None, None, None, None)
-    return valid_latest_checksum, latest_checksum
 
+    if len(latest_checksums) == 1:
+        latest_checksum = latest_checksums[0]
+        valid_latest_checksum = True
+        return valid_latest_checksum, latest_checksum
 
+    elif len(latest_checksums) > 1:
+        master_versions = []
+
+        for cks in latest_checksums:
+            master_versions.append(cks['cksum'])
+
+        valid_master_latest_version, master_latest_version = get_latest_version(db_obj, versions, logfile)
+        master_latest_version = master_latest_version.strftime("%Y%m%d")
+
+        if valid_master_latest_version:
+            for v in latest_checksums:
+                if v['version'] == master_latest_version:
+                    latest_checksum = v
+                    valid_latest_checksum = True
+                    return valid_latest_checksum, latest_checksum
+        else:
+            log_message(logfile, "LATEST :: no valid master copy")
+            valid_latest_checksum = False
+            latest_checksum = _get_latest_checksum_dict(None, None, None, None)
+            return valid_latest_checksum, latest_checksum
+
+    elif len(latest_checksums) == 0:
+        log_message(logfile, "LATEST :: no latest checksums")
+        valid_latest_checksum = False
+        latest_checksum = _get_latest_checksum_dict(None, None, None, None)
+        return valid_latest_checksum, latest_checksum
 
     # valid_latest_version, latest_version = get_latest_version(db_obj, versions, logfile)
     #
@@ -270,24 +302,22 @@ def check_datafile_version(db_obj, all_cksums, latest_cksum, ceda_data_node, log
 
     :param db_obj:
     :param all_cksums: {{{'node': {'replica': Boolean, 'cksum_type': 'checksum type', 'version': 'version', 'cksum': 'checksum'}}
-    :param latest_cksums: {'node': 'node', 'version': 'version', 'cksum_type': 'cheksum type', 'cksum': 'checksum'}
+    :param latest_cksum: {'node': 'node', 'version': 'version', 'cksum_type': 'cheksum type', 'cksum': 'checksum'}
     :param ceda_data_node:
     :param logfile:
     :return:
     """
 
     ceda_published_checksum = all_cksums[ceda_data_node]['cksum']
+    print "check data file version latsest checksum {}".format(latest_cksum)
     if latest_cksum['cksum_type'] == "SHA256":
         ceda_database_checksum = db_obj.sha256_checksum
     elif latest_cksum['cksum_type'] == "md5":
         ceda_database_checksum = db_obj.md5_checksum
     else:
         ceda_cksum_is_latest = False
+        log_message(logfile, "LATEST [ERROR] :: No valid checksum type")
         return ceda_cksum_is_latest
-        # raise Exception("ChecksumTypeError")
-        # todo catch error
-
-
 
     is_match_ceda_cksums = _check_published_and_db_checksums_match(db_obj, ceda_published_checksum,
                                                                      ceda_database_checksum, logfile)
@@ -426,7 +456,11 @@ def datafile_latest_check(datasets, variable, esgf_dict):
             if ceda_data_node in checksums.keys():
                 valid_latest_datafile, latest_checksum = get_latest_checksum(df, checksums, logfile)
                 if valid_latest_datafile:
-                    ceda_cksum_is_latest = check_datafile_version(df, checksums, latest_checksum, ceda_data_node, logfile)
+                    if isinstance(latest_checksum, dict):
+                        ceda_cksum_is_latest = check_datafile_version(df, checksums, latest_checksum, ceda_data_node, logfile)
+                    else:
+                        print "WTF"
+                        print checksums, latest_checksum, ceda_data_node
                 else:
                     errmsg = "LATEST.009 [ERROR] :: No latest datafile found"
                     with open(logfile, 'a+') as fw: fw.writelines(" {} \n".format(errmsg))
