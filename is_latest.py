@@ -29,8 +29,6 @@ def is_latest_datafile_cache(datasets, variable, esgf_dict):
         for df in dfs:
             esgf_dict["ncfile"] = df.ncfile
             url = esgf_dict.format_is_latest_datafile_url()
-            if esgf_dict["model"] == "CNRM-CM5":
-                print url
             esgf_dict.esgf_query(url, json_file)
 
 
@@ -110,8 +108,6 @@ def get_latest_version(db_obj, versions, logfile):
 def _get_latest_checksum(insts, versions, cksum_types, cksum):
 
 
-    print insts, versions, cksum_types, cksum
-    asdafasdfdsf
     valid_latest_cksum = None
     latest_cksum = None
 
@@ -152,9 +148,9 @@ def log_message(dbobj, logfile, message, set_uptodate=False):
         fw.writelines("{} \n".format(message))
 
     if set_uptodate:
-        db_obj.up_to_date = True
-    db_obj.up_to_date_note = message
-    db_obj.save()
+        dbobj.up_to_date = True
+    dbobj.up_to_date_note = message
+    dbobj.save()
 
 
 def get_latest_checksum(db_obj, cksums, logfile):
@@ -271,7 +267,7 @@ def check_datafile_version(db_obj, all_cksums, latest_cksum, ceda_data_node, log
     """
 
     ceda_published_checksum = all_cksums[ceda_data_node]['cksum']
-    print "check data file version latsest checksum {}".format(latest_cksum)
+
     if latest_cksum['cksum_type'] == "SHA256":
         ceda_database_checksum = db_obj.sha256_checksum
     elif latest_cksum['cksum_type'] == "md5":
@@ -378,6 +374,7 @@ def datafile_latest_check(datasets, variable, esgf_dict):
         dfs = ds.datafile_set.all()
 
         for df in dfs:
+
             print df.archive_path
             df.up_to_date = False
             df.save()
@@ -387,50 +384,42 @@ def datafile_latest_check(datasets, variable, esgf_dict):
             _data = jsn.loads(json_data)
             json_resp = _data["response"]["docs"]
             logfile = os.path.join(DATAFILE_LATEST_DIR, os.path.basename(json_file).replace(".json", ".datafile.log"))
-
             # versions is a dictionary where the key is the datanode and value is the published version
             checksums = {}
             checksums = get_all_checksums(json_resp, checksums, logfile, type="datafile")
 
+            ceda_cksum = checksums[ceda_data_node]["cksum"]
+            df.sha256_checksum = ceda_cksum
+            df.save()
+
             if ceda_data_node in checksums.keys():
                 valid_latest_datafile, latest_checksum = get_latest_checksum(df, checksums, logfile)
+
                 if valid_latest_datafile:
                     if isinstance(latest_checksum, dict):
                         ceda_cksum_is_latest = check_datafile_version(df, checksums, latest_checksum, ceda_data_node, logfile)
                     else:
-                        print "WTF"
-                        print checksums, latest_checksum, ceda_data_node
+                        log_message(df, logfile, "LATEST.000 [ERROR] :: Latest checksum is not a dictionary")
                 else:
-                    errmsg = "LATEST.009 [ERROR] :: No latest datafile found"
-                    with open(logfile, 'a+') as fw: fw.writelines(" {} \n".format(errmsg))
+                    log_message(df, logfile, "LATEST.009 [ERROR] :: No latest datafile found")
             else:
-                errmsg = "LATEST.001 [ERROR] :: Datafile is missing from CEDA archive"
-                with open(logfile, 'a+') as fw: fw.writelines(" {} \n".format(errmsg))
+                log_message(df, logfile, "LATEST.001 [ERROR] :: Datafile is missing from CEDA archive")
                 ceda_cksum_is_latest = False
 
             if ceda_cksum_is_latest:
-                df.up_to_date = True
-                df.save()
-                logmsg = "LATEST.000 [PASS] :: CEDA datafile is up to date \n " \
-                         "CEDA checksum :: {} \n " \
-                         "LATEST checksum {} \n " \
-                         "LATEST source {}".format(checksums[ceda_data_node]['cksum'],
-                                                   latest_checksum['cksum'],
-                                                   latest_checksum['node']
-                                                   )
-                with open(logfile, 'a+') as fw: fw.writelines(" {} \n".format(logmsg))
+                log_message(df, logfile, "LATEST.000 [PASS] :: CEDA datafile is up to date \n CEDA checksum :: {} \n "
+                                         "LATEST checksum {} \n LATEST source {}".format(
+                                         checksums[ceda_data_node]['cksum'], latest_checksum['cksum'], latest_checksum['node']),
+                            set_uptodate=True)
+
                 print "SUCCESS a valid datafile was found for {}".format(df.ncfile)
             else:
-                logmsg = "LATEST.009 [FAIL] :: CEDA datafile is not latest version \n " \
-                         "CEDA checksum :: {} \n " \
-                         "LATEST checksum {} \n " \
-                         "LATEST source {}".format(checksums[ceda_data_node]['cksum'],
-                                                   latest_checksum['cksum'],
-                                                   latest_checksum['node']
-                                                   )
-                with open(logfile, 'a+') as fw: fw.writelines(" {} \n".format(logmsg))
+                log_message(df, logfile, "LATEST.009 [FAIL] :: CEDA datafile is not latest version \n CEDA checksum :: {} \n " \
+                                         "LATEST checksum {} \n LATEST source {}".format(checksums[ceda_data_node]['cksum'],
+                                         latest_checksum['cksum'], latest_checksum['node'])
+                            )
+
                 print "FAIL a valid datafile was not found or is missing for {}".format(df.ncfile)
-                print logmsg
                 url = utils._generate_datafile_url(df.ncfile)
                 print url
 
