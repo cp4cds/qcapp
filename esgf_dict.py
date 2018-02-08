@@ -12,7 +12,7 @@ class EsgfDict(dict):
     def _format_gen_url(self, template, **kwargs):
         return template.format(**kwargs)
 
-    def _generate_local_logdir(self, basedir, ds, edict, subdir=None, rw='r'):
+    def _generate_local_logdir(self, basedir, ds, edict, subdir=None, rw='r', ncfile=None):
 
         edict["institute"] = ds.institute
         edict["model"] = ds.model
@@ -22,7 +22,10 @@ class EsgfDict(dict):
         if subdir == None: logdir = basedir
         if subdir == "exper": logdir = os.path.join(basedir, edict["experiment"])
 
-        logfile = ds.esgf_drs + ".json"
+        if ncfile:
+            logfile = "{}.{}.json".format(ds.project, ncfile)
+        else:
+            logfile = "{}.{}.json".format(ds.project, ds.esgf_drs)
         json_file = os.path.join(logdir, logfile)
 
         if rw == 'w':
@@ -35,22 +38,20 @@ class EsgfDict(dict):
     def esgf_query(self, url, logfile):
         resp = requests.get(url, verify=False)
         json = resp.json()
-        with open(logfile, 'w') as fw:
+        with open(logfile, 'w+') as fw:
             jsn.dump(json, fw)
 
 
 
     def format_is_latest_datafile_url(self):
-        template="https://{node}/esg-search/search?type=File&project={project}&institute={institute}&" \
-                 "time_frequency={frequency}&realm={realm}&title={ncfile}&distrib={distrib}&latest={latest}" \
+        template="https://{node}/esg-search/search?type=File&project={project}&time_frequency={frequency}&" \
+                 "title={ncfile}&distrib={distrib}&latest={latest}" \
                  "&format=application%2Fsolr%2Bjson&limit=10000"
 
         return self._format_gen_url(template,
                                     node=self['node'],
                                     project=self['project'],
-                                    institute=self['institute'],
                                     frequency=self['frequency'],
-                                    realm=self['realm'],
                                     ncfile=self['ncfile'],
                                     distrib=self['distrib'],
                                     latest=self['latest'],
@@ -61,7 +62,7 @@ class EsgfDict(dict):
 
         template="https://{node}/esg-search/search?type=Dataset&project={project}&institute={institute}&model={model}&" \
                  "experiment={experiment}&time_frequency={frequency}&realm={realm}&cmor_table={table}&ensemble={ensemble}&" \
-                 "distrib={distrib}&latest={latest}" \
+                 "variable={variable}&distrib={distrib}&latest={latest}" \
                  "&format=application%2Fsolr%2Bjson&limit=10000"
 
         return self._format_gen_url(template,
@@ -74,6 +75,7 @@ class EsgfDict(dict):
                                     realm=self['realm'],
                                     table=self['table'],
                                     ensemble=self['ensemble'],
+                                    variable=self['variable'],
                                     distrib=self['distrib'],
                                     latest=self['latest'],
                                     )

@@ -369,12 +369,12 @@ def main(arguments):
         esgf_dict['distrib'] = True
         esgf_dict['latest'] = True
 
-        for expt in ['rcp26']:
+        for expt in ALLEXPTS:
             esgf_dict['experiment'] = expt
             datasets = Dataset.objects.filter(variable=var, cmor_table=table, frequency=freq, experiment=expt)
 
             if arguments['--generate_latest_cache']:
-                is_latest_dataset_cache(datasets, var, esgf_dict)
+            #    is_latest_dataset_cache(datasets, var, esgf_dict)
                 is_latest_datafile_cache(datasets, var, esgf_dict)
 
             #            dataset_latest_check(datasets, var, esgf_dict)
