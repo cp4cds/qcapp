@@ -23,7 +23,7 @@ class EsgfDict(dict):
         if subdir == "exper": logdir = os.path.join(basedir, edict["experiment"])
 
         if ncfile:
-            logfile = "{}.{}.json".format(ds.project, ncfile)
+            logfile = "{}.{}.json".format(ds.project, ncfile.strip('.nc'))
         else:
             logfile = "{}.{}.json".format(ds.project, ds.esgf_drs)
         json_file = os.path.join(logdir, logfile)

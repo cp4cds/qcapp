@@ -396,6 +396,23 @@ def update_db_checksums(dbobj, checksums, ceda_data_node):
 
     dbobj.save()
 
+def read_datafile_json_cache(json_file, logfile):
+
+
+
+    try:
+        json_data = open(json_file).read()
+        _data = jsn.loads(json_data)
+        json_resp = _data["response"]["docs"]
+
+    except IOError:
+        log_message(df, logfile, "LATEST.000 [FAIL] :: NO JSON LOG FILE")
+        json_resp = {}
+
+    return json_resp
+
+
+
 
 def datafile_latest_check(datasets, variable, esgf_dict):
     """
@@ -405,7 +422,7 @@ def datafile_latest_check(datasets, variable, esgf_dict):
     """
     ceda_data_node = "esgf-data1.ceda.ac.uk"
     version_qc = False
-
+    ceda_cksum_is_latest = False
     for ds in datasets:
 
         dfs = ds.datafile_set.all()
@@ -416,13 +433,17 @@ def datafile_latest_check(datasets, variable, esgf_dict):
                 print df.archive_path
                 df.up_to_date = False
                 df.save()
-                # Open and read cached JSON file
-                esgf_dict, json_file = esgf_dict._generate_local_logdir(DATAFILE_LATEST_CACHE, ds, esgf_dict, subdir="exper", ncfile=df.ncfile)
-                json_data = open(json_file).read()
-                _data = jsn.loads(json_data)
-                json_resp = _data["response"]["docs"]
-                # print "json_file {}".format(json_file)
+                esgf_dict, json_file = esgf_dict._generate_local_logdir(DATAFILE_LATEST_CACHE, ds, esgf_dict, subdir="exper",
+                                                                         ncfile=df.ncfile)
+
                 logfile = os.path.join(DATAFILE_LATEST_DIR, os.path.basename(json_file).replace(".json", ".datafile.log"))
+                json_resp = read_datafile_json_cache(json_file, logfile)
+
+                # print "json_file {}".format(json_file)
+
+
+                # Open and read cached JSON file
+
                 # versions is a dictionary where the key is the datanode and value is the published version
                 checksums = {}
                 checksums = get_all_checksums(json_resp, checksums, logfile, type="datafile")
