@@ -95,7 +95,7 @@ def get_latest_version(db_obj, versions, logfile):
 
     except TypeError:
         errmsg = "LATEST.006 [FATAL] :: Cannot perform version_qc, no known latest version " \
-                 "as types do not match {} \n".format(versions)
+                 "as types do not match {} ".format(versions)
         db_obj.up_to_date_note = errmsg
         db_obj.save()
         with open(logfile, 'a') as fw:
@@ -123,7 +123,7 @@ def _get_latest_checksum(insts, versions, cksum_types, cksum):
 
     except TypeError:
         errmsg = "LATEST.006 [FATAL] :: Cannot perform version_qc, no known latest version " \
-                 "as types do not match {} \n".format(versions)
+                 "as types do not match {} ".format(versions)
         db_obj.up_to_date_note = errmsg
         db_obj.save()
         with open(logfile, 'a') as fw:
@@ -180,6 +180,46 @@ def get_latest_checksum(db_obj, cksums, logfile):
         valid_latest_checksum = True
         return valid_latest_checksum, latest_checksum
 
+    elif n_masters == 0:
+        if len(cksums.keys()) == 1:
+
+            if ".ceda." in cksums.keys()[0]:
+                log_message(db_obj, logfile, "LATEST [WARN] :: No master record, CEDA hold only published copy",
+                            set_uptodate=True)
+                latest_checksum = _get_latest_checksum_dict(key, cksums[key]['version'], cksums[key]['cksum_type'], cksums[key]['cksum'])
+                valid_latest_checksum = True
+                return valid_latest_checksum, latest_checksum
+
+            else:
+                log_message(db_obj, logfile, "LATEST [FAIL] :: No master record, CEDA does not have a copy")
+                latest_checksum = _get_latest_checksum_dict(None, None, None, None)
+                valid_latest_checksum = False
+                return valid_latest_checksum, latest_checksum
+
+        elif len(cksums.keys()) > 1:
+            for key in cksums.keys():
+
+                if "dkrz" in key:
+                    log_message(db_obj, logfile, "LATEST [WARN] :: No master record, DKRZ checksum used a proxy for master", set_uptodate=True)
+                    valid_latest_checksum = True
+                    latest_checksum = _get_latest_checksum_dict(key, cksums[key]['version'], cksums[key]['cksum_type'], cksums[key]['cksum'])
+                    return valid_latest_checksum, latest_checksum
+
+                elif "ceda" not in key:
+                   if not cksums[key]['cksum'] == "missing":
+                       log_message(db_obj, logfile,
+                                   "LATEST [WARN] :: No master record, {} checksum used a proxy for master".format(key),
+                                   set_uptodate=True)
+                       valid_latest_checksum = True
+                       latest_checksum = _get_latest_checksum_dict(key, cksums[key]['version'], cksums[key]['cksum_type'], cksums[key]['cksum'])
+                       return valid_latest_checksum, latest_checksum
+
+                else:
+                    log_message(db_obj, logfile, "LATEST [WARN] :: No master data record checksums")
+                    valid_latest_checksum = False
+                    latest_checksum = _get_latest_checksum_dict(None, None, None, None)
+                    return valid_latest_checksum, latest_checksum
+
     elif n_masters > 1:
         master_versions = []
 
@@ -195,17 +235,12 @@ def get_latest_checksum(db_obj, cksums, logfile):
                     latest_checksum = v
                     valid_latest_checksum = True
                     return valid_latest_checksum, latest_checksum
+
         else:
             log_message(db_obj, logfile, "LATEST [ERROR]:: no valid master copy")
             valid_latest_checksum = False
             latest_checksum = _get_latest_checksum_dict(None, None, None, None)
             return valid_latest_checksum, latest_checksum
-
-    elif n_masters == 0:
-        log_message(db_obj, logfile, "LATEST [ERROR] :: no latest checksums")
-        valid_latest_checksum = False
-        latest_checksum = _get_latest_checksum_dict(None, None, None, None)
-        return valid_latest_checksum, latest_checksum
 
 
 def _check_published_and_db_versions_match(db_obj, ceda_publish_version_no, ceda_database_version_no, logfile):
@@ -346,7 +381,7 @@ def compare_ceda_with_latest_version(db_obj, ceda_version, latest_version, logfi
             latest_version = latest_version.strftime("%Y%m%d")
 
         log_message(db_obj, logfile, "LATEST.007 [FATAL] :: CEDA version {} can not be greater than "
-                                     "latest version: {} \n".format(ceda_version, latest_version))
+                                     "latest version: {} ".format(ceda_version, latest_version))
         return False
 
 
@@ -396,9 +431,7 @@ def update_db_checksums(dbobj, checksums, ceda_data_node):
 
     dbobj.save()
 
-def read_datafile_json_cache(json_file, logfile):
-
-
+def read_datafile_json_cache(dbobj, json_file, logfile):
 
     try:
         json_data = open(json_file).read()
@@ -406,7 +439,7 @@ def read_datafile_json_cache(json_file, logfile):
         json_resp = _data["response"]["docs"]
 
     except IOError:
-        log_message(df, logfile, "LATEST.000 [FAIL] :: NO JSON LOG FILE")
+        log_message(dbobj, logfile, "LATEST.000 [FAIL] :: NO JSON LOG FILE")
         json_resp = {}
 
     return json_resp
@@ -430,14 +463,14 @@ def datafile_latest_check(datasets, variable, esgf_dict):
         for df in dfs:
 
      #       if df.archive_path == "/badc/cmip5/data/cmip5/output1/NOAA-GFDL/GFDL-CM3/rcp26/mon/seaIce/OImon/r1i1p1/v20110601/sic/sic_OImon_GFDL-CM3_rcp26_r1i1p1_209101-209512.nc":
-                print df.archive_path
+              #  print df.archive_path
                 df.up_to_date = False
                 df.save()
                 esgf_dict, json_file = esgf_dict._generate_local_logdir(DATAFILE_LATEST_CACHE, ds, esgf_dict, subdir="exper",
                                                                          ncfile=df.ncfile)
 
                 logfile = os.path.join(DATAFILE_LATEST_DIR, os.path.basename(json_file).replace(".json", ".datafile.log"))
-                json_resp = read_datafile_json_cache(json_file, logfile)
+                json_resp = read_datafile_json_cache(df, json_file, logfile)
 
                 # print "json_file {}".format(json_file)
 
@@ -465,20 +498,21 @@ def datafile_latest_check(datasets, variable, esgf_dict):
                     ceda_cksum_is_latest = False
 
                 if ceda_cksum_is_latest:
-                    log_message(df, logfile, "LATEST.000 [PASS] :: CEDA datafile is up to date \n CEDA checksum :: {} \n "
-                                             "LATEST checksum {} \n LATEST source {}".format(
+                    log_message(df, logfile, "LATEST.000 [PASS] :: CEDA datafile is up to date CEDA checksum :: {} "
+                                             "LATEST checksum {} LATEST source {}".format(
                                              checksums[ceda_data_node]['cksum'], latest_checksum['cksum'], latest_checksum['node']),
                                 set_uptodate=True)
 
                     # print "SUCCESS a valid datafile was found for {}".format(df.ncfile)
                 else:
-                    log_message(df, logfile, "LATEST.009 [FAIL] :: CEDA datafile is not latest version \n CEDA checksum :: {} \n " \
-                                             "LATEST checksum {} \n LATEST source {}".format(checksums[ceda_data_node]['cksum'],
-                                             latest_checksum['cksum'], latest_checksum['node'])
-                                )
-
-                    print "FAIL a valid datafile was not found or is missing for {}".format(df.ncfile)
                     url = utils._generate_datafile_url(df.ncfile)
-                    print url
+                    error_message = "LATEST.009 [FAIL] :: CEDA datafile is not latest version :: CEDA checksum is {} :: " \
+                                    "LATEST checksum is {} :: LATEST source is {} :: JSON QUERY :: {}".format(checksums[ceda_data_node]['cksum'],
+                                    latest_checksum['cksum'], latest_checksum['node'], url)
+
+                    log_message(df, logfile, error_message)
+
+                    print "FAIL a valid datafile was not found or is missing for {}".format(df.archive_path)
+                    print error_message
 
 

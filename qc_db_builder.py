@@ -364,7 +364,7 @@ def main(arguments):
 
                     multi_file_time_checks(filelist, TS_DIR)
 
-    if arguments['--check_data_is_latest'] and arguments['--generate_latest_cache']:
+    if arguments['--generate_latest_cache']:
         esgf_dict['distrib'] = True
         esgf_dict['latest'] = True
 
@@ -384,7 +384,7 @@ def main(arguments):
             datasets = Dataset.objects.filter(variable=var, cmor_table=table, frequency=freq, experiment=expt)
 
 
-            #            dataset_latest_check(datasets, var, esgf_dict)
+            # dataset_latest_check(datasets, var, esgf_dict)
             datafile_latest_check(datasets, var, esgf_dict)
 
 
