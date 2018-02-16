@@ -12,20 +12,21 @@ class EsgfDict(dict):
     def _format_gen_url(self, template, **kwargs):
         return template.format(**kwargs)
 
-    def _generate_local_logdir(self, basedir, ds, edict, subdir=None, rw='r', ncfile=None):
+    def _generate_local_logdir(self, basedir, ds_obj, edict, subdir=None, rw='r', ncfile=None):
 
-        edict["institute"] = ds.institute
-        edict["model"] = ds.model
-        edict["realm"] = ds.realm
-        edict["ensemble"] = ds.ensemble
+        edict["institute"] = ds_obj.institute
+        edict["model"] = ds_obj.model
+        edict["realm"] = ds_obj.realm
+        edict["ensemble"] = ds_obj.ensemble
 
         if subdir == None: logdir = basedir
         if subdir == "exper": logdir = os.path.join(basedir, edict["experiment"])
 
         if ncfile:
-            logfile = "{}.{}.json".format(ds.project, ncfile.strip('.nc'))
+            logfile = "{}.{}.json".format(ds_obj.project, ncfile.strip('.nc'))
         else:
-            logfile = "{}.{}.json".format(ds.project, ds.esgf_drs)
+            logfile = "{}.json".format(ds_obj.esgf_drs)
+
         json_file = os.path.join(logdir, logfile)
 
         if rw == 'w':

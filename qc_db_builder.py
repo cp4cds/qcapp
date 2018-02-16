@@ -371,8 +371,9 @@ def main(arguments):
         for expt in ALLEXPTS:
             esgf_dict['experiment'] = expt
             datasets = Dataset.objects.filter(variable=var, cmor_table=table, frequency=freq, experiment=expt)
-            #    is_latest_dataset_cache(datasets, var, esgf_dict)
-            is_latest_datafile_cache(datasets, var, esgf_dict)
+
+            is_latest_dataset_cache(datasets, esgf_dict)
+            #is_latest_datafile_cache(datasets, esgf_dict)
 
     if arguments['--check_data_is_latest']:
 
@@ -383,9 +384,8 @@ def main(arguments):
             esgf_dict['experiment'] = expt
             datasets = Dataset.objects.filter(variable=var, cmor_table=table, frequency=freq, experiment=expt)
 
-
-            # dataset_latest_check(datasets, var, esgf_dict)
-            datafile_latest_check(datasets, var, esgf_dict)
+            dataset_latest_check(datasets, esgf_dict)
+            #datafile_latest_check(datasets, esgf_dict)
 
 
 if __name__ == '__main__':
