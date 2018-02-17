@@ -304,6 +304,17 @@ def test(arguments):
 
 
 def main(arguments):
+
+    """
+
+        main
+
+    Main takes the input arguments and parses these into the performing the desired actions
+    
+    :param arguments:
+    :return:
+    """
+
     var = arguments['VAR']
     table = arguments['TABLE']
     freq = arguments['FREQ']
