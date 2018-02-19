@@ -5,6 +5,7 @@ Usage:
                     [--create] [--run_cedacc] [--parse_cedacc] [--run_cfchecker] [--parse_cfchecker]
                     [--check_up_to_date] [--run_single_file_timechecks] [--run_multi_file_timechecks]
                     [--test] [--esgf-ds-logger] [--check_data_is_latest] [--generate_latest_cache ]
+                    [--dataset] [--datafile]
 
 Arguments:
     VAR         A valid CMIP5 short variable name
@@ -25,6 +26,8 @@ Options:
     --run_multi_file_timechecks         Run multifile timeseries completeness checks
     --check_data_is_latest              Run code to check whether local data is up to date
     --generate_latest_cache             Generate JSON cache of ESGF queries for is latest check
+    --dataset                           Perform test at only the dataset level
+    --datafile                          Perform test at only the datafile level
 
     This database builder utilises global variables and settings that are defined in qc_settings.py
 """
@@ -310,7 +313,7 @@ def main(arguments):
         main
 
     Main takes the input arguments and parses these into the performing the desired actions
-    
+
     :param arguments:
     :return:
     """
@@ -383,8 +386,10 @@ def main(arguments):
             esgf_dict['experiment'] = expt
             datasets = Dataset.objects.filter(variable=var, cmor_table=table, frequency=freq, experiment=expt)
 
-            is_latest_dataset_cache(datasets, esgf_dict)
-            #is_latest_datafile_cache(datasets, esgf_dict)
+            if arguments['--dataset']:
+                is_latest_generate_cache(datasets, esgf_dict, "dataset")
+            if arguments['--datafile']:
+                is_latest_generate_cache(datasets, esgf_dict, "datafile")
 
     if arguments['--check_data_is_latest']:
 
@@ -395,8 +400,10 @@ def main(arguments):
             esgf_dict['experiment'] = expt
             datasets = Dataset.objects.filter(variable=var, cmor_table=table, frequency=freq, experiment=expt)
 
-            dataset_latest_check(datasets, esgf_dict)
-            #datafile_latest_check(datasets, esgf_dict)
+            if arguments['--dataset']:
+                dataset_latest_check(datasets, esgf_dict)
+            if arguments['--datafile']:
+                datafile_latest_check(datasets, esgf_dict)
 
 
 if __name__ == '__main__':
