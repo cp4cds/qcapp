@@ -21,8 +21,8 @@ from subprocess import call
 ####
 # Specify lotus output dir here
 ####
-command_line_args = "--generate_latest_cache --check_data_is_latest"
-lotus_out = 'latest_dataset_check'
+command_line_args = "--generate_latest_cache --check_data_is_latest --dataset"
+lotus_out = 'latest_dataset_check_2'
 files = ["ancil_files/cp4cds_data_requirements.txt",
          "ancil_files/magic_additional_data.txt"]
 
@@ -48,7 +48,7 @@ for file in files:
                 table = line.split(',')[1].strip()
                 frequency = line.split(',')[2].strip()
                 if DEBUG: print variable, table, frequency
-                if variable in ["tasmax", "rsus", "rsutcs",]:
+                if variable not in ["sim",]:
                     lotus_cmd = ['./submit-lotus.sh', variable, table, frequency, lotus_out, command_line_args]
                     res = call(lotus_cmd)
                     call(['sleep', '2'])

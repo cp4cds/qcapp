@@ -84,8 +84,7 @@ def _check_published_and_db_versions_match(db_obj, ceda_publish_version_no, ceda
     try:
         if ceda_database_version_no == ceda_publish_version_no:
             _log_message(db_obj, logfile, "LATEST.003 [PASS] :: MATCH - CEDA database version {} and published " \
-                        "ESGF version {} are the same".format(ceda_database_version_no, ceda_publish_version_no),
-                        set_uptodate=True)
+                        "ESGF version {} are the same".format(ceda_database_version_no, ceda_publish_version_no))
             return True
 
         if ceda_database_version_no != ceda_publish_version_no:
@@ -181,7 +180,7 @@ def is_latest_generate_cache(datasets, esgf_dict, data_type):
             # Loop over all datafiles and perform ESGF query, cache results
             for df in dfs:
                 esgf_dict, json_file = esgf_dict._generate_local_logdir(DATAFILE_LATEST_CACHE, ds, esgf_dict,
-                                                                        subdir="exper", rw='w', ncfile=df.ncfile)
+                                                                        "datafile", rw='w', ncfile=df.ncfile)
                 esgf_dict["ncfile"] = df.ncfile
                 url = esgf_dict.format_is_latest_datafile_url()
                 esgf_dict.esgf_query(url, json_file)
@@ -190,7 +189,7 @@ def is_latest_generate_cache(datasets, esgf_dict, data_type):
 
         # Loop over all datafiles and perform ESGF query, cache results
         for ds in datasets:
-            esgf_dict, json_file = esgf_dict._generate_local_logdir(DATASET_LATEST_CACHE, ds, esgf_dict, rw='w')
+            esgf_dict, json_file = esgf_dict._generate_local_logdir(DATASET_LATEST_CACHE, ds, esgf_dict, "dataset", rw='w')
             url = esgf_dict.format_is_latest_dataset_url()
             esgf_dict.esgf_query(url, json_file)
 
@@ -267,8 +266,7 @@ def compare_ceda_with_latest_version(db_obj, ceda_version, latest_version, logfi
         if isinstance(ceda_version, datetime.datetime): ceda_version = ceda_version.strftime("%Y%m%d")
         if isinstance(latest_version, datetime.datetime): latest_version = latest_version.strftime("%Y%m%d")
 
-        _log_message(db_obj, logfile, "LATEST.000 [PASS] :: CEDA version is up to date at version: {}".format(latest_version),
-                    set_uptodate=True)
+        _log_message(db_obj, logfile, "LATEST.000 [PASS] :: CEDA version is up to date at version: {}".format(latest_version))
         return True
 
     if ceda_version > latest_version:
@@ -345,7 +343,7 @@ def get_alternative_version(ds, versions, logfile):
 
             # If only result found is for CEDA accept that we have the only copy, list as a warning
             if "ceda" in node:
-                _log_message(ds, logfile, "LATEST :: [WARN] :: Only version is CEDA", set_uptodate=True)
+                _log_message(ds, logfile, "LATEST :: [WARN] :: Only version is CEDA")
                 valid_master_version = True
                 master_version = versions[node]['version']
 
@@ -362,13 +360,13 @@ def get_alternative_version(ds, versions, logfile):
         for node in versions.keys():
             # Preferentially use DKRZ as master version proxy
             if "dkrz" in node:
-                _log_message(ds, logfile, "LATEST :: [WARN] :: DKRZ version is proxy for master version", set_uptodate=True)
+                _log_message(ds, logfile, "LATEST :: [WARN] :: DKRZ version is proxy for master version")
                 valid_master_version = True
                 master_version = versions[node]['version']
 
             # Return any master version that is not ceda and version is not empty use that node as proxy for master
             elif "ceda" not in node and versions[node]['version']:
-                _log_message(ds, logfile, "LATEST :: [WARN] :: Proxy master version used {}".format(versions[node]), set_uptodate=True)
+                _log_message(ds, logfile, "LATEST :: [WARN] :: Proxy master version used {}".format(versions[node]))
                 master_version = versions[node]['version']
                 valid_master_version = True
 
@@ -449,7 +447,7 @@ def dataset_latest_check(datasets, esgf_dict):
             ds.save()
 
             # Open and read cached JSON file
-            esgf_dict, json_file = esgf_dict._generate_local_logdir(DATASET_LATEST_CACHE, ds, esgf_dict)
+            esgf_dict, json_file = esgf_dict._generate_local_logdir(DATASET_LATEST_CACHE, ds, esgf_dict, "dataset")
             logfile = os.path.join(DATASET_LATEST_DIR, os.path.basename(json_file).replace(".json", ".dataset.log"))
             json_resp = read_datafile_json_cache(ds, json_file, logfile)
 
@@ -594,8 +592,7 @@ def get_latest_checksum(db_obj, cksums, logfile):
         if len(cksums.keys()) == 1:
 
             if ".ceda." in cksums.keys()[0]:
-                _log_message(db_obj, logfile, "LATEST [WARN] :: No master record, CEDA hold only published copy",
-                            set_uptodate=True)
+                _log_message(db_obj, logfile, "LATEST [WARN] :: No master record, CEDA hold only published copy")
                 latest_checksum = _get_latest_checksum_dict(key, cksums[key]['version'], cksums[key]['cksum_type'], cksums[key]['cksum'])
                 valid_latest_checksum = True
                 return valid_latest_checksum, latest_checksum
@@ -610,7 +607,7 @@ def get_latest_checksum(db_obj, cksums, logfile):
             for key in cksums.keys():
 
                 if "dkrz" in key:
-                    _log_message(db_obj, logfile, "LATEST [WARN] :: No master record, DKRZ checksum used a proxy for master", set_uptodate=True)
+                    _log_message(db_obj, logfile, "LATEST [WARN] :: No master record, DKRZ checksum used a proxy for master")
                     valid_latest_checksum = True
                     latest_checksum = _get_latest_checksum_dict(key, cksums[key]['version'], cksums[key]['cksum_type'], cksums[key]['cksum'])
                     return valid_latest_checksum, latest_checksum
@@ -618,8 +615,7 @@ def get_latest_checksum(db_obj, cksums, logfile):
                 elif "ceda" not in key:
                    if not cksums[key]['cksum'] == "missing":
                        _log_message(db_obj, logfile,
-                                   "LATEST [WARN] :: No master record, {} checksum used a proxy for master".format(key),
-                                   set_uptodate=True)
+                                   "LATEST [WARN] :: No master record, {} checksum used a proxy for master".format(key))
                        valid_latest_checksum = True
                        latest_checksum = _get_latest_checksum_dict(key, cksums[key]['version'], cksums[key]['cksum_type'], cksums[key]['cksum'])
                        return valid_latest_checksum, latest_checksum
@@ -675,7 +671,7 @@ def datafile_latest_check(datasets, esgf_dict):
             df.up_to_date = False
             df.save()
 
-            esgf_dict, json_file = esgf_dict._generate_local_logdir(DATAFILE_LATEST_CACHE, ds, esgf_dict, subdir="exper",
+            esgf_dict, json_file = esgf_dict._generate_local_logdir(DATAFILE_LATEST_CACHE, ds, esgf_dict, "datafile",
                                                                     ncfile=df.ncfile)
             logfile = os.path.join(DATAFILE_LATEST_DIR, os.path.basename(json_file).replace(".json", ".datafile.log"))
             # print "json_file {}".format(json_file)
@@ -758,7 +754,7 @@ def check_datafile_version_and_checksum(db_obj, all_cksums, latest_cksum, logfil
         if latest_cksum['cksum'] == db_obj.sha256_checksum:
             _log_message(db_obj, logfile,
                         "LATEST [PASS] :: Checksum of CEDA file {} and latest published checksum {} match".
-                        format(ceda_database_checksum, latest_cksum['cksum']), set_uptodate=True)
+                        format(ceda_database_checksum, latest_cksum['cksum']))
             return True
         else:
             _log_message(db_obj, logfile,
@@ -770,7 +766,7 @@ def check_datafile_version_and_checksum(db_obj, all_cksums, latest_cksum, logfil
         if latest_cksum['cksum'] == db_obj.md5_checksum:
             _log_message(db_obj, logfile,
                         "LATEST [PASS] :: Checksum of CEDA file {} and latest published checksum {} match".
-                        format(ceda_database_checksum, latest_cksum['cksum']), set_uptodate=True)
+                        format(ceda_database_checksum, latest_cksum['cksum']))
             return True
         else:
             _log_message(db_obj, logfile,
@@ -800,7 +796,7 @@ def compare_ceda_with_latest_cksum(db_obj, ceda_version, latest_version, logfile
     """
 
     if ceda_version == latest_version:
-        _log_message(db_obj, logfile, "LATEST.000 [PASS] :: CEDA version is up to date at version: {}".format(latest_version), set_uptodate=True)
+        _log_message(db_obj, logfile, "LATEST.000 [PASS] :: CEDA version is up to date at version: {}".format(latest_version))
         return True
 
 

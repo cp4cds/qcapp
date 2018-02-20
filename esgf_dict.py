@@ -12,7 +12,7 @@ class EsgfDict(dict):
     def _format_gen_url(self, template, **kwargs):
         return template.format(**kwargs)
 
-    def _generate_local_logdir(self, basedir, ds_obj, edict, subdir=None, rw='r', ncfile=None):
+    def _generate_local_logdir(self, basedir, ds_obj, edict, dtype, rw='r', ncfile=None):
         """
 
             _generate_local_logdir
@@ -25,25 +25,33 @@ class EsgfDict(dict):
         :param basedir: A base directory
         :param ds_obj: A Django database object; Dataset
         :param edict: A esgf_dict object
-        :param subdir: For DataFile log files set to "exper" to include experiment sub-directory
+        :param dtype: Set type to be dataset, or datafile, log at the experiment level for datafile
         :param rw: Read or Write mode
         :param ncfile: If DataFile object use the ncfile as the filename
 
         :return: Tuple of ([esgf_dict], [JSON-logfile])
         """
 
+        if dtype not in ["dataset", "datafile"]:
+            raise Exception("No Database object type specified")
+
+        if dtype == "datafile":
+            if ncfile == None:
+                raise Exception("A netcdf file must be specifed for datafile type")
+
+        if dtype == "dataset": logdir = basedir
+        if dtype == "datafile": logdir = os.path.join(basedir, edict["experiment"])
+
         edict["institute"] = ds_obj.institute
         edict["model"] = ds_obj.model
         edict["realm"] = ds_obj.realm
         edict["ensemble"] = ds_obj.ensemble
 
-        if subdir == None: logdir = basedir
-        if subdir == "exper": logdir = os.path.join(basedir, edict["experiment"])
 
-        if ncfile:
+        if dtype == "datafile":
             logfile = "{}.{}.json".format(ds_obj.project, ncfile.strip('.nc'))
-        else:
-            logfile = "{}.json".format(ds_obj.esgf_drs)
+        if dtype == "dataset":
+            logfile = "{}.{}.json".format(ds_obj.esgf_drs, edict["variable"])
 
         json_file = os.path.join(logdir, logfile)
 
