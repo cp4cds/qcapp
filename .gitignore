@@ -3,12 +3,14 @@ qcproj/settings_local.py
 MULTIFILE-TEST
 CF-FATAL
 test*.py
+*json
 *.csv
 *.pyc
 *.log
 OUTPUT-LOGS/
 lotus-logs/
 log_dir/
+tests/
 
 # Database
 db.sqlite*

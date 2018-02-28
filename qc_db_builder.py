@@ -5,7 +5,7 @@ Usage:
                     [--create] [--run_cedacc] [--parse_cedacc] [--run_cfchecker] [--parse_cfchecker]
                     [--check_up_to_date] [--run_single_file_timechecks] [--run_multi_file_timechecks]
                     [--test] [--esgf-ds-logger] [--check_data_is_latest] [--generate_latest_cache ]
-                    [--dataset] [--datafile]
+                    [--dataset] [--datafile] [--is_latest_consistent]
 
 Arguments:
     VAR         A valid CMIP5 short variable name
@@ -28,6 +28,7 @@ Options:
     --generate_latest_cache             Generate JSON cache of ESGF queries for is latest check
     --dataset                           Perform test at only the dataset level
     --datafile                          Perform test at only the datafile level
+    --is_latest_consistent              Check that the up_to_date status flag of dataset and datafiles is consistent
 
     This database builder utilises global variables and settings that are defined in qc_settings.py
 """
@@ -400,11 +401,15 @@ def main(arguments):
             esgf_dict['experiment'] = expt
             datasets = Dataset.objects.filter(variable=var, cmor_table=table, frequency=freq, experiment=expt)
 
-            if arguments['--dataset']:
-                dataset_latest_check(datasets, esgf_dict)
-            if arguments['--datafile']:
-                datafile_latest_check(datasets, esgf_dict)
+            # if arguments['--dataset']:
+            dataset_latest_check(datasets, esgf_dict)
+            # if arguments['--datafile']:
+            # datafile_latest_check(datasets, esgf_dict)
 
+    if arguments['--is_latest_consistent']:
+        for expt in ALLEXPTS:
+            datasets = Dataset.objects.filter(variable=var, cmor_table=table, frequency=freq, experiment=expt)
+            check_ds_and_df_is_latest_match(datasets, esgf_dict)
 
 if __name__ == '__main__':
 
