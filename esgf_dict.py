@@ -12,7 +12,7 @@ class EsgfDict(dict):
     def _format_gen_url(self, template, **kwargs):
         return template.format(**kwargs)
 
-    def _generate_local_logdir(self, basedir, ds_obj, edict, dtype, rw='r', ncfile=None):
+    def _generate_jsonfile_path(self, basedir, ds_obj, edict, dtype, rw='r', ncfile=None):
         """
 
             _generate_local_logdir

@@ -397,14 +397,15 @@ def main(arguments):
         esgf_dict['distrib'] = True
         esgf_dict['latest'] = True
 
-        for expt in ALLEXPTS:
+        for expt in ["rcp26"]:#ALLEXPTS:
             esgf_dict['experiment'] = expt
             datasets = Dataset.objects.filter(variable=var, cmor_table=table, frequency=freq, experiment=expt)
 
             # if arguments['--dataset']:
-            dataset_latest_check(datasets, esgf_dict)
+            # dataset_latest_check(datasets, esgf_dict)
             # if arguments['--datafile']:
-            # datafile_latest_check(datasets, esgf_dict)
+            check_datafiles_are_latest(datasets, esgf_dict)
+
 
     if arguments['--is_latest_consistent']:
         for expt in ALLEXPTS:
