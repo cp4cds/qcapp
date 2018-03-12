@@ -397,7 +397,7 @@ def main(arguments):
         esgf_dict['distrib'] = True
         esgf_dict['latest'] = True
 
-        for expt in ["rcp26"]:#ALLEXPTS:
+        for expt in ALLEXPTS:
             esgf_dict['experiment'] = expt
             datasets = Dataset.objects.filter(variable=var, cmor_table=table, frequency=freq, experiment=expt)
 

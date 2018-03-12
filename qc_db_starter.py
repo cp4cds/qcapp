@@ -25,7 +25,7 @@ from subprocess import call
 
 #command_line_args = "--is_latest_consistent"
 command_line_args = "--check_data_is_latest"
-lotus_out = 'latest_dataset_check_4'
+lotus_out = 'latest_datafile_check'
 files = ["../ancil_files/cp4cds_data_requirements.txt",
          "../ancil_files/magic_additional_data.txt"]
 
