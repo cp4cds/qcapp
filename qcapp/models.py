@@ -98,6 +98,7 @@ class DataFile(models.Model):
     up_to_date_note = models.CharField(default=None, max_length=1000, blank=True, null=True)
 
     # Datafile QC information
+    qc = models.NullBooleanField(default=False, blank=True, null=True)
     cf_compliance_score = models.PositiveSmallIntegerField(default=0, blank=True)
     ceda_cc_score = models.PositiveSmallIntegerField(default=0, blank=True)
     file_qc_score = models.PositiveSmallIntegerField(default=0, blank=True)
