@@ -15,12 +15,11 @@ CEDA_DATA_NODE = "esgf-data1.ceda.ac.uk"
 
 class ESGFError(Exception):
 
-    def __init__(self, message, dbobj, update=False):
+    def __init__(self, message, dbobj):
 
         super(ESGFError, self).__init__(message)
 
         self.dbobj = dbobj
-        self.update = update
         _log_message(dbobj, message)
         print(message)
 
@@ -353,10 +352,11 @@ def check_datafile_is_latest(ds, dfs, edict):
                 ceda_version_is_latest = compare_ceda_with_latest(df, ceda_version, latest['version'], dbType='df')
 
                 if ceda_cksum_is_latest and ceda_version_is_latest:
-                    success_message = "IS_LATEST [PASS] :: The CEDA datafile checksum {} is the same as the ESGF recorded latest " \
-                                      "{} :: ESGF query {}".format(ceda_checksum, latest['cksum'], esgf_dict.format_is_latest_datafile_url(), df)
+                    success_message = "IS_LATEST [PASS] :: The CEDA datafile checksum {} is the same as the " \
+                                      "ESGF recorded latest {} :: ESGF query {}".format(
+                                       ceda_checksum, latest['cksum'], esgf_dict.format_is_latest_datafile_url())
                     # print(success_message)
-                    _log_message(df, success_message)
+                    _log_message(df, success_message, set_uptodate=True)
 
                 elif ceda_cksum_is_latest and not ceda_version_is_latest:
                     raise ESGFError("IS_LATEST [VERSION ERROR] :: The CEDA datafile checksum {} is the same as the "
