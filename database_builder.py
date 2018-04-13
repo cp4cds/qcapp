@@ -137,7 +137,6 @@ def create_database_entry(ipath, df_data):
     # /group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/
     # output1/MOHC/HadGEM2-ES/rcp45/mon/atmos/Amon/r1i1p1/tas/files/20111128/
     # tas_Amon_HadGEM2-ES_rcp45_r1i1p1_212412-214911.nc
-
     product, institution, model, experiment, frequency, realm, table, ensemble, variable, \
         files, version, ncfile = ipath.split('/')[7:]
     version = "v{}".format(version)
@@ -168,7 +167,7 @@ def create_database_entry(ipath, df_data):
     md5_checksum = commands.getoutput('md5sum ' + archive_filepath).split(' ')[0]
     isTimeseries = is_timeseries(archive_filepath)
 
-    if df:
+    if df_data:
         if df_data["checksum_type"][0].strip() == "SHA256":
             sha256_checksum = df_data["checksum"][0].strip()
         else:
@@ -179,6 +178,7 @@ def create_database_entry(ipath, df_data):
         flongname = df_data["variable_long_name"][0].strip()
         fstandardname = df_data["cf_standard_name"][0].strip()
         funits = df_data["variable_units"][0].strip()
+        published = True
     else:
         sha256_checksum = commands.getoutput('sha256sum ' + archive_filepath).split(' ')[0]
         fsize = 0
@@ -187,6 +187,7 @@ def create_database_entry(ipath, df_data):
         flongname = ""
         fstandardname = ""
         funits = ""
+        published = False
 
 
     dFile, _ = DataFile.objects.get_or_create(dataset=dSet,
@@ -203,6 +204,7 @@ def create_database_entry(ipath, df_data):
                                               variable_units=funits,
                                               start_time=start_time,
                                               end_time=end_time,
+                                              published=published,
                                               timeseries=isTimeseries
                                               )
 
@@ -248,15 +250,16 @@ def build_database():
     else:
         print(file)
         project, output, institution, model, experiment, frequency, realm, table, \
-        ensemble, variable, files, version, file = file.split('/')[6:]
-        instance = '.'.join(['cmip5', output, institution, model, experiment, frequency, realm, table, ensemble, 'v' + version, file + '2'])
+        ensemble, variable, files, version, ncfile = file.split('/')[6:]
+        instance = '.'.join(['cmip5', output, institution, model, experiment, frequency, realm, table, ensemble,
+                             'v' + version, ncfile])
         print instance
         json_filename = '.'.join([variable, frequency, table, experiment])
         json_file = os.path.join(JSONDIR, json_filename)
         datafiles = json.load(open(json_file))
         # Find the datafile entry that matches the instance id for the file
         df = next((d for d in datafiles if d['instance_id'] == instance), None)
-        # create_database_entry(file, df)
+        create_database_entry(file, df)
 
 if __name__ == "__main__":
 

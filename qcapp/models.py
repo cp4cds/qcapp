@@ -93,6 +93,7 @@ class DataFile(models.Model):
     variable_units = models.CharField(max_length=20)
     start_time = models.DateField()
     end_time = models.DateField()
+    published = models.NullBooleanField(default=None, blank=True, null=True)
     timeseries = models.NullBooleanField(default=None, blank=True, null=True)
     up_to_date = models.NullBooleanField(default=None, blank=True, null=True)
     up_to_date_note = models.CharField(default=None, max_length=1000, blank=True, null=True)
