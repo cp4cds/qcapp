@@ -1,5 +1,6 @@
 qcproj/settings_local.py
- 
+
+missing_files/ 
 MULTIFILE-TEST
 CF-FATAL
 test*.py

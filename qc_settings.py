@@ -85,6 +85,11 @@ URL_FILE_INFO = 'https://%(node)s/esg-search/' \
 
 
 
+URL_FILE_INFO_AT_CEDA = 'https://%(node)s/esg-search/search?type=File&project=%(project)s&title=%(title)s&data_node=%(datanode)s&format=application%%2Fsolr%%2Bjson&limit=10000'
+
+
+
+
 URL_LATEST_DS_TEMPLATE = 'https://%(node)s/esg-search/' \
                          'search?type=Dataset&' \
                          'project=%(project)s&' \
