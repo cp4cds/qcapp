@@ -235,13 +235,7 @@ def fix_database():
                 fw.writelines("{} :: IN CP4CDS DB".format(file))
 
 
-def build_database():
-
-    with open("gws_filelist.log") as fr:
-        files = fr.readlines()
-
-    file = files[0]
-    file = file.strip()
+def build_database(file):
 
     # check file exists in gws
     if not os.path.exists(file):
@@ -253,7 +247,6 @@ def build_database():
         ensemble, variable, files, version, ncfile = file.split('/')[6:]
         instance = '.'.join(['cmip5', output, institution, model, experiment, frequency, realm, table, ensemble,
                              'v' + version, ncfile])
-        print instance
         json_filename = '.'.join([variable, frequency, table, experiment])
         json_file = os.path.join(JSONDIR, json_filename)
         datafiles = json.load(open(json_file))
@@ -263,5 +256,5 @@ def build_database():
 
 if __name__ == "__main__":
 
-    # fix_database()
-      build_database()
+    ifile = argv[1]
+    build_database(ifile)
