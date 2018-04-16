@@ -111,6 +111,7 @@ def read_json(url):
     json_resp = resp.json()
     return json_resp["response"]["docs"]
 
+
 def generate_search_url(ifile):
 
     url_template = "https://{node}/esg-search/search?type=File&" \
@@ -119,6 +120,7 @@ def generate_search_url(ifile):
                    "&format=application%2Fsolr%2Bjson&limit=10000"
 
     return _format_gen_url(url_template, node="esgf-index1.ceda.ac.uk", ncfile=ifile, distrib="false", latest="true")
+
 
 def check_not_in_database(ifile):
 
@@ -207,6 +209,7 @@ def create_database_entry(ipath, df_data):
                                               published=published,
                                               timeseries=isTimeseries
                                               )
+
 
 def fix_database():
 
