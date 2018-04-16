@@ -25,41 +25,28 @@ JSONDIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/DATAFILE_CACHE"
 
 def add_gws_field():
 
-    df = DataFile.objects.first()
-    print(df.archive_path)
-    path = df.archive_path.replace(ARCHIVE_BASEDIR, GWS_BASEDIR)
-    print(path)
-    path_list = path.split('/')
+    datafiles = DataFile.objects.all()
+    for df in datafiles[:2]:
+        print(df.archive_path)
+        path = df.archive_path.replace(ARCHIVE_BASEDIR, GWS_BASEDIR)
+        path_list = path.split('/')
 
-    if path_list[-3] == "files":
-        path_list.pop(-3)
+        if path_list[-3] == "files":
+            path_list.pop(-3)
 
-    # Change version to latest
-    # version = path_list[-2]
-    path_list[-2] = "latest"
+        # Change version to latest
+        # version = path_list[-2]
+        path_list[-2] = "latest"
 
-    gws_latest_path = "/".join(path_list)
-    print(gws_latest_path)
-    print(os.path.exists(gws_latest_path))
+        gws_latest_path = "/".join(path_list)
 
-    gws_path = 
+        if os.path.exists(gws_latest_path):
+            df.gws_path = gws_latest_path
+            df.save()
 
-    # path = ipath.replace(dir1, dir2)
-    # path_list = path.split('/')
-    # version = path_list[-2]
-    # if not version.startswith('v'):
-    #     version = "v"+version
-    #     path_list[-2] = version
-    # if path_list[-3] == "files":
-    #     path_list.pop(-3)
-    #     gws_path = "/".join(path_list)
-    #     return gws_path
-    #
-    #
-    # path_list[-3], path_list[-2] = path_list[-2], path_list[-3]
-    # gws_path = "/".join(path_list)
-    # return gws_path
-
+        else:
+            with open("gws_files_err.log", "a+") as fw:
+                fw.writelines([gws_latest_path + "\n"])
 
 
 if __name__ == "__main__":
