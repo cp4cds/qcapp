@@ -1,5 +1,6 @@
 qcproj/settings_local.py
 
+tests/
 scripts/
 missing_files/ 
 MULTIFILE-TEST
