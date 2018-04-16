@@ -81,6 +81,7 @@ class DataFile(models.Model):
     """
     dataset = models.ForeignKey(Dataset)
     archive_path = models.CharField(max_length=500)
+    gws_path = models.CharField(max_length=500, default=None, blank=True, null=True)
     ncfile = models.CharField(blank=True, max_length=300)
     size = models.FloatField(blank=True)
     sha256_checksum = models.CharField(max_length=80)

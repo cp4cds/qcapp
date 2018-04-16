@@ -11,6 +11,65 @@ from qc_settings import *
 from esgf_dict import EsgfDict
 
 
+def convert_to_cp4cds_gws_path(ipath, dir1, dir2):
+    path = ipath.replace(dir1, dir2)
+    path_list = path.split('/')
+    version = path_list[-2]
+    if not version.startswith('v'):
+        version = "v"+version
+        path_list[-2] = version
+    if path_list[-3] == "files":
+        path_list.pop(-3)
+        gws_path = "/".join(path_list)
+        return gws_path
+
+
+    path_list[-3], path_list[-2] = path_list[-2], path_list[-3]
+    gws_path = "/".join(path_list)
+    return gws_path
+
+
+def get_start_end_times(frequency, fname):
+    """
+    Get start and end times from the filename
+    :return:
+    """
+
+    if fname.endswith('.nc'):
+
+        ncfile = os.path.basename(fname)
+        timestamp = ncfile.strip('.nc').split('_')[-1]
+
+        # IF timestamp is of the form YYYYMMDDHHMM-YYYYMMDDHHMM
+        if len(timestamp) == 25:
+            start_time = datetime.date(int(timestamp[:4]), int(timestamp[4:6]), int(timestamp[7:8]))
+            end_time = datetime.date(int(timestamp[-12:-8]), int(timestamp[-8:-6]), int(timestamp[-6:-4]))
+
+        # IF timestamp is of the form YYYYMMDDHH-YYYYMMDDHH
+        if len(timestamp) == 21:
+            start_time = datetime.date(int(timestamp[:4]), int(timestamp[4:6]), int(timestamp[7:8]))
+            end_time = datetime.date(int(timestamp[-10:-6]), int(timestamp[-6:-4]), int(timestamp[-4:-2]))
+
+        if frequency == 'mon':
+            start_time = datetime.date(int(fname[-16:-12]), int(fname[-12:-10]), 01)
+            end_mon = fname[-5:-3]
+            if end_mon == '02':
+                end_day = 28
+            elif end_mon in ['04', '06', '09', '11']:
+                end_day = 30
+            else:
+                end_day = 31
+            end_time = datetime.date(int(fname[-9:-5]), int(fname[-5:-3]), end_day)
+
+        if frequency == 'day':
+            start_time = datetime.date(int(fname[-20:-16]), int(fname[-16:-14]), int(fname[-14:-12]))
+            end_time = datetime.date(int(fname[-11:-7]), int(fname[-7:-5]), int(fname[-5:-3]))
+    else:
+        start_time = datetime.date(1900, 1, 1)
+        end_time = datetime.date(1999, 12, 31)
+
+    return start_time, end_time
+
 
 def _generate_datafile_url(fname):
 

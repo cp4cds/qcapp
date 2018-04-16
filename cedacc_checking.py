@@ -8,7 +8,7 @@ from qc_settings import *
 from utils import *
 from esgf_dict import EsgfDict
 
-def run_ceda_cc(file):
+def run_ceda_cc(file, odir):
     """
 
     Runs CEDA-CC on the input file
@@ -19,10 +19,10 @@ def run_ceda_cc(file):
     :return:
     """
 
-    institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
+    institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = ifile.split('/')[6:]
 
     # Use facets to create directory for CEDA-CC output e.g. BASEDIR/model/experiment/table/<files>
-    cedacc_odir = os.path.join(CEDACC_DIR, institute, model, experiment, frequency, realm, version)
+    cedacc_odir = os.path.join(odir, institute, model, experiment, frequency, realm, version)
     if not os.path.exists(cedacc_odir):
         os.makedirs(cedacc_odir)
 
