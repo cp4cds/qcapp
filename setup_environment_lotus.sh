@@ -1,6 +1,9 @@
 #!/bin/bash
 
-batch=$1
+var=$1
+freq=$2
+table=$3
+cmd_line_args=$4
 
 ## For each job on the host ensure the correct virtual environment is activated
 source /group_workspaces/jasmin2/cp4cds1/qc/qc-app2/venv2/bin/activate
@@ -9,4 +12,4 @@ source /group_workspaces/jasmin2/cp4cds1/qc/qc-app2/venv2/bin/activate
 export DJANGO_SETTINGS_MODULE=qcproj.settings
 
 ## Call the python program with the arguments variable, table, frequency and any command line arguments
-python /group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/run_batch_db_builder.py ${batch}
+python /group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/run_quality_control.py ${var} ${freq} ${table} ${cmd_line_args}

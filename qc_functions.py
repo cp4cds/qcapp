@@ -12,9 +12,9 @@ import requests, itertools
 from ceda_cc import c4
 from cfchecker.cfchecks import CFVersion, CFChecker, STANDARDNAME, AREATYPES, newest_version
 
-ARCHIVE_ROOT = "/badc/cmip5/data/"
-CEDACC_DIR = "/group_workspaces/jasmin/cp4cds1/qc/QCchecks/CEDACC-OUTPUT"
-CFDIR = "/group_workspaces/jasmin/cp4cds1/qc/QCchecks/CF-OUTPUT/"
+# ARCHIVE_ROOT = "/badc/cmip5/data/"
+# CEDACC_DIR = "/group_workspaces/jasmin/cp4cds1/qc/QCchecks/CEDACC-OUTPUT"
+# CFDIR = "/group_workspaces/jasmin/cp4cds1/qc/QCchecks/CF-OUTPUT/"
 
 def run_ceda_cc(file, odir):
     """
@@ -22,59 +22,48 @@ def run_ceda_cc(file, odir):
     Runs CEDA-CC on the input file
 
     :param file: valid filepath to run CEDA-CC
-    TODO: Check file exits
-    TODO: Check CEDA-CC has run ok
     :return:
     """
-
-    print("Running CEDA-CC")
     if not os.path.exists(file):
         with open("cedacc_error.log", 'a+') as fw:
             err_message = "{} : Does not exist \n".format(file)
             fw.writelines(err_message)
     else:
-        institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
+        institute, model, experiment, frequency, realm, table, ensemble, variable, version, ncfile = file.split('/')[8:]
         print(institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile)
-
-        # Use facets to create directory for CEDA-CC output e.g. BASEDIR/model/experiment/table/<files>
-        cedacc_odir = os.path.join(odir, institute, model, experiment, frequency, realm, version)
-        if not os.path.exists(cedacc_odir):
-            os.makedirs(cedacc_odir)
-
-        # Run CEDA-CC
-        cedacc_args = ['-p', 'CMIP5', '-f', file, '--log', 'multi', '--ld', cedacc_odir, '--cae', '--blfmode', 'a']
+        cedacc_args = ['-p', 'CMIP5', '-f', file, '--log', 'multi', '--ld', odir, '--cae', '--blfmode', 'a']
         run_cedacc = c4.main(cedacc_args)
-        print run_cedacc
 
-def parse_ceda_cc(file):
+
+def parse_ceda_cc(df_obj, odir):
     """
-
     Parses the CEDA-CC output on the input file.
 
     Finds any errors recorded by CEDA-CC and then makes a QCerror record for each found.
 
-    :param file: Archive file
-    TODO: check it is a valid file?
+    :param dbobj:
+    :param odir:
     :return:
     """
 
     checkType = "CEDA-CC"
-    temporal_range = file.split("_")[-1].strip(".nc").split("_")[0]
-    institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
+    file_path = df_obj.gws_path
+    temporal_range = file_path.split("_")[-1].strip(".nc").split("_")[0]
+    institute, model, experiment, frequency, realm, table, ensemble, variable, latest, ncfile = file_path.split('/')[8:]
     file_base = "_".join([variable, table, model, experiment, ensemble, temporal_range])
 
     # Constructs a CEDA-CC regex based on variable_table_model_experiment_ensemble_temporal-range__qclog_{date}.txt
     ceda_cc_file_pattern = re.compile(file_base + "__qclog_\d+\.txt")
 
     # List files in the CEDA-CC logdir
-    log_dir = os.path.join(CEDACC_DIR,  institute, model, experiment, frequency, realm, version)
-    log_dir_files = os.listdir(log_dir)
+    # log_dir = os.path.join(CEDACC_DIR,  institute, model, experiment, frequency, realm, version)
+    log_dir_files = os.listdir(odir)
 
     for logfile in log_dir_files:
 
         # If the input file is in the logdir parse the output
         if ceda_cc_file_pattern.match(logfile):
-            ceda_cc_file = os.path.join(log_dir, logfile)
+            ceda_cc_file = os.path.join(odir, logfile)
             with open(ceda_cc_file, 'r') as fr:
                 ceda_cc_out = fr.readlines()
 
@@ -88,19 +77,31 @@ def parse_ceda_cc(file):
             # For CEDA-CC ouput search for errors and if found make a QCerror record
             for line in ceda_cc_out:
                 if cedacc_global_error.match(line.strip()):
-                    make_qc_err_record(df, checkType, "global", line, ceda_cc_file)
+                    # print("Found a CEDA-CC global attributes error")
+                    make_qc_err_record(df_obj, checkType, "global", line, ceda_cc_file)
                 if cedacc_variable_error.match(line.strip()):
-                    make_qc_err_record(df, checkType, "variable", line, ceda_cc_file)
+                    # print("Found a CEDA-CC variable attributes error")
+                    make_qc_err_record(df_obj, checkType, "variable", line, ceda_cc_file)
                 if cedacc_other_error.match(line.strip()):
+                    # print("Found a CEDA-CC Other attributes error")
                     make_qc_err_record(df, checkType, "other", line, ceda_cc_file)
                 if cedacc_exception.match(line.strip()):
-                    make_qc_err_record(df, checkType, "fatal", line, ceda_cc_file)
+                    # print("Found a CEDA-CC EXCETPION error")
+                    make_qc_err_record(df_obj, checkType, "fatal", line, ceda_cc_file)
                 if cedacc_abort.match(line.strip()):
-                    make_qc_err_record(df, checkType, "fatal", line, ceda_cc_file)
+                    # print("Found a CEDA-CC FATAL error")
+                    make_qc_err_record(df_obj, checkType, "fatal", line, ceda_cc_file)
 
 
 
-def run_cf_checker(file):
+# def make_qc_err_record(dfile, checkType, errorType, errorMessage, filepath):
+#
+#     qc_err, _ = QCerror.objects.get_or_create(
+#                     file=dfile, check_type=checkType, error_type=errorType,
+#                     error_msg=errorMessage, report_filepath=filepath)
+
+
+def run_cf_checker(file, odir):
     """
 
     Run the CF-Checker on the input file from the shell by calling out using subprocess.call
@@ -109,16 +110,10 @@ def run_cf_checker(file):
     TODO: validate input file
     :return:
     """
-    institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
-
-    # Make a CF output directory
-    cf_odir = os.path.join(CF_DIR, institute, model, experiment, frequency, realm, version)
-    if not os.path.exists(cf_odir):
-        os.makedirs(cf_odir)
 
     # Define output and error log files
-    cf_out_file = os.path.join(cf_odir, ncfile.replace(".nc", ".cf-log.txt"))
-    cf_err_file = os.path.join(cf_odir, ncfile.replace(".nc", ".cf-err.txt"))
+    cf_out_file = os.path.join(odir, ncfile.replace(".nc", ".cf-log.txt"))
+    cf_err_file = os.path.join(odir, ncfile.replace(".nc", ".cf-err.txt"))
     run_cmd = ["/usr/bin/cf-checker", "-a", AREATABLE, "-s", STDNAMETABLE, "-v", "auto", file]
 
     cf_out, cf_err = open(cf_out_file, "w"), open(cf_err_file, "w")

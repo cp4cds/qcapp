@@ -23,10 +23,11 @@ JSONDIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/DATAFILE_CACHE"
 
 # for datafiles in DataFile.objects.all():
 
+
 def add_gws_field():
 
     datafiles = DataFile.objects.all()
-    for df in datafiles[:2]:
+    for df in datafiles:
         print(df.archive_path)
         path = df.archive_path.replace(ARCHIVE_BASEDIR, GWS_BASEDIR)
         path_list = path.split('/')
