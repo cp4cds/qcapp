@@ -28,19 +28,20 @@ from subprocess import call
 command_line_args = "--ceda_cc"
 lotus_out = 'run-ceda-cc'
 vars_file = "ancil_files/cp4cds_all_vars.txt"
+vars_file = "ceda_cc_redo.log"
 
-
+delimiter = ' '
 with open(vars_file) as reader:
     data = reader.readlines()
     for line in data:
-        variable = line.split(',')[0].strip()
-        frequency = line.split(',')[1].strip()
-        table = line.split(',')[2].strip()
+        variable = line.split(delimiter)[0].strip()
+        frequency = line.split(delimiter)[1].strip()
+        table = line.split(delimiter)[2].strip()
         # print variable, frequency, table
 
         lotus_cmd = ['./submit-lotus.sh', variable, frequency, table, lotus_out, command_line_args]
         res = call(lotus_cmd)
-        call(['sleep', '2'])
+        # call(['sleep', '2'])
 
 
 # if frequency == "mon":

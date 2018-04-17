@@ -5,13 +5,20 @@ django.setup()
 from qcapp.models import *
 from django.db.models import Count, Max, Min, Sum, Avg
 
-import collections, os, timeit, datetime, time, re, glob
+import collections
+import os
+import timeit
+import datetime
+import time
+import re
+import glob
 import commands
 import requests, itertools
-
+from subprocess import call
 from ceda_cc import c4
 from cfchecker.cfchecks import CFVersion, CFChecker, STANDARDNAME, AREATYPES, newest_version
 
+from qc_settings import *
 # ARCHIVE_ROOT = "/badc/cmip5/data/"
 # CEDACC_DIR = "/group_workspaces/jasmin/cp4cds1/qc/QCchecks/CEDACC-OUTPUT"
 # CFDIR = "/group_workspaces/jasmin/cp4cds1/qc/QCchecks/CF-OUTPUT/"
@@ -76,29 +83,22 @@ def parse_ceda_cc(df_obj, odir):
 
             # For CEDA-CC ouput search for errors and if found make a QCerror record
             for line in ceda_cc_out:
-                if cedacc_global_error.match(line.strip()):
+                line = line.strip()
+                if cedacc_global_error.match(line):
                     # print("Found a CEDA-CC global attributes error")
                     make_qc_err_record(df_obj, checkType, "global", line, ceda_cc_file)
-                if cedacc_variable_error.match(line.strip()):
+                if cedacc_variable_error.match(line):
                     # print("Found a CEDA-CC variable attributes error")
                     make_qc_err_record(df_obj, checkType, "variable", line, ceda_cc_file)
                 if cedacc_other_error.match(line.strip()):
                     # print("Found a CEDA-CC Other attributes error")
                     make_qc_err_record(df, checkType, "other", line, ceda_cc_file)
-                if cedacc_exception.match(line.strip()):
+                if cedacc_exception.match(line):
                     # print("Found a CEDA-CC EXCETPION error")
                     make_qc_err_record(df_obj, checkType, "fatal", line, ceda_cc_file)
-                if cedacc_abort.match(line.strip()):
+                if cedacc_abort.match(line):
                     # print("Found a CEDA-CC FATAL error")
                     make_qc_err_record(df_obj, checkType, "fatal", line, ceda_cc_file)
-
-
-
-# def make_qc_err_record(dfile, checkType, errorType, errorMessage, filepath):
-#
-#     qc_err, _ = QCerror.objects.get_or_create(
-#                     file=dfile, check_type=checkType, error_type=errorType,
-#                     error_msg=errorMessage, report_filepath=filepath)
 
 
 def run_cf_checker(file, odir):
@@ -106,16 +106,15 @@ def run_cf_checker(file, odir):
 
     Run the CF-Checker on the input file from the shell by calling out using subprocess.call
 
-    :param file: Archive NetCDF file
-    TODO: validate input file
-    :return:
+    :param file: GWS NetCDF file
     """
 
     # Define output and error log files
-    cf_out_file = os.path.join(odir, ncfile.replace(".nc", ".cf-log.txt"))
-    cf_err_file = os.path.join(odir, ncfile.replace(".nc", ".cf-err.txt"))
+    cf_out_file = os.path.join(odir, os.path.basename(file).replace(".nc", ".cf-log.txt"))
+    cf_err_file = os.path.join(odir, os.path.basename(file).replace(".nc", ".cf-err.txt"))
     run_cmd = ["/usr/bin/cf-checker", "-a", AREATABLE, "-s", STDNAMETABLE, "-v", "auto", file]
 
+    print(cf_out_file, cf_err_file)
     cf_out, cf_err = open(cf_out_file, "w"), open(cf_err_file, "w")
     call(run_cmd, stdout=cf_out, stderr=cf_err)
     cf_out.close(), cf_err.close()
@@ -123,9 +122,9 @@ def run_cf_checker(file, odir):
     if os.path.getsize(cf_err_file) == 0:
         os.remove(cf_err_file)
     else:
-        filen = file.replace('/', '.') + '.cf-err'
+        filen = file.replace('.nc', '.cf-err')
         filename = os.path.join(CF_FATAL_DIR, filen)
-        touch_cmd = ["touch", filename]
+        touch_cmd = ["touch", filen]
         call(touch_cmd)
 
 

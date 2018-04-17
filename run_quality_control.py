@@ -32,6 +32,8 @@ parser.add_argument('table', type=str, help='A CP4CDS table')
 
 parser.add_argument('--ceda_cc',action='store_true', help='Run CEDA-CC')
 parser.add_argument('--parse_ceda_cc',action='store_true', help='Parse CEDA-CC output')
+parser.add_argument('--cf_checker',action='store_true', help='Run CF-Checker')
+parser.add_argument('--parse_cf_checker',action='store_true', help='Parse CF-Checker output')
 # parser.add_argument("-i", dest="filename", required=True, help="input file", metavar="FILE")
                     # type=lambda x: is_valid_file(parser, x)
 
@@ -39,9 +41,9 @@ if __name__ == "__main__":
 
     # /badc/cmip5/data/cmip5/output1/MOHC/HadGEM2-ES/rcp45/mon/atmos/Amon/r1i1p1/tas/files/20111128/tas_Amon_HadGEM2-ES_rcp45_r1i1p1_212412-214911.nc
     args = parser.parse_args()
-    print(args.variable)
-    print(args.frequency)
-    print(args.table)
+    # print(args.variable)
+    # print(args.frequency)
+    # print(args.table)
 
     if args.ceda_cc:
         for experiment in ALLEXPTS:
@@ -59,16 +61,28 @@ if __name__ == "__main__":
 
 
     if args.parse_ceda_cc:
-        print("I will parse CEDA CC output for variable: {}, at frequency: {}, in table: {}".format(args.variable,
-                                                                                                    args.frequency,
-                                                                                                    args.table))
-        for experiment in ['historical']:
-
-            # for df in DataFile.objects.filter(variable=args.variable, dataset__frequency=args.frequency,
-            #                                   dataset__cmor_table=args.table, dataset__experiment=experiment):
-            #     df = DataFile.objects.filter(variable=args.variable, dataset__frequency=args.frequency,
-            #                                  dataset__cmor_table=args.table, dataset__experiment=experiment).first()
-                df = DataFile.objects.filter(ncfile='sos_Omon_CESM1-WACCM_historical_r2i1p1_195501-200512.nc').first()
+        for experiment in ALLEXPTS:
+            for df in DataFile.objects.filter(variable=args.variable, dataset__frequency=args.frequency,
+                                              dataset__cmor_table=args.table, dataset__experiment=experiment):
                 print(df.gws_path)
                 odir = os.path.join(CEDACC_DIR, args.variable, args.frequency, experiment)
                 parse_ceda_cc(df, odir)
+
+
+    if args.cf_checker:
+        for experiment in ['rcp26']:
+
+            # for df in DataFile.objects.filter(variable=args.variable, dataset__frequency=args.frequency,
+            #                                   dataset__cmor_table=args.table, dataset__experiment=experiment):
+
+                df = DataFile.objects.filter(variable=args.variable, dataset__frequency=args.frequency,
+                                              dataset__cmor_table=args.table, dataset__experiment=experiment).first()
+
+                print(df.gws_path)
+                odir = os.path.join(CF_DIR, args.variable, args.frequency, experiment)
+                print(odir)
+
+                # if not os.path.isdir(odir):
+                #     os.makedirs(odir)
+                odir = "."
+                run_cf_checker(df.gws_path, odir)
