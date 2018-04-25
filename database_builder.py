@@ -240,6 +240,7 @@ def build_database(file):
         print(file)
         project, output, institution, model, experiment, frequency, realm, table, \
         ensemble, variable, files, version, ncfile = file.split('/')[6:]
+
         instance = '.'.join(['cmip5', output, institution, model, experiment, frequency, realm, table, ensemble,
                              'v' + version, ncfile])
         json_filename = '.'.join([variable, frequency, table, experiment])
@@ -249,7 +250,50 @@ def build_database(file):
         df = next((d for d in datafiles if d['instance_id'] == instance), None)
         create_database_entry(file, df)
 
+
+def convert_latest_to_files_path(ipath):
+    ncfile = ipath.split('/')[-1]
+    variable = ipath.split('/')[-3]
+    version = os.readlink(ipath).split('/')[-2]
+    ipathbase = ipath.split('/')[:-3]
+    ipathbase.append(variable)
+    ipathbase.append('files')
+    ipathbase.append(version)
+    ipathbase.append(ncfile)
+    return "/".join(ipathbase)
+
+def add_missing_files():
+
+    basedir = "/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1"
+    files = ["MOHC/HadGEM2-A/amip/3hr/atmos/cf3hr/r1i1p1/evspsbl/latest/evspsbl_cf3hr_HadGEM2-A_amip_r1i1p1_200801010300-200802010000.nc",
+             "MOHC/HadGEM2-A/amip/3hr/atmos/cf3hr/r1i1p1/evspsbl/latest/evspsbl_cf3hr_HadGEM2-A_amip_r1i1p1_200802010300-200803010000.nc",
+            "MOHC/HadGEM2-A/amip/3hr/atmos/cf3hr/r1i1p1/evspsbl/latest/evspsbl_cf3hr_HadGEM2-A_amip_r1i1p1_200803010300-200804010000.nc",
+            "MOHC/HadGEM2-A/amip/3hr/atmos/cf3hr/r1i1p1/evspsbl/latest/evspsbl_cf3hr_HadGEM2-A_amip_r1i1p1_200804010300-200805010000.nc",
+            "MOHC/HadGEM2-A/amip/3hr/atmos/cf3hr/r1i1p1/evspsbl/latest/evspsbl_cf3hr_HadGEM2-A_amip_r1i1p1_200805010300-200806010000.nc",
+            "MOHC/HadGEM2-A/amip/3hr/atmos/cf3hr/r1i1p1/evspsbl/latest/evspsbl_cf3hr_HadGEM2-A_amip_r1i1p1_200806010300-200807010000.nc",
+            "MOHC/HadGEM2-A/amip/3hr/atmos/cf3hr/r1i1p1/evspsbl/latest/evspsbl_cf3hr_HadGEM2-A_amip_r1i1p1_200807010300-200808010000.nc",
+            "MOHC/HadGEM2-A/amip/3hr/atmos/cf3hr/r1i1p1/evspsbl/latest/evspsbl_cf3hr_HadGEM2-A_amip_r1i1p1_200808010300-200809010000.nc",
+            "MOHC/HadGEM2-A/amip/3hr/atmos/cf3hr/r1i1p1/evspsbl/latest/evspsbl_cf3hr_HadGEM2-A_amip_r1i1p1_200809010300-200810010000.nc",
+            "MOHC/HadGEM2-A/amip/3hr/atmos/cf3hr/r1i1p1/evspsbl/latest/evspsbl_cf3hr_HadGEM2-A_amip_r1i1p1_200810010300-200811010000.nc",
+            "MOHC/HadGEM2-A/amip/3hr/atmos/cf3hr/r1i1p1/evspsbl/latest/evspsbl_cf3hr_HadGEM2-A_amip_r1i1p1_200811010300-200812010000.nc",
+            "MOHC/HadGEM2-A/amip/3hr/atmos/cf3hr/r1i1p1/evspsbl/latest/evspsbl_cf3hr_HadGEM2-A_amip_r1i1p1_200812010300-200901010000.nc",
+            "CNRM-CERFACS/CNRM-CM5/amip/3hr/atmos/cf3hr/r1i1p1/evspsbl/latest/evspsbl_cf3hr_CNRM-CM5_amip_r1i1p1_200801010300-200901010000.nc",
+            "CCCma/CanAM4/amip/3hr/atmos/cf3hr/r4i1p1/evspsbl/latest/evspsbl_cf3hr_CanAM4_amip_r4i1p1_197901010300-201001010000.nc",
+            "CCCma/CanAM4/amip/3hr/atmos/cf3hr/r3i1p1/evspsbl/latest/evspsbl_cf3hr_CanAM4_amip_r3i1p1_197901010300-201001010000.nc",
+            "CCCma/CanAM4/amip/3hr/atmos/cf3hr/r2i1p1/evspsbl/latest/evspsbl_cf3hr_CanAM4_amip_r2i1p1_197901010300-201001010000.nc",
+            "CCCma/CanAM4/amip/3hr/atmos/cf3hr/r1i1p1/evspsbl/latest/evspsbl_cf3hr_CanAM4_amip_r1i1p1_197901010300-201001010000.nc",
+             ]
+
+
+    for file in files:
+        file = os.path.join(basedir, file)
+        files_file = convert_latest_to_files_path(file)
+
+        build_database(files_file)
+
+
 if __name__ == "__main__":
 
     ifile = argv[1]
     build_database(ifile)
+    # add_missing_files()

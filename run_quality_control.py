@@ -16,7 +16,8 @@ from sys import argv
 from qcapp.models import *
 from utils import *
 from qc_functions import *
-
+from time_checks.run_file_timechecks import main as single_file_time_checks
+from time_checks.run_multifile_timechecks import main as multi_file_time_checks
 
 requests.packages.urllib3.disable_warnings()
 ARCHIVE_ROOT = "/badc/cmip5/data/"
@@ -29,60 +30,51 @@ parser = argparse.ArgumentParser()
 parser.add_argument('variable', type=str, help='A CP4CDS variable')
 parser.add_argument('frequency', type=str, help='A CP4CDS frequency')
 parser.add_argument('table', type=str, help='A CP4CDS table')
-
+parser.add_argument('experiment', type=str, help='A CP4CDS experiment')
 parser.add_argument('--ceda_cc',action='store_true', help='Run CEDA-CC')
 parser.add_argument('--parse_ceda_cc',action='store_true', help='Parse CEDA-CC output')
 parser.add_argument('--cf_checker',action='store_true', help='Run CF-Checker')
 parser.add_argument('--parse_cf_checker',action='store_true', help='Parse CF-Checker output')
+parser.add_argument('--single_file_time_check', action='store_true', help="Run the single file time checks")
+parser.add_argument('--multifile_time_check', action='store_true', help="Run the multifile time checks")
 # parser.add_argument("-i", dest="filename", required=True, help="input file", metavar="FILE")
                     # type=lambda x: is_valid_file(parser, x)
+
+
+def main(args):
+
+    if args.ceda_cc or args.parse_ceda_cc or args.cf_checker or args.single_file_time_check:
+
+        for df in DataFile.objects.filter(variable=args.variable, dataset__frequency=args.frequency,
+                                          dataset__cmor_table=args.table, dataset__experiment=args.experiment):
+            ensemble = df.gws_path.split('/')[-4]
+            version = "v" + os.readlink(df.gws_path).split('/')[-2]
+            odir = os.path.join(QCLOGS, args.variable, args.table, args.experiment, ensemble, version)
+
+            if not os.path.isdir(odir):
+                os.makedirs(odir)
+
+            if args.ceda_cc:
+                run_ceda_cc(df.gws_path, odir)
+
+            if args.parse_ceda_cc:
+                parse_ceda_cc(df, odir)
+
+            if args.cf_checker:
+                run_cf_checker(df.gws_path, odir)
+
+            if args.single_file_time_check:
+                file_time_checks(df.gws_path, odir)
+
+    if args.multifile_time_check:
+        
+        dss = Dataset.objects.filter(variable=args.variable, cmor_table=args.table, frequency=args.frequency,
+                                     experiment=args.experiment)
+        run_multifile_time_checker(dss, args.variable, args.table, args.experiment)
 
 if __name__ == "__main__":
 
     # /badc/cmip5/data/cmip5/output1/MOHC/HadGEM2-ES/rcp45/mon/atmos/Amon/r1i1p1/tas/files/20111128/tas_Amon_HadGEM2-ES_rcp45_r1i1p1_212412-214911.nc
     args = parser.parse_args()
-    # print(args.variable)
-    # print(args.frequency)
-    # print(args.table)
+    main(args)
 
-    if args.ceda_cc:
-        for experiment in ALLEXPTS:
-
-            for df in DataFile.objects.filter(variable=args.variable, dataset__frequency=args.frequency,
-                                              dataset__cmor_table=args.table, dataset__experiment=experiment):
-                # df = DataFile.objects.filter(variable=args.variable, dataset__frequency=args.frequency,
-                #                              dataset__cmor_table=args.table, dataset__experiment=experiment).first()
-                print(df.gws_path)
-                odir = os.path.join(CEDACC_DIR, args.variable, args.frequency, experiment)
-                if not os.path.isdir(odir):
-                    os.makedirs(odir)
-
-                run_ceda_cc(df.gws_path, odir)
-
-
-    if args.parse_ceda_cc:
-        for experiment in ALLEXPTS:
-            for df in DataFile.objects.filter(variable=args.variable, dataset__frequency=args.frequency,
-                                              dataset__cmor_table=args.table, dataset__experiment=experiment):
-                print(df.gws_path)
-                odir = os.path.join(CEDACC_DIR, args.variable, args.frequency, experiment)
-                parse_ceda_cc(df, odir)
-
-
-    if args.cf_checker:
-        for experiment in ['rcp26']:
-
-            # for df in DataFile.objects.filter(variable=args.variable, dataset__frequency=args.frequency,
-            #                                   dataset__cmor_table=args.table, dataset__experiment=experiment):
-
-                df = DataFile.objects.filter(variable=args.variable, dataset__frequency=args.frequency,
-                                              dataset__cmor_table=args.table, dataset__experiment=experiment).first()
-
-                print(df.gws_path)
-                odir = os.path.join(CF_DIR, args.variable, args.frequency, experiment)
-                print(odir)
-
-                # if not os.path.isdir(odir):
-                #     os.makedirs(odir)
-                odir = "."
-                run_cf_checker(df.gws_path, odir)

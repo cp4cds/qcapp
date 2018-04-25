@@ -15,13 +15,60 @@ import glob
 import commands
 import requests, itertools
 from subprocess import call
+from netCDF4 import Dataset as ncDataset
 from ceda_cc import c4
 from cfchecker.cfchecks import CFVersion, CFChecker, STANDARDNAME, AREATYPES, newest_version
-
 from qc_settings import *
-# ARCHIVE_ROOT = "/badc/cmip5/data/"
-# CEDACC_DIR = "/group_workspaces/jasmin/cp4cds1/qc/QCchecks/CEDACC-OUTPUT"
-# CFDIR = "/group_workspaces/jasmin/cp4cds1/qc/QCchecks/CF-OUTPUT/"
+from time_checks.run_file_timechecks import main as single_file_time_checks
+from time_checks.run_multifile_timechecks import main as multi_file_time_checks
+
+
+def run_multifile_time_checker(datasets, var, table, expt):
+
+    # ds = datasets.first()
+    for ds in datasets:
+        if ds.datafile_set.count() > 1:
+            for d in ds.datafile_set.all():
+                d.timeseries = True
+                d.save()
+
+            df = ds.datafile_set.first()
+            ensemble = df.gws_path.split('/')[-4]
+            version = "v" + os.readlink(df.gws_path).split('/')[-2]
+            odir = os.path.join(QCLOGS, var, table, expt, ensemble, version)
+            if not os.path.isdir(odir):
+                os.makedirs(odir)
+
+            f = os.path.basename(df.gws_path).strip('.nc').split('_')
+            ofile = '_'.join(f[:-1]) + '__multifile_timecheck.log'
+            logfile = os.path.join(odir, ofile)
+
+            dir_of_files = os.path.dirname(df.gws_path)
+            files = os.listdir(dir_of_files)
+            filelist = []
+
+            for f in files:
+                if f.endswith('.nc'):
+                    filelist.append(os.path.join(dir_of_files, f))
+
+            multi_file_time_checks(filelist, logfile)
+
+
+def file_time_checks(ifile, odir):
+
+    try:
+        d = ncDataset(ifile)
+    except(IOError):
+        d = None
+
+    if isinstance(d, ncDataset):
+        single_file_time_checks(ifile, odir)
+    else:
+        logfile = os.path.join(odir, ifile.replace('.nc', '__file_timecheck.log'))
+        with open(logfile, 'w') as fw:
+            fw.writelines(["Time checks of: {} \n".format(ifile)])
+            fw.writelines(["T0.000::[FATAL]::Not a NetCDF file"])
+
 
 def run_ceda_cc(file, odir):
     """
@@ -32,14 +79,20 @@ def run_ceda_cc(file, odir):
     :return:
     """
     if not os.path.exists(file):
-        with open("cedacc_error.log", 'a+') as fw:
+        ofile = ncfile.replace('.nc', '__cedacc_error.log')
+        with open(ofile, 'w+') as fw:
             err_message = "{} : Does not exist \n".format(file)
             fw.writelines(err_message)
     else:
         institute, model, experiment, frequency, realm, table, ensemble, variable, version, ncfile = file.split('/')[8:]
-        print(institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile)
-        cedacc_args = ['-p', 'CMIP5', '-f', file, '--log', 'multi', '--ld', odir, '--cae', '--blfmode', 'a']
-        run_cedacc = c4.main(cedacc_args)
+        ofile = ncfile.strip('.nc')
+        now = datetime.datetime.now().strftime('%Y%m%d')
+        ofile = "{}__qclog_{}.txt".format(ofile, now)
+        if os.path.exists(ofile):
+            print "{} exists not performing ceda-cc on {}".format(ofile, file)
+        else:
+            cedacc_args = ['-p', 'CMIP5', '-f', file, '--log', 'multi', '--ld', odir, '--cae', '--blfmode', 'a',]
+            run_cedacc = c4.main(cedacc_args)
 
 
 def parse_ceda_cc(df_obj, odir):
@@ -113,8 +166,6 @@ def run_cf_checker(file, odir):
     cf_out_file = os.path.join(odir, os.path.basename(file).replace(".nc", ".cf-log.txt"))
     cf_err_file = os.path.join(odir, os.path.basename(file).replace(".nc", ".cf-err.txt"))
     run_cmd = ["/usr/bin/cf-checker", "-a", AREATABLE, "-s", STDNAMETABLE, "-v", "auto", file]
-
-    print(cf_out_file, cf_err_file)
     cf_out, cf_err = open(cf_out_file, "w"), open(cf_err_file, "w")
     call(run_cmd, stdout=cf_out, stderr=cf_err)
     cf_out.close(), cf_err.close()
@@ -124,7 +175,7 @@ def run_cf_checker(file, odir):
     else:
         filen = file.replace('.nc', '.cf-err')
         filename = os.path.join(CF_FATAL_DIR, filen)
-        touch_cmd = ["touch", filen]
+        touch_cmd = ["touch", filename]
         call(touch_cmd)
 
 

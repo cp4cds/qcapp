@@ -13,21 +13,24 @@ This file contains constants, global variables and templates
 QCAPP_PATH = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/"
 ARCHIVE_ROOT = "/badc/cmip5/data/"
 GWSDIR = "/group_workspaces/jasmin2/cp4cds1/qc/CFchecks/CF-OUTPUT/"
-JSONDIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/JSON-OUTPUT/"
-NO_FILE_LOG = 'log_dir/cp4cds_nofile_error.log'
-CEDACC_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CEDACC_LOGS"
-CF_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CF-LOGS/"
-CF_FATAL_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CF-FATAL-LOGS"
-TC_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/TIMECHECKS-OUTPUT/"
-TS_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/TIMESERIES-OUTPUT/"
-DATASET_LATEST_CACHE = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/LATEST_DATASET_CACHE"
-DATAFILE_LATEST_CACHE = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/LATEST_DATAFILE_CACHE"
-DATASET_LATEST_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/LATEST_DATASET_LOGS"
-DATAFILE_LATEST_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/LATEST_DATAFILE_LOGS"
+JSONDIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/DATAFILE_CACHE"
+QCLOGS = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/QC_LOGS"
+DATAFILE_LATEST_CACHE = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/DATAFILE_LATEST_CACHE"
 AREATABLE = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/area-type-table.xml"
 STDNAMETABLE = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/cf-standard-name-table.xml"
 FILELIST = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/ancil_filescp4cds-files.txt"
 ALLEXPTS = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
+
+
+NO_FILE_LOG = 'log_dir/cp4cds_nofile_error.log'
+CEDACC_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CEDACC_LOGS"
+CF_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CF-LOGS/"
+CF_FATAL_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CF-FATAL-LOGS"
+TC_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/TIMECHECKS-LOGS/"
+TS_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/TIMESERIES-OUTPUT/"
+DATASET_LATEST_CACHE = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/LATEST_DATASET_CACHE"
+DATASET_LATEST_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/LATEST_DATASET_LOGS"
+DATAFILE_LATEST_DIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/LATEST_DATAFILE_LOGS"
 #    node = "172.16.150.171"
 node = "esgf-index1.ceda.ac.uk"
 distrib = False

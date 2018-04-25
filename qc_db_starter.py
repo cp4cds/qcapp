@@ -25,27 +25,22 @@ from subprocess import call
 #command_line_args = "--is_latest_consistent"
 
 
-command_line_args = "--ceda_cc"
-lotus_out = 'run-ceda-cc'
+command_line_args = "--multifile_time_check"
+lotus_out = 'run-multifile-3'
 vars_file = "ancil_files/cp4cds_all_vars.txt"
-vars_file = "ceda_cc_redo.log"
 
-delimiter = ' '
+delimiter = ','
 with open(vars_file) as reader:
     data = reader.readlines()
     for line in data:
         variable = line.split(delimiter)[0].strip()
         frequency = line.split(delimiter)[1].strip()
         table = line.split(delimiter)[2].strip()
-        # print variable, frequency, table
+        for experiment in ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']:
+            lotus_cmd = ['./submit-lotus.sh', variable, frequency, table, lotus_out, command_line_args, experiment]
+            res = call(lotus_cmd)
 
-        lotus_cmd = ['./submit-lotus.sh', variable, frequency, table, lotus_out, command_line_args]
-        res = call(lotus_cmd)
+        # print variable, frequency, table
         # call(['sleep', '2'])
 
 
-# if frequency == "mon":
-#     if variable in ["tas", "ts", "tasmax", "tasmin", "psl", "ps", "uas", "vas", "sfcWind", "hurs",
-#                     "huss", "pr", "prsn", "evspsbl", "tauu", "tauv", "hfls", "hfss", "rlds", "rlus",
-#                     "rsds", "rsus", "rsdt", "rsut", "rlut", "clt", "tos", "zos", "ta", "ua", "va",
-#                     "hur", "zg", "rlutcs"]:

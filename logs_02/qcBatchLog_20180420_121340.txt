@@ -1,0 +1,3 @@
+2018-04-20 13:13:40,457 INFO Starting batch -- number of file: 0
+2018-04-20 13:13:40,457 INFO Source: odir/*.nc
+2018-04-20 13:13:40,637 INFO Python netcdf: cdms2

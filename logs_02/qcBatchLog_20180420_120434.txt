@@ -1,0 +1,18 @@
+2018-04-20 12:04:34,315 INFO Starting batch -- number of file: 1
+2018-04-20 12:04:34,316 INFO Source: /group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CM/amip/mon/atmos/Amon/r3i1p1/tas/latest/tas_Amon_CMCC-CM_amip_r3i1p1_199901-200812.nc
+2018-04-20 12:04:34,512 INFO Python netcdf: cdms2
+2018-04-20 12:04:34,513 INFO Starting: tas_Amon_CMCC-CM_amip_r3i1p1_199901-200812.nc
+2018-04-20 12:04:34,513 INFO Starting file tas_Amon_CMCC-CM_amip_r3i1p1_199901-200812.nc
+2018-04-20 12:04:34,513 INFO C4.001.001: [parse_filename]: OK
+2018-04-20 12:04:34,514 INFO C4.001.002: [parse_filename_timerange]: OK
+2018-04-20 12:04:34,514 INFO C4.001.004: [file_name_extra]: OK
+2018-04-20 12:04:34,530 INFO C4.002.001: [global_ncattribute_present]: OK
+2018-04-20 12:04:34,531 INFO C4.002.003: [variable_type]: OK
+2018-04-20 12:04:34,531 INFO C4.002.004: [variable_ncattribute_present]: OK
+2018-04-20 12:04:34,531 INFO C4.002.005: [variable_ncattribute_mipvalues]: OK
+2018-04-20 12:04:34,531 INFO C4.002.005: [variable_ncattribute_mipvalues]: OK
+2018-04-20 12:04:34,533 INFO C4.002.005: [variable_ncattribute_mipvalues]: OK
+2018-04-20 12:04:34,533 INFO C4.002.006: [global_ncattribute_cv]: OK
+2018-04-20 12:04:34,533 INFO C4.002.007: [filename_filemetadata_consistency]: OK
+2018-04-20 12:04:34,533 INFO C4.003.003: [height_levels]: OK
+2018-04-20 12:04:34,534 INFO Done -- error count 0
