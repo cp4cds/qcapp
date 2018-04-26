@@ -13,11 +13,12 @@ import datetime
 import argparse
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from sys import argv
+from time_checks.run_file_timechecks import main as single_file_time_checks
+from time_checks.run_multifile_timechecks import main as multi_file_time_checks
 from qcapp.models import *
 from utils import *
 from qc_functions import *
-from time_checks.run_file_timechecks import main as single_file_time_checks
-from time_checks.run_multifile_timechecks import main as multi_file_time_checks
+from is_latest import *
 
 requests.packages.urllib3.disable_warnings()
 ARCHIVE_ROOT = "/badc/cmip5/data/"
@@ -30,13 +31,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument('variable', type=str, help='A CP4CDS variable')
 parser.add_argument('frequency', type=str, help='A CP4CDS frequency')
 parser.add_argument('table', type=str, help='A CP4CDS table')
-parser.add_argument('experiment', type=str, help='A CP4CDS experiment')
 parser.add_argument('--ceda_cc',action='store_true', help='Run CEDA-CC')
 parser.add_argument('--parse_ceda_cc',action='store_true', help='Parse CEDA-CC output')
 parser.add_argument('--cf_checker',action='store_true', help='Run CF-Checker')
 parser.add_argument('--parse_cf_checker',action='store_true', help='Parse CF-Checker output')
 parser.add_argument('--single_file_time_check', action='store_true', help="Run the single file time checks")
 parser.add_argument('--multifile_time_check', action='store_true', help="Run the multifile time checks")
+parser.add_argument('--is_latest', action='store_true', help="Work out if a datafile is the latest")
 # parser.add_argument("-i", dest="filename", required=True, help="input file", metavar="FILE")
                     # type=lambda x: is_valid_file(parser, x)
 
@@ -66,11 +67,16 @@ def main(args):
             if args.single_file_time_check:
                 file_time_checks(df.gws_path, odir)
 
+
     if args.multifile_time_check:
-        
+
         dss = Dataset.objects.filter(variable=args.variable, cmor_table=args.table, frequency=args.frequency,
                                      experiment=args.experiment)
         run_multifile_time_checker(dss, args.variable, args.table, args.experiment)
+
+
+    if args.is_latest:
+        run_is_latest(args.variable, args.frequency, args.table)
 
 if __name__ == "__main__":
 

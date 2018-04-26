@@ -12,6 +12,7 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import datetime
 from qc_settings import *
 
+
 requests.packages.urllib3.disable_warnings()
 ARCHIVE_ROOT = "/badc/cmip5/data/"
 
@@ -39,10 +40,7 @@ class Cp4cds(object):
         json_resp = resp.json()
         return json_resp["response"]["docs"]
 
-
-
-if __name__ == "__main__":
-
+def find_all_cp4cds_datarecords():
     odir = DATAFILE_LATEST_CACHE
     with open(FILELIST) as fr:
         data = fr.readlines()
@@ -61,3 +59,45 @@ if __name__ == "__main__":
             json_file = os.path.join(odir, json_filename)
             with open(json_file, 'w') as fw:
                 json.dump(df_results, fw)
+
+def find_all_latest_datafiles(variable, frequency, table, experiment):
+
+    node = "esgf-index1.ceda.ac.uk"
+    project = "CMIP5"
+    distrib = "true"
+    latest = "true"
+
+    datafile_search_template = "https://{}/esg-search/search?type=File&project={}" \
+                               "&time_frequency={}&title={}&" \
+                               "distrib={}&latest={}" \
+                               "&format=application%2Fsolr%2Bjson&limit=10000"
+
+    for df in DataFile.objects.filter(variable=variable,
+                                      dataset__frequency=frequency,
+                                      dataset__cmor_table=table,
+                                      dataset__experiment=experiment):
+        ncfile = os.path.basename(df.gws_path)
+        ensemble = df.gws_path.split('/')[-4]
+        version = "v" + os.readlink(df.gws_path).split('/')[-2]
+        url = datafile_search_template.format(node, project, frequency, ncfile, distrib, latest)
+
+        jsondir = os.path.join(QCLOGS, variable, table, experiment, ensemble, version)
+        if not os.path.isdir(jsondir):
+            os.makedirs(jsondir)
+        json_file = os.path.join(jsondir, ncfile.replace('.nc', '__latest_datafile.json'))
+
+        resp = requests.get(url, verify=False)
+        json_resp = resp.json()
+
+        print json_file
+        with open(json_file, 'w') as fw:
+            json.dump(json_resp, fw)
+
+if __name__ == "__main__":
+
+    variable = argv[1]
+    frequency = argv[2]
+    table = argv[3]
+    # find_all_cp4cds_datarecords()
+    for experiment in ALLEXPTS:
+        find_all_latest_datafiles(variable, frequency, table, experiment)

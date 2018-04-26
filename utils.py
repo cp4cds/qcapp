@@ -8,7 +8,6 @@ import itertools
 import json as jsn
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from qc_settings import *
-from esgf_dict import EsgfDict
 
 
 def convert_to_cp4cds_gws_path(ipath, dir1, dir2):

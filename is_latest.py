@@ -295,7 +295,7 @@ def get_ceda_checksum(df, cksums, checksum_type="SHA256"):
     return ceda_cksum
 
 
-def check_datafiles_are_latest(datasets, esgf_dict):
+def check_datafiles_are_latest(datasets, esgfdict):
     """
         dataset_latest_check
 
@@ -307,7 +307,11 @@ def check_datafiles_are_latest(datasets, esgf_dict):
 
     for ds in datasets:
         dfs = ds.datafile_set.all()
-        check_datafile_is_latest(ds, dfs, esgf_dict)
+        esgfdict['ensemble'] = ds.ensemble
+        esgfdict['version'] = ds.version
+        check_datafile_is_latest(ds, dfs, esgfdict)
+
+
 
 
 def check_datafile_is_latest(ds, dfs, edict):
@@ -317,15 +321,17 @@ def check_datafile_is_latest(ds, dfs, edict):
         global esgf_dict
         esgf_dict = edict
         for df in dfs:
-             # if df.ncfile == "sic_OImon_bcc-csm1-1_historical_r3i1p1_185001-201212.nc":
-             #    print(df.ncfile)
+             if df.ncfile == "sic_OImon_bcc-csm1-1_historical_r3i1p1_185001-201212.nc":
+                print(df.ncfile)
                 df.up_to_date = False
                 df.save()
                 esgf_dict['ncfile'] = df.ncfile
 
+                json_file = esgf_dict._generate_latest_dfpath(QCLOGS, esgf_dict)
+
                 # Update the esgf_dict and get the cached json file (a distributed is latest ESGF query)
-                esgf_dict, json_file = esgf_dict._generate_jsonfile_path(ds, DATAFILE_LATEST_CACHE, esgf_dict,
-                                                                         dtype="datafile", ncfile=df.ncfile)
+                # esgf_dict, json_file = esgf_dict._generate_jsonfile_path(ds, QCLOGS, esgf_dict,
+                #                                                          dtype="datafile", ncfile=df.ncfile)
 
                 # Open and read cached JSON file
                 json_resp = _read_json_cache_file(df, json_file)
@@ -344,8 +350,8 @@ def check_datafile_is_latest(ds, dfs, edict):
                     cksumType = "MD5"
                 else:
                     cksumType = "SHA256"
-
                 ceda_checksum = get_ceda_checksum(df, checksums, checksum_type=cksumType)
+
                 ceda_cksum_is_latest = compare_ceda_with_latest(df, ceda_checksum, latest['cksum'], dbType='df')
 
                 ceda_version = get_ceda_version(df, checksums)
@@ -355,7 +361,7 @@ def check_datafile_is_latest(ds, dfs, edict):
                     success_message = "IS_LATEST [PASS] :: The CEDA datafile checksum {} is the same as the " \
                                       "ESGF recorded latest {} :: ESGF query {}".format(
                                        ceda_checksum, latest['cksum'], esgf_dict.format_is_latest_datafile_url())
-                    # print(success_message)
+                    print(success_message)
                     _log_message(df, success_message, set_uptodate=True)
 
                 elif ceda_cksum_is_latest and not ceda_version_is_latest:

@@ -18,9 +18,28 @@ from subprocess import call
 from netCDF4 import Dataset as ncDataset
 from ceda_cc import c4
 from cfchecker.cfchecks import CFVersion, CFChecker, STANDARDNAME, AREATYPES, newest_version
-from qc_settings import *
 from time_checks.run_file_timechecks import main as single_file_time_checks
 from time_checks.run_multifile_timechecks import main as multi_file_time_checks
+from esgf_dict import EsgfDict
+from qc_settings import *
+from is_latest import check_datafiles_are_latest
+
+def run_is_latest(variable, frequency, table):
+
+    esgf_dict = EsgfDict([
+        ("node", "esgf-index1.ceda.ac.uk"),
+        ("project", "CMIP5"),
+        ("frequency", frequency),
+        ("table", table),
+        ("variable", variable),
+        ("distrib", "true"),
+        ("latest", "true"),
+    ])
+
+    for experiment in ALLEXPTS:
+        esgf_dict['experiment'] = experiment
+        datasets = Dataset.objects.filter(variable=variable, cmor_table=table, frequency=frequency, experiment=experiment)
+        check_datafiles_are_latest(datasets, esgf_dict)
 
 
 def run_multifile_time_checker(datasets, var, table, expt):

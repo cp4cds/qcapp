@@ -28,12 +28,26 @@ JSONDIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/DATAFILE_CACHE"
 # for datafiles in DataFile.objects.all():
 
 parser = argparse.ArgumentParser()
+parser.add_argument('variable', type=str, help='A CP4CDS variable')
+parser.add_argument('frequency', type=str, help='A CP4CDS frequency')
+parser.add_argument('table', type=str, help='A CP4CDS table')
+parser.add_argument('experiment', type=str, help='A CP4CDS experiment')
+
 parser.add_argument('--add_gws_path',action='store_true', help='Add the group workspace path to the database datafile table')
 parser.add_argument('--set_restricted_status',action='store_true', help='Set the open or restricted status of the data')
 parser.add_argument('--remove_restricted_datasets',action='store_true', help='Delete restricted dataset records')
 parser.add_argument('--find_missing_ceda_cc', action='store_true', help='Generate a list of any missing CEDA-CC files')
 parser.add_argument('--check_number_qc_files', action='store_true', help='Calculate the number of qc files and compare with expected')
 parser.add_argument('--move_cferr_files', action='store_true', help='Move the cf-err.log files from the /data dir to /CF-FATAL dir')
+parser.add_argument('--fix_archivepath_checksums', action='store_true', help='Correct the archive path and recalculate all the md5 checksums for all datafiles')
+
+def fix_path_checksums(datafiles):
+
+    for df in datafiles:
+        n, b, c, d, proj, outp, inst, model, ex, fr, realm, table, ens, var, files, version, ncfile = df.archive_path.split('/')
+        df.archive_path = os.path.join('/', b, c, d, proj, outp, inst, model, ex, fr, realm, table, ens, 'v' + version, var, ncfile)
+        df.md5_checksum = commands.getoutput('md5sum ' + df.archive_path).split(' ')[0]
+        df.save()
 
 def move_cf_error_files():
 
@@ -171,3 +185,8 @@ if __name__ == "__main__":
 
     if args.move_cferr_files:
         move_cf_error_files()
+
+    if args.fix_archivepath_checksums:
+        dfs = DataFile.objects.filter(variable=args.variable, dataset__frequency=args.frequency,
+                                      dataset__cmor_table=args.table, dataset__experiment=args.experiment)
+        fix_path_checksums(dfs)

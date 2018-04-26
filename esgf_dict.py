@@ -1,8 +1,6 @@
 
 import os
 from qc_settings import *
-from time_checks.run_file_timechecks import main as single_file_time_checks
-from time_checks.run_multifile_timechecks import main as multi_file_time_checks
 from utils import *
 
 
@@ -11,6 +9,16 @@ class EsgfDict(dict):
 
     def _format_gen_url(self, template, **kwargs):
         return template.format(**kwargs)
+
+    def _generate_latest_dfpath(self, basedir, edict):
+
+        json_dir = os.path.join(basedir, edict['variable'], edict['table'], edict['experiment'],
+                                edict['ensemble'], edict['version'])
+        json_file = edict['ncfile'].replace('.nc', '__latest_datafile.json')
+        json_path = os.path.join(json_dir, json_file)
+
+        return json_path
+
 
     def _generate_jsonfile_path(self, ds_obj, basedir, edict, dtype="dataset", ncfile=None, rw='r'):
         """

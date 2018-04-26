@@ -18,7 +18,7 @@ QCLOGS = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/QC_LOGS"
 DATAFILE_LATEST_CACHE = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/DATAFILE_LATEST_CACHE"
 AREATABLE = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/area-type-table.xml"
 STDNAMETABLE = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/cf-standard-name-table.xml"
-FILELIST = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/ancil_filescp4cds-files.txt"
+FILELIST = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/ancil_files/cp4cds_all_vars.txt"
 ALLEXPTS = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
 
 
