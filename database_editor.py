@@ -42,6 +42,23 @@ parser.add_argument('--check_number_qc_files', action='store_true', help='Calcul
 parser.add_argument('--move_cferr_files', action='store_true', help='Move the cf-err.log files from the /data dir to /CF-FATAL dir')
 parser.add_argument('--fix_archivepath_checksums', action='store_true', help='Correct the archive path and recalculate all the md5 checksums for all datafiles')
 parser.add_argument('--fix_cfchecker_output', action='store_true', help='Check all cf-checker err logs are needed by re-running the checker')
+parser.add_argument('--create_islatest_qclog', action='store_true', help='Move the information in the Datafile up_to_date_note to a QC record')
+
+
+def make_qc_err_record(dfile, checkType, errorType, errorMessage, filepath):
+    qc_err, _ = QCerror.objects.get_or_create(
+        file=dfile, check_type=checkType, error_type=errorType,
+        error_msg=errorMessage, report_filepath=filepath)
+
+
+def make_is_latest_qcerror(datafiles):
+
+    qc_type = "LATEST"
+    for df in datafiles:
+        if not df.up_to_date:
+            make_qc_err_record(df, qc_type, df.up_to_date_note.split(' :: ')[0].strip('IS_LATEST [').strip(']'),
+            df.up_to_date_note, df.up_to_date_note.split(' :: ')[-1])
+
 
 
 def rerun_cfchecker():
@@ -195,6 +212,11 @@ def get_missing_ceda_cc_filelist():
 if __name__ == "__main__":
 
     args = parser.parse_args()
+
+    if args.create_islatest_qclog:
+        dfs = DataFile.objects.filter(variable=args.variable, dataset__frequency=args.frequency,
+                                      dataset__cmor_table=args.table)
+        make_is_latest_qcerror(dfs)
 
     if args.fix_cfchecker_output:
         rerun_cfchecker()

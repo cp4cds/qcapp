@@ -260,6 +260,61 @@ def make_qc_err_record(dfile, checkType, errorType, errorMessage, filepath):
     # TODO: Must add in a test for a non-zero .cf-err.txt and record perhaps retry or read in only here
 
 
+def parse_timechecks(df_obj, log_dir):
+    """
+    Parses the CEDA-CC output on the input file.
+
+    Finds any errors recorded by CEDA-CC and then makes a QCerror record for each found.
+
+    :param dbobj:
+    :param log_dir:
+    :return:
+    """
+
+    checkType = "TEMPORAL"
+    file_path = df_obj.gws_path
+    temporal_range = file_path.split("_")[-1].strip(".nc").split("_")[0]
+    institute, model, experiment, frequency, realm, table, ensemble, variable, latest, ncfile = file_path.split('/')[8:]
+    file_timecheck_filename = "_".join([variable, table, model, experiment, ensemble, temporal_range]) + "__file_timecheck.log"
+    multifile_timecheck_filename = "_".join([variable, table, model, experiment, ensemble]) + "__multifile_timecheck.log"
+    file_timecheck_logfile = os.path.join(log_dir, file_timecheck_filename)
+    multifile_timecheck_logfile = os.path.join(log_dir, multifile_timecheck_filename)
+
+    file_temporal_fatal = re.compile('.*FATAL.*|.*File does not end with.*')
+    file_temporal_fail = re.compile('.*FAIL.*')
+  
+    file_regexlist = [(file_temporal_fatal, "fatal"),
+                 (file_temporal_fail, "fail")]
+
+
+    if os.path.exists(file_timecheck_logfile):
+        with open(file_timecheck_logfile, 'r') as fr:
+            file_timecheck_data = fr.readlines()
+            
+            for line in file_timecheck_data:
+                for regex, label in file_regexlist:
+                    if regex.match(line.strip()):
+                        make_qc_err_record(df_obj, checkType, label, line, file_timecheck_logfile)
+    else:
+        make_qc_err_record(df_obj, checkType, "FATAL", "Timecheck log file does not exist", file_timecheck_logfile)
+
+
+    multifile_temporal_fatal = re.compile('.*Error.*')
+    multifile_temporal_fail = re.compile('.*FAIL.*')
+
+    multifile_regexlist = [(multifile_temporal_fatal, "fatal"),
+                 (multifile_temporal_fail, "fail")]
+
+    if os.path.exists(multifile_timecheck_logfile):
+        with open(multifile_timecheck_logfile, 'r') as fr:
+            multifile_timecheck_data = fr.readlines()
+
+            for line in multifile_timecheck_data:
+                for regex, label in multifile_regexlist:
+                    if regex.match(line.strip()):
+                        make_qc_err_record(df_obj, checkType, label, line, multifile_timecheck_logfile)
+    else:
+        make_qc_err_record(df_obj, checkType, "FATAL", "Multifile timecheck log file does not exist", multifile_timecheck_logfile)
 
 
 
