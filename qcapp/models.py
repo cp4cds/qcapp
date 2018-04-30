@@ -114,7 +114,7 @@ class QCerror(models.Model):
     file = models.ForeignKey(DataFile, null=True)
     check_type = models.CharField(max_length=20, null=True, blank=True)
     error_type = models.CharField(max_length=20, null=True, blank=True)
-    error_msg = models.CharField(max_length=500, null=True, blank=True)
+    error_msg = models.CharField(max_length=800, null=True, blank=True)
     report_filepath = models.CharField(max_length=500, null=True, blank=True)
 
     def __str__(self):
