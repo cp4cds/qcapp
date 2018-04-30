@@ -80,8 +80,8 @@ class DataFile(models.Model):
     Dataset file
     """
     dataset = models.ForeignKey(Dataset)
-    archive_path = models.CharField(max_length=500)
     gws_path = models.CharField(max_length=500, default=None, blank=True, null=True)
+    archive_path = models.CharField(max_length=500)
     ncfile = models.CharField(blank=True, max_length=300)
     size = models.FloatField(blank=True)
     sha256_checksum = models.CharField(max_length=80)
@@ -115,6 +115,7 @@ class QCerror(models.Model):
     check_type = models.CharField(max_length=20, null=True, blank=True)
     error_type = models.CharField(max_length=20, null=True, blank=True)
     error_msg = models.CharField(max_length=800, null=True, blank=True)
+    error_level = models.CharField(max_length=20, null=True, blank=True)
     report_filepath = models.CharField(max_length=500, null=True, blank=True)
 
     def __str__(self):
