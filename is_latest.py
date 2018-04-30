@@ -27,16 +27,13 @@ def _log_message(dbobj, message, set_uptodate=False):
 
     """
         log_message
-
     A function that record a log or error message to a file.
     Additionally will record the same messsage to the database object and
     if "set_uptodate=True" is set it will update the database to reflect
     that a dataset or datafile record is correct.
-
     :param dbobj: A Django databse object, either Dataset or DataFile
     :param message: Log or error message string
     :param set_uptodate: Default False, if True will update the database
-
     """
 
     if set_uptodate:
@@ -49,12 +46,9 @@ def _log_message(dbobj, message, set_uptodate=False):
 def _convert_version(iversion):
     """
         convert_version
-
     This function converts and ESGF dataset version from the from YYYYMMDD to a datetime object.
-
     If the ESGF version is not given in the form YYYYMMDD, and instead is provided in integer form, this will be
     returned unmodified.
-
     :param iversion: An ESGF version of the form YYYYMMDD (will support integer versions also)
     :return: [datetime_object] (exceptionally an integer)
     """
@@ -73,16 +67,12 @@ def _convert_version(iversion):
 
 def _generate_checksum_dict(node, version, cksum_type, cksum):
     """
-
         _generate_checksum_dict
-
     Convert ESGF paramters of data-node (node), version, checksum_type and checksum into a dictionary format for ease of use
-
     :param node: ESGF data node
     :param version: ESGF version
     :param cksum_type: Checksum type, SHA256 or MD5
     :param cksum: Checksum
-
     :return: Checksum dictionary [Dict {'node':, 'version':, 'cksum_type': <SHA256/MD5>, 'cksum':}]
     """
 
@@ -98,7 +88,6 @@ def _generate_checksum_dict(node, version, cksum_type, cksum):
 def _read_json_cache_file(df, json_file):
     """
         read_datafile_json_cache
-
     Read cached ESGF JSON ouput
     :param json_file: Path to JSON file
     :return: JSON cached data [JSON dict]
@@ -119,11 +108,9 @@ def _read_json_cache_file(df, json_file):
 def get_latest_version(dbobj, versions):
     """
         get_latest_version
-
     Using the versions obtained from "get_all_versions" this function loops through each version and where the
     version number is of the YYYYMMDD form using the "_convert_version" function compares all the published versions
     and obtains the latest.
-
     :param versions: A list of versions
     :return: version number [string]
     """
@@ -151,10 +138,8 @@ def get_latest_version(dbobj, versions):
 def get_all_checksums(df, json_resp):
     """
         get_all_checksums
-
     A function that loops through all entries in a ESGF-json object and returns all the checksums
     at all the nodes and whether they are replica or master copies.
-
     :param json_resp: A ESGF query in JSON form
     :return: Checksums [dict]
              Format: {node: {'replica': T/F, 'version':, 'cksum_type': SHA256/MD5, 'cksum':}})
@@ -187,10 +172,8 @@ def get_all_checksums(df, json_resp):
 def get_latest_checksum(df, cksums):
     """
         get_latest_checksum
-
     From a dictionary object of checksums, determines if there is a valid latest checksum and returns it,
     else an error is recorded.
-
     :param cksums: A dictionary object of the form:
                    cksums[data_node] = {'replica':, 'version':, 'cksum_type':, 'cksum':}
     :return: latest_checksum [dict] {'node':, 'version':, 'cksum_type':, 'cksum':}
@@ -229,9 +212,7 @@ def get_latest_checksum(df, cksums):
 def compare_ceda_with_latest(db_obj, ceda, latest, dbType):
     """
         compare_ceda_with_latest
-
     If the CEDA and latest versions are the same the function returns True, if they are different it returns False
-
     :param ceda_version: The CEDA dataset version for this datafile
     :param latest_version:
     :return: [Boolean]
@@ -257,9 +238,7 @@ def compare_ceda_with_latest(db_obj, ceda, latest, dbType):
 def get_ceda_version(df, cksums):
     """
         get_ceda_checksum
-
     Get and return the CEDA checksum from a dictionary of checksums
-
     :param cksums: cksums[data_node] = {'replica':, 'version':, 'cksum_type':, 'cksum':}
     :return: Tuple (checksum [string], error_message)
     """
@@ -276,9 +255,7 @@ def get_ceda_version(df, cksums):
 def get_ceda_checksum(df, cksums, checksum_type="SHA256"):
     """
         get_ceda_checksum
-
     Get and return the CEDA checksum from a dictionary of checksums
-
     :param cksums: cksums[data_node] = {'replica':, 'version':, 'cksum_type':, 'cksum':}
     :return: Tuple (checksum [string], error_message)
     """
@@ -295,87 +272,81 @@ def get_ceda_checksum(df, cksums, checksum_type="SHA256"):
     return ceda_cksum
 
 
-def check_datafiles_are_latest(datasets, esgfdict):
+def check_datafiles_are_latest(datasets, esgf_dict):
     """
         dataset_latest_check
-
     Runs test to check whether CP4CDS datafile is the most recent version on ESGF.
-
     :param datasets: A Django QuerySet of Dataset objects
     :param esgf_dict: An esgf_dict object
     """
 
     for ds in datasets:
         dfs = ds.datafile_set.all()
-        esgfdict['ensemble'] = ds.ensemble
-        esgfdict['version'] = ds.version
-        check_datafile_is_latest(ds, dfs, esgfdict)
+        check_datafile_is_latest(ds, dfs, esgf_dict)
 
 
+def check_datafile_is_latest(datafiles, edict):
 
+    for df in datafiles:
 
-def check_datafile_is_latest(ds, dfs, edict):
+        try:
 
-    try:
+            global esgf_dict
+            esgf_dict = edict
+             # if df.ncfile == "sic_OImon_bcc-csm1-1_historical_r3i1p1_185001-201212.nc":
+             #    print(df.ncfile)
+            df.up_to_date = False
+            df.save()
+            esgf_dict['ncfile'] = df.ncfile
+            esgf_dict['ensemble'] = df.dataset.ensemble
+            esgf_dict['version'] = df.dataset.version
 
-        global esgf_dict
-        esgf_dict = edict
-        for df in dfs:
-             if df.ncfile == "sic_OImon_bcc-csm1-1_historical_r3i1p1_185001-201212.nc":
-                print(df.ncfile)
-                df.up_to_date = False
-                df.save()
-                esgf_dict['ncfile'] = df.ncfile
+            json_file = esgf_dict._generate_latest_dfpath(QCLOGS, esgf_dict)
+            # # Update the esgf_dict and get the cached json file (a distributed is latest ESGF query)
+            # esgf_dict, json_file = esgf_dict._generate_jsonfile_path(ds, DATAFILE_LATEST_CACHE, esgf_dict,
+            #                                                          dtype="datafile", ncfile=df.ncfile)
 
-                json_file = esgf_dict._generate_latest_dfpath(QCLOGS, esgf_dict)
+            # Open and read cached JSON file
+            json_resp = _read_json_cache_file(df, json_file)
 
-                # Update the esgf_dict and get the cached json file (a distributed is latest ESGF query)
-                # esgf_dict, json_file = esgf_dict._generate_jsonfile_path(ds, QCLOGS, esgf_dict,
-                #                                                          dtype="datafile", ncfile=df.ncfile)
+            # checksums dictionary: {node: {'replica': T/F, 'version':, 'cksum_type': SHA256/MD5, 'cksum':}}
+            checksums = get_all_checksums(df, json_resp)
 
-                # Open and read cached JSON file
-                json_resp = _read_json_cache_file(df, json_file)
+            if CEDA_DATA_NODE not in checksums.keys():
+                raise ESGFError("IS_LATEST [FATAL] :: File has no CEDA published record :: "
+                                "ESGF query {}".format(esgf_dict.format_is_latest_datafile_url()), df)
 
-                # checksums dictionary: {node: {'replica': T/F, 'version':, 'cksum_type': SHA256/MD5, 'cksum':}}
-                checksums = get_all_checksums(df, json_resp)
+            # Check whether the CEDA published file is the most recent by checksum comparison
+            latest = get_latest_checksum(df, checksums)
 
-                if CEDA_DATA_NODE not in checksums.keys():
-                    raise ESGFError("IS_LATEST [FATAL] :: File has no CEDA published record :: "
-                                    "ESGF query {}".format(esgf_dict.format_is_latest_datafile_url()), df)
+            if latest['cksum_type'].upper() == "MD5":
+                cksumType = "MD5"
+            else:
+                cksumType = "SHA256"
 
-                # Check whether the CEDA published file is the most recent by checksum comparison
-                latest = get_latest_checksum(df, checksums)
+            ceda_checksum = get_ceda_checksum(df, checksums, checksum_type=cksumType)
+            ceda_cksum_is_latest = compare_ceda_with_latest(df, ceda_checksum, latest['cksum'], dbType='df')
 
-                if latest['cksum_type'].upper() == "MD5":
-                    cksumType = "MD5"
-                else:
-                    cksumType = "SHA256"
-                ceda_checksum = get_ceda_checksum(df, checksums, checksum_type=cksumType)
+            ceda_version = get_ceda_version(df, checksums)
+            ceda_version_is_latest = compare_ceda_with_latest(df, ceda_version, latest['version'], dbType='df')
 
-                ceda_cksum_is_latest = compare_ceda_with_latest(df, ceda_checksum, latest['cksum'], dbType='df')
+            if ceda_cksum_is_latest and ceda_version_is_latest:
+                success_message = "IS_LATEST [PASS] :: The CEDA datafile checksum {} is the same as the " \
+                                  "ESGF recorded latest {} :: ESGF query {}".format(
+                                   ceda_checksum, latest['cksum'], esgf_dict.format_is_latest_datafile_url())
+                # print(success_message)
+                _log_message(df, success_message, set_uptodate=True)
 
-                ceda_version = get_ceda_version(df, checksums)
-                ceda_version_is_latest = compare_ceda_with_latest(df, ceda_version, latest['version'], dbType='df')
-
-                if ceda_cksum_is_latest and ceda_version_is_latest:
-                    success_message = "IS_LATEST [PASS] :: The CEDA datafile checksum {} is the same as the " \
-                                      "ESGF recorded latest {} :: ESGF query {}".format(
-                                       ceda_checksum, latest['cksum'], esgf_dict.format_is_latest_datafile_url())
-                    print(success_message)
-                    _log_message(df, success_message, set_uptodate=True)
-
-                elif ceda_cksum_is_latest and not ceda_version_is_latest:
-                    raise ESGFError("IS_LATEST [VERSION ERROR] :: The CEDA datafile checksum {} is the same as the "
-                                    "ESGF recorded latest {} :: CEDA version {} is not latest {} and should be updated."
-                                    " :: ESGF query {}".format(ceda_checksum, latest['cksum'], ceda_version,
-                                                    latest['version'], esgf_dict.format_is_latest_datafile_url()), df)
-                else:
-                    raise ESGFError("IS_LATEST [CHECKSUM ERROR] :: Checksum do not match CEDA {} latest {} :: CEDA version {}, "
-                                    "latest version {} :: ESGF query {}".format(ceda_checksum, latest['cksum'],
-                                                                                ceda_version, latest['version'],
-                                                                                esgf_dict.format_is_latest_datafile_url()),
-                                                                                df)
-    except ESGFError:
-        pass
-
-
+            elif ceda_cksum_is_latest and not ceda_version_is_latest:
+                raise ESGFError("IS_LATEST [VERSION ERROR] :: The CEDA datafile checksum {} is the same as the "
+                                "ESGF recorded latest {} :: CEDA version {} is not latest {} and should be updated."
+                                " :: ESGF query {}".format(ceda_checksum, latest['cksum'], ceda_version,
+                                                latest['version'], esgf_dict.format_is_latest_datafile_url()), df)
+            else:
+                raise ESGFError("IS_LATEST [CHECKSUM ERROR] :: Checksum do not match CEDA {} latest {} :: CEDA version {}, "
+                                "latest version {} :: ESGF query {}".format(ceda_checksum, latest['cksum'],
+                                                                            ceda_version, latest['version'],
+                                                                            esgf_dict.format_is_latest_datafile_url()),
+                                                                            df)
+        except ESGFError:
+            pass

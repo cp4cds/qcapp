@@ -155,9 +155,12 @@ def create_database_entry(ipath, df_data):
                                             esgf_node='esgf-data1.ceda.ac.uk'
                                             )
 
+    # TO DO CHECK THIS
     archive_filepath = ipath.replace(GWS_BASEDIR, ARCHIVE_BASEDIR)
 
     start_time, end_time = get_start_end_times(frequency, archive_filepath)
+    # TO DO CHECK THIS
+    # NOT GETTING MD5 IF filepath is wrong
     md5_checksum = commands.getoutput('md5sum ' + archive_filepath).split(' ')[0]
     isTimeseries = is_timeseries(archive_filepath)
 

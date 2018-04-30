@@ -17,6 +17,7 @@ from sys import argv
 from qcapp.models import *
 from utils import *
 from qc_settings import *
+from qc_functions import *
 
 requests.packages.urllib3.disable_warnings()
 ARCHIVE_ROOT = "/badc/cmip5/data/"
@@ -28,10 +29,10 @@ JSONDIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/DATAFILE_CACHE"
 # for datafiles in DataFile.objects.all():
 
 parser = argparse.ArgumentParser()
-parser.add_argument('variable', type=str, help='A CP4CDS variable')
-parser.add_argument('frequency', type=str, help='A CP4CDS frequency')
-parser.add_argument('table', type=str, help='A CP4CDS table')
-parser.add_argument('experiment', type=str, help='A CP4CDS experiment')
+parser.add_argument('variable', type=str, nargs='?', help='A CP4CDS variable')
+parser.add_argument('frequency', type=str, nargs='?', help='A CP4CDS frequency')
+parser.add_argument('table', type=str, nargs='?', help='A CP4CDS table')
+parser.add_argument('experiment', type=str, nargs='?', help='A CP4CDS experiment')
 
 parser.add_argument('--add_gws_path',action='store_true', help='Add the group workspace path to the database datafile table')
 parser.add_argument('--set_restricted_status',action='store_true', help='Set the open or restricted status of the data')
@@ -40,13 +41,39 @@ parser.add_argument('--find_missing_ceda_cc', action='store_true', help='Generat
 parser.add_argument('--check_number_qc_files', action='store_true', help='Calculate the number of qc files and compare with expected')
 parser.add_argument('--move_cferr_files', action='store_true', help='Move the cf-err.log files from the /data dir to /CF-FATAL dir')
 parser.add_argument('--fix_archivepath_checksums', action='store_true', help='Correct the archive path and recalculate all the md5 checksums for all datafiles')
+parser.add_argument('--fix_cfchecker_output', action='store_true', help='Check all cf-checker err logs are needed by re-running the checker')
+
+
+def rerun_cfchecker():
+
+    file = "cf-err-log-list.log"
+    with open(file) as fr:
+        files = fr.readlines()
+
+    for file in files[1:]:
+        cflogfile = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/" + file.strip().replace('cf-err.txt', 'cf-log.txt')
+        with open(cflogfile) as fr:
+            data = fr.readlines()
+        ncfile = data[1].split(' ')[-1].strip()
+        variable = ncfile.split('/')[-3]
+        table = ncfile.split('/')[-5]
+        experiment = ncfile.split('/')[-8]
+        ensemble = ncfile.split('/')[-4]
+        version = "v" + os.readlink(ncfile).split('/')[-2]
+        odir = os.path.join(QCLOGS, variable, table, experiment, ensemble, version)
+        run_cf_checker(ncfile, odir)
 
 def fix_path_checksums(datafiles):
 
     for df in datafiles:
-        n, b, c, d, proj, outp, inst, model, ex, fr, realm, table, ens, var, files, version, ncfile = df.archive_path.split('/')
-        df.archive_path = os.path.join('/', b, c, d, proj, outp, inst, model, ex, fr, realm, table, ens, 'v' + version, var, ncfile)
-        df.md5_checksum = commands.getoutput('md5sum ' + df.archive_path).split(' ')[0]
+
+        if not os.path.exists(df.archive_path):
+            n, b, c, d, proj, outp, inst, model, ex, fr, realm, table, ens, var, files, version, ncfile = df.archive_path.split('/')
+            df.archive_path = os.path.join('/', b, c, d, proj, outp, inst, model, ex, fr, realm, table, ens, 'v' + version, var, ncfile)
+
+        if len(df.md5_checksum) != 32:
+            df.md5_checksum = commands.getoutput('md5sum ' + df.archive_path).split(' ')[0]
+
         df.save()
 
 def move_cf_error_files():
@@ -168,6 +195,10 @@ def get_missing_ceda_cc_filelist():
 if __name__ == "__main__":
 
     args = parser.parse_args()
+
+    if args.fix_cfchecker_output:
+        rerun_cfchecker()
+
     if args.add_gws_path:
         add_gws_field()
 

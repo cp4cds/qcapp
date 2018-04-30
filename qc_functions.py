@@ -22,7 +22,7 @@ from time_checks.run_file_timechecks import main as single_file_time_checks
 from time_checks.run_multifile_timechecks import main as multi_file_time_checks
 from esgf_dict import EsgfDict
 from qc_settings import *
-from is_latest import check_datafiles_are_latest
+from is_latest import check_datafile_is_latest
 
 def run_is_latest(variable, frequency, table):
 
@@ -36,10 +36,12 @@ def run_is_latest(variable, frequency, table):
         ("latest", "true"),
     ])
 
-    for experiment in ALLEXPTS:
+    for experiment in ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']:
+    # for experiment in ['historical']:
         esgf_dict['experiment'] = experiment
-        datasets = Dataset.objects.filter(variable=variable, cmor_table=table, frequency=frequency, experiment=experiment)
-        check_datafiles_are_latest(datasets, esgf_dict)
+        datafiles = DataFile.objects.filter(variable=variable, dataset__frequency=frequency,
+                                            dataset__cmor_table=table, dataset__experiment=experiment)
+        check_datafile_is_latest(datafiles, esgf_dict)
 
 
 def run_multifile_time_checker(datasets, var, table, expt):
@@ -157,19 +159,14 @@ def parse_ceda_cc(df_obj, odir):
             for line in ceda_cc_out:
                 line = line.strip()
                 if cedacc_global_error.match(line):
-                    # print("Found a CEDA-CC global attributes error")
                     make_qc_err_record(df_obj, checkType, "global", line, ceda_cc_file)
                 if cedacc_variable_error.match(line):
-                    # print("Found a CEDA-CC variable attributes error")
                     make_qc_err_record(df_obj, checkType, "variable", line, ceda_cc_file)
                 if cedacc_other_error.match(line.strip()):
-                    # print("Found a CEDA-CC Other attributes error")
-                    make_qc_err_record(df, checkType, "other", line, ceda_cc_file)
+                    make_qc_err_record(df_obj, checkType, "other", line, ceda_cc_file)
                 if cedacc_exception.match(line):
-                    # print("Found a CEDA-CC EXCETPION error")
                     make_qc_err_record(df_obj, checkType, "fatal", line, ceda_cc_file)
                 if cedacc_abort.match(line):
-                    # print("Found a CEDA-CC FATAL error")
                     make_qc_err_record(df_obj, checkType, "fatal", line, ceda_cc_file)
 
 
@@ -198,7 +195,7 @@ def run_cf_checker(file, odir):
         call(touch_cmd)
 
 
-def parse_cf_checker(file):
+def parse_cf_checker(df, file, log_dir):
     """
 
     Parses the CF-Checker output for the input file
@@ -210,20 +207,32 @@ def parse_cf_checker(file):
 
     :return:
     """
+    # CF regex expressions for errors
+    cf_global_error = re.compile('.*ERROR.*(global|Global|Convention).*')
+    cf_variable_error = re.compile('.*ERROR.*(units|cell).*(?!.*(time|boundary|coordinate)).*variable.*')
+    cf_other_error = re.compile('.*ERROR.*(bound|Boundary|grid|coordinate|dimension).*')
+    cf_abort = re.compile('.*suffix.*')
+
+    # Dictionary mapping the CF regex with type of error
+    regexlist = [(cf_global_error, "global"),
+                 (cf_variable_error, "variable"),
+                 (cf_other_error, "other"),
+                 (cf_abort, "fatal")]
 
     checkType = "CF"
 
-    temporal_range = file.split("_")[-1].strip(".nc").split("_")[0]
-    institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
+    temporal_range = file.split("_")[-1].strip(".nc")
+    institute, model, experiment, frequency, realm, table, ensemble, variable, latest, ncfile = file.split('/')[8:]
     file_base = "_".join([variable, table, model, experiment, ensemble, temporal_range])
 
     # Constructs a CF file regex based on variable_table_model_experiment_ensemble_temporal-range.cf-log.txt
     cf_file_pattern = re.compile(file_base + ".cf-log.txt")
 
     # List files in the CF logdir
-    log_dir = os.path.join(CF_DIR, institute, model, experiment, frequency, realm, version)
+    # log_dir = os.path.join(CF_DIR, institute, model, experiment, frequency, realm, version)
     log_dir_files = os.listdir(log_dir)
 
+    cf_out = None
     for logfile in log_dir_files:
 
         # If the input file is in the logdir parse the output
@@ -231,251 +240,71 @@ def parse_cf_checker(file):
             with open(os.path.join(log_dir, logfile), 'r') as fr:
                 cf_out = fr.readlines()
 
-            # CF regex expressions for errors
-            cf_global_error = re.compile('.*ERROR.*(global|Global|Convention).*')
-            cf_variable_error = re.compile('.*ERROR.*(units|cell).*(?!.*(time|boundary|coordinate)).*variable.*')
-            cf_other_error = re.compile('.*ERROR.*(bound|Boundary|grid|coordinate|dimension).*')
-            cf_abort = re.compile('.*suffix.*')
-
-            # Dictionary mapping the CF regex with type of error
-            regexlist = [(cf_global_error, "global"),
-                         (cf_variable_error, "variable"),
-                         (cf_other_error, "other"),
-                         (cf_abort, "fatal")]
-
-            # Identify where CF picks up a QC error
-            for line in cf_out:
-                for regex, label in regexlist:
-                    if regex.match(line.strip()):
-                        make_qc_err_record(df, checkType, label, line, os.path.join(log_dir, logfile))
-
-
-    # TODO: Must add in a test for a non-zero .cf-err.txt and record perhaps retry or read in only here
-
-
-def check_cfout():
-    """
-
-    Checks the CF output for erroneous *.cf-err.txt files
-    If a *.cf-err.txt file exists then the CF checker is re-run to ensure that the output is not erroneous.
-
-    TODO this needs to be integrated into the main CF-Checking routines
-
-    This does not run in parallel context only a debugging function
-
-    """
-    basedir = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/CF-OUTPUT'
-    institutes = os.listdir(basedir)
-    for i in institutes:
-        expts = os.listdir(os.path.join(basedir, i))
-        for e in expts:
-            realms = os.listdir(os.path.join(basedir, i, e))
-            for r in realms:
-                for f in os.listdir(os.path.join(basedir, i, e, r)):
-                    if f.endswith('cf-err.txt'):
-                        if os.path.getsize(os.path.join(basedir, i, e, r, f)) != 0:
-                            print os.path.join(basedir, i, e, r, f)
-                            err_file = os.path.join(basedir, i, e, r, f)
-                            log_file = os.path.join(basedir, i, e, r, f.replace("-err", "-log"))
-                            if os.path.getsize(log_file) != 0:
-                                with open(log_file, 'r') as reader:
-                                    data = reader.readlines()
-                                    datafile = data[1].strip('\n').strip('CHECKING NetCDF FILE: ')
-                                    print datafile
-                                    run_cf_checker(datafile)
-                            else:
-                                with open('fatal_no_cf_checks.log', 'a') as elog:
-                                    elog.writelines([err_file, '\n'])
-
-
-
-
-def read_cf_files(dfile, qcfile):
-
-    checkType = "CF"
-    temporal_range = qcfile.split("_")[-1].strip(".nc").split("_")[0]
-    institute, model, experiment, frequency, realm, table, ensemble, version, variable, \
-    ncfile = qcfile.split('/')[6:]
-    log_dir = os.path.join(CFDIR, institute, model, experiment, table, version)
-    logfile = 'missing_dirs_cf.log'
-
-    if os.path.exists(log_dir):
-
-        file_list = os.listdir(log_dir)
-        file_base = "_".join([variable, table, model, experiment, ensemble])
-        file_pattern = re.compile(file_base + "_" + temporal_range + ".cf-log")
-
-        for file in file_list:
-            if file_pattern.match(file):
-                with open(os.path.join(log_dir, file), 'r') as fr:
-                    cf_out = fr.readlines()
-
-                # Identify where CF picks up a QC error
-
-                cf_global_error = re.compile('.*ERROR.*(global|Global|Convention).*')
-                cf_variable_error = re.compile('.*ERROR.*(units|cell).*(?!.*(time|boundary|coordinate)).*variable.*')
-                cf_other_error = re.compile('.*ERROR.*(bound|Boundary|grid|coordinate|dimension).*')
-                cf_abort = re.compile('.*suffix.*')
-
-                regexlist =[(cf_global_error, "global"), (cf_variable_error, "variable"), (cf_other_error, "other"),
-                            (cf_abort, "fatal")]
-
-                for line in cf_out:
-                    for regex, label in regexlist:
-                        if regex.match(line.strip()):
-                            make_qc_err_record(dfile, checkType, label, line, os.path.join(log_dir, file))
-#                            print checkType, label, line, os.path.join(log_dir, file)
-
+    if not cf_out:
+        make_qc_err_record(df, checkType, 'FATAL', 'NO CF-LOG FILE', os.path.join(log_dir, logfile))
     else:
 
-        if not os.path.exists(logfile):
-            with open(logfile, 'w') as logger:
-                logger.writelines(log_dir, '\n')
-        else:
-            with open(logfile, 'a') as logger:
-                logger.writelines(log_dir, '\n')
-
-
-
-                        #                    if cedacc_global_error.match(line.strip()):
-#                        make_qc_err_record(dfile, checkType, "global", line, os.path.join(log_dir, file))
-#                    if cedacc_variable_error.match(line.strip()):
-#                        make_qc_err_record(dfile, checkType, "variable", line, os.path.join(log_dir, file))
-#                    if cedacc_other_error.match(line.strip()):
-#                        make_qc_err_record(dfile, checkType, "other", line, os.path.join(log_dir, file))
-#                    if cedacc_exception.match(line.strip()):
- #                       make_qc_err_record(dfile, checkType, "fatal", line, os.path.join(log_dir, file))
- #                   if cedacc_abort.match(line.strip()):
- #                       make_qc_err_record(dfile, checkType, "fatal", line, os.path.join(log_dir, file))
-
-
-
-def read_ceda_cc_files(dfile, qcfile):
-
-    checkType = "CEDA-CC"
-    temporal_range = qcfile.split("_")[-1].strip(".nc").split("_")[0]
-
-    institute, model, experiment, frequency, realm, table, ensemble, version, variable, \
-    ncfile = qcfile.split('/')[6:]
-    log_dir = os.path.join(CEDACC_DIR, institute, model, experiment, table, version)
-    if not os.path.exists(log_dir):
-        with open('missing_dirs.log', 'a'):
-            print log_dir
-    else:
-        file_list = os.listdir(log_dir)
-        file_base = "_".join([variable, table, model, experiment, ensemble])
-        file_pattern = re.compile(file_base + "_" + temporal_range + "__qclog_\d+\.txt")
-
-        for file in file_list:
-            if file_pattern.match(file):
-                with open(os.path.join(log_dir, file), 'r') as fr:
-                    ceda_cc_out = fr.readlines()
-
-                # Identify where CEDA-CC picks up a QC error
-                cedacc_global_error = re.compile('.*global.*FAILED::.*')
-                cedacc_variable_error = re.compile('.*variable.*FAILED::.*')
-                cedacc_other_error = re.compile('.*filename.*FAILED::.*')
-                cedacc_exception = re.compile('.*Exception.*')
-                cedacc_abort = re.compile('.*aborted.*')
-
-                for line in ceda_cc_out:
-                    if cedacc_global_error.match(line.strip()):
-                        make_qc_err_record(dfile, checkType, "global", line, os.path.join(log_dir, file))
-                    if cedacc_variable_error.match(line.strip()):
-                        make_qc_err_record(dfile, checkType, "variable", line, os.path.join(log_dir, file))
-                    if cedacc_other_error.match(line.strip()):
-                        make_qc_err_record(dfile, checkType, "other", line, os.path.join(log_dir, file))
-                    if cedacc_exception.match(line.strip()):
-                        make_qc_err_record(dfile, checkType, "fatal", line, os.path.join(log_dir, file))
-                    if cedacc_abort.match(line.strip()):
-                        make_qc_err_record(dfile, checkType, "fatal", line, os.path.join(log_dir, file))
+        # Identify where CF picks up a QC error
+        for line in cf_out:
+            for regex, label in regexlist:
+                if regex.match(line.strip()):
+                    make_qc_err_record(df, checkType, label, line, os.path.join(log_dir, logfile))
 
 
 def make_qc_err_record(dfile, checkType, errorType, errorMessage, filepath):
 
     qc_err, _ = QCerror.objects.get_or_create(
-                    file=dfile, check_type=checkType, error_type=errorType,
-                    error_msg=errorMessage, report_filepath=filepath)
+        file=dfile, check_type=checkType, error_type=errorType,
+        error_msg=errorMessage, report_filepath=filepath)
 
-
-def read_qc_results(project):
-    """
-    Read in the CEDA-CC and CF results files and populate QCerror table
-    CEDA-CC and the CF-checker are run on the filelists on lotus and 
-    results are written to the group workspace.    
-    """
-
-    data_specs = DataSpecification.objects.filter(datarequesters__requested_by__contains=project)
-
-    for dspec in data_specs:
-        datasets = dspec.dataset_set.all()
-        for dataset in datasets:
-
-            datafiles = dataset.datafile_set.all()
-            for d_file in datafiles:
-                qcfile = str(d_file.archive_path)
-
-                #read_ceda_cc_files(d_file, qcfile)
-
-                read_cf_files(d_file, qcfile)
-
-def max_timeseries_qc_errors(ts):
-    """
-    Input is of the format of a dictionary of dictonary e.g.
-    {'filename': {'global': 0, 'variable': 1, 'other', 1}}
-    :param ts:
-    :return:
-    """
-
-    max_errors = {'global': 0, 'variable': 0, 'other': 0}
-
-    for key in ['global', 'variable', 'other']:
-        errors = []
-        for file, errs in ts.iteritems():
-            errors.append(errs[key])
-        max_errors[key] = max(errors)
-
-    return max_errors
-
-def get_total_qc_errors(qcfile):
-    files = DataFile.objects.filter(ncfile=qcfile)
-    # if files != 1:
-    #    raise Exception("Length of files %s must not be greater than 1, length is %s: " % (qcfile, len(files)))
-
-    file = files.first()
-    qc_errors = file.qcerror_set.all()
-    errors = {}
-    errors['global'] = qc_errors.filter(error_type='global').count()
-    errors['variable'] = qc_errors.filter(error_type='variable').exclude(error_msg__contains="ERROR (4)").count()
-    errors['other'] = qc_errors.filter(error_type='other').exclude(error_msg__contains="ERROR (4)").count()
-
-    return errors
+    # TODO: Must add in a test for a non-zero .cf-err.txt and record perhaps retry or read in only here
 
 
 
-def get_list_of_qc_files():
-
-    for dataset in Dataset.objects.all():
-        datafiles = dataset.datafile_set.all()
-        for dfile in datafiles:
-            qc_errors = dfile.qcerror_set.all()
-            for error in qc_errors:
-                path = error.file.archive_path
-                file = error.file.ncfile
 
 
-
-if __name__ == '__main__':
-    # These constraints will in time be loaded in via csv for multiple projects.
-    project = 'CMIP5'
-    node = "172.16.150.171"
-    expts = ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']
-    distrib = False
-    latest = True
-    file = '/usr/local/cp4cds-app/project-specs/cp4cds-dmp_data_request.csv'
-    # file = '/usr/local/cp4cds-app/project-specs/magic_data_request.csv'
-    #    file = '/usr/local/cp4cds-app/project-specs/abc4cde_data_request.csv'
-    # url = "https://172.16.150.171/esg-search/search?type=File&project=CMIP5&variable=tas&cmor_table=Amon&time_frequency=mon&model=HadGEM2-ES&experiment=historical&ensemble=r1i1p1&latest=True&distrib=False&format=application%%2Fsolr%%2Bjson&limit=10000"
-    project = 'CP4CDS'
-    read_qc_results(project)
+# def max_timeseries_qc_errors(ts):
+#     """
+#     Input is of the format of a dictionary of dictonary e.g.
+#     {'filename': {'global': 0, 'variable': 1, 'other', 1}}
+#     :param ts:
+#     :return:
+#     """
+#
+#     max_errors = {'global': 0, 'variable': 0, 'other': 0}
+#
+#     for key in ['global', 'variable', 'other']:
+#         errors = []
+#         for file, errs in ts.iteritems():
+#             errors.append(errs[key])
+#         max_errors[key] = max(errors)
+#
+#     return max_errors
+#
+#
+# def get_total_qc_errors(qcfile):
+#     files = DataFile.objects.filter(ncfile=qcfile)
+#     # if files != 1:
+#     #    raise Exception("Length of files %s must not be greater than 1, length is %s: " % (qcfile, len(files)))
+#
+#     file = files.first()
+#     qc_errors = file.qcerror_set.all()
+#     errors = {}
+#     errors['global'] = qc_errors.filter(error_type='global').count()
+#     errors['variable'] = qc_errors.filter(error_type='variable').exclude(error_msg__contains="ERROR (4)").count()
+#     errors['other'] = qc_errors.filter(error_type='other').exclude(error_msg__contains="ERROR (4)").count()
+#
+#     return errors
+#
+#
+#
+# def get_list_of_qc_files():
+#
+#     for dataset in Dataset.objects.all():
+#         datafiles = dataset.datafile_set.all()
+#         for dfile in datafiles:
+#             qc_errors = dfile.qcerror_set.all()
+#             for error in qc_errors:
+#                 path = error.file.archive_path
+#                 file = error.file.ncfile
 

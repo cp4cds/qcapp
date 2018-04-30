@@ -25,8 +25,8 @@ from subprocess import call
 #command_line_args = "--is_latest_consistent"
 
 
-command_line_args = "--fix_archivepath_checksums" #""--multifile_time_check"
-lotus_out = 'fix-path_checksums'
+command_line_args = "--parse_cf_checker" #""--multifile_time_check"
+lotus_out = 'parse-cfchecker-1'
 vars_file = "ancil_files/cp4cds_all_vars.txt"
 
 delimiter = ','
@@ -36,6 +36,7 @@ with open(vars_file) as reader:
         variable = line.split(delimiter)[0].strip()
         frequency = line.split(delimiter)[1].strip()
         table = line.split(delimiter)[2].strip()
+        # experiment = line.split(delimiter)[3].strip()
         # for experiment in ['historical', 'piControl', 'amip', 'rcp26', 'rcp45', 'rcp60', 'rcp85']:
         lotus_cmd = ['./submit-lotus.sh', variable, frequency, table, lotus_out, command_line_args]
         res = call(lotus_cmd)

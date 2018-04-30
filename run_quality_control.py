@@ -44,28 +44,33 @@ parser.add_argument('--is_latest', action='store_true', help="Work out if a data
 
 def main(args):
 
-    if args.ceda_cc or args.parse_ceda_cc or args.cf_checker or args.single_file_time_check:
+    if args.ceda_cc or args.parse_ceda_cc or args.cf_checker or args.parse_cf_checker or args.single_file_time_check:
 
-        for df in DataFile.objects.filter(variable=args.variable, dataset__frequency=args.frequency,
-                                          dataset__cmor_table=args.table, dataset__experiment=args.experiment):
-            ensemble = df.gws_path.split('/')[-4]
-            version = "v" + os.readlink(df.gws_path).split('/')[-2]
-            odir = os.path.join(QCLOGS, args.variable, args.table, args.experiment, ensemble, version)
+        for experiment in ALLEXPTS:
 
-            if not os.path.isdir(odir):
-                os.makedirs(odir)
+            for df in DataFile.objects.filter(variable=args.variable, dataset__frequency=args.frequency,
+                                              dataset__cmor_table=args.table, dataset__experiment=experiment):
+                ensemble = df.gws_path.split('/')[-4]
+                version = "v" + os.readlink(df.gws_path).split('/')[-2]
+                odir = os.path.join(QCLOGS, args.variable, args.table, experiment, ensemble, version)
 
-            if args.ceda_cc:
-                run_ceda_cc(df.gws_path, odir)
+                if not os.path.isdir(odir):
+                    os.makedirs(odir)
 
-            if args.parse_ceda_cc:
-                parse_ceda_cc(df, odir)
+                if args.ceda_cc:
+                    run_ceda_cc(df.gws_path, odir)
 
-            if args.cf_checker:
-                run_cf_checker(df.gws_path, odir)
+                if args.parse_ceda_cc:
+                    parse_ceda_cc(df, odir)
 
-            if args.single_file_time_check:
-                file_time_checks(df.gws_path, odir)
+                if args.cf_checker:
+                    run_cf_checker(df.gws_path, odir)
+
+                if args.parse_cf_checker:
+                    parse_cf_checker(df, df.gws_path, odir)
+
+                if args.single_file_time_check:
+                    file_time_checks(df.gws_path, odir)
 
 
     if args.multifile_time_check:
