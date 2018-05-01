@@ -1,9 +1,0 @@
-2018-04-20 13:19:37,175 INFO Starting batch -- number of file: 1
-2018-04-20 13:19:37,176 INFO Source: /group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/MOHC/HadGEM2-A/amip/mon/atmos/Amon/r2i3p1/t^C/latest/tas_Amon_HadGEM2-A_amip_r2i3p1_197809-200811.nc
-2018-04-20 13:19:37,518 INFO Python netcdf: cdms2
-2018-04-20 13:19:37,519 INFO Starting: tas_Amon_HadGEM2-A_amip_r2i3p1_197809-200811.nc
-2018-04-20 13:19:37,520 INFO Starting file tas_Amon_HadGEM2-A_amip_r2i3p1_197809-200811.nc
-2018-04-20 13:19:37,520 INFO C4.001.001: [parse_filename]: OK
-2018-04-20 13:19:37,520 INFO C4.001.002: [parse_filename_timerange]: OK
-2018-04-20 13:19:37,521 INFO C4.001.004: [file_name_extra]: OK
-2018-04-20 13:19:37,521 INFO Done -- testing aborted because of severity of errors

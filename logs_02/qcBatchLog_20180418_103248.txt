@@ -1,6 +1,0 @@
-2018-04-18 11:32:48,869 INFO Starting batch -- number of file: 1
-2018-04-18 11:32:48,870 INFO Source: /group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CSIRO-BOM/ACCESS1-3/amip/mon/aerosol/aero/r1i1p2/od550aer/latest/od550aer_aero_ACCESS1-3_amip_r1i1p1_197801-200812.nc
-2018-04-18 11:32:49,383 INFO Python netcdf: cdms2
-2018-04-18 11:32:49,384 INFO Starting: od550aer_aero_ACCESS1-3_amip_r1i1p1_197801-200812.nc
-2018-04-18 11:32:49,386 INFO Log file: logs_02/od550aer_aero_ACCESS1-3_amip_r1i1p1_197801-200812__qclog_20180418.txt
-2018-04-18 11:32:50,229 INFO Done -- error count 1
