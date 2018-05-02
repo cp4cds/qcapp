@@ -99,6 +99,7 @@ class DataFile(models.Model):
     up_to_date = models.NullBooleanField(default=None, blank=True, null=True)
     up_to_date_note = models.CharField(default=None, max_length=1000, blank=True, null=True)
     restricted = models.NullBooleanField(default=None, blank=True, null=True)
+    duplicate_of = models.ForeignKey('self', default=None, blank=True, null=True)
 
     # Datafile QC information
     qc_passed = models.NullBooleanField(default=False, blank=True, null=True)
