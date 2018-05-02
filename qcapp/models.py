@@ -108,7 +108,7 @@ class DataFile(models.Model):
     file_qc_score = models.PositiveSmallIntegerField(default=0, blank=True)
 
     def __str__(self):
-        return self.archive_path
+        return self.gws_path
 
 class QCerror(models.Model):
 
