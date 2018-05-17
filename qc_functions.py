@@ -13,7 +13,7 @@ import datetime
 import time
 import re
 import glob
-import comman
+import commands
 import requests, itertools
 from subprocess import call
 from netCDF4 import Dataset as ncDataset

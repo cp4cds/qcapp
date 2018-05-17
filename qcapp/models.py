@@ -48,6 +48,7 @@ class Dataset(models.Model):
     cmor_table = models.CharField(max_length=20)
     ensemble = models.CharField(max_length=10)
     version = models.CharField(max_length=10)
+    old_version = models.CharField(max_length=10, default=None, blank=True, null=True)
     start_time = models.DateField(blank=True, null=True)
     end_time = models.DateField(blank=True, null=True)
     variable = models.CharField(max_length=20)
@@ -100,6 +101,7 @@ class DataFile(models.Model):
     up_to_date_note = models.CharField(default=None, max_length=1000, blank=True, null=True)
     restricted = models.NullBooleanField(default=None, blank=True, null=True)
     duplicate_of = models.ForeignKey('self', default=None, blank=True, null=True)
+    new_version = models.NullBooleanField(default=False, blank=True, null=True)
 
     # Datafile QC information
     qc_passed = models.NullBooleanField(default=False, blank=True, null=True)
