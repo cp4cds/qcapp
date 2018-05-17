@@ -39,11 +39,15 @@ parser.add_argument('--single_file_time_check', action='store_true', help="Run t
 parser.add_argument('--multifile_time_check', action='store_true', help="Run the multifile time checks")
 parser.add_argument('--is_latest', action='store_true', help="Work out if a datafile is the latest")
 parser.add_argument('--parse_time_check', action='store_true', help="Parse the single and multifile timecheck data")
+parser.add_argument('--update_dataset_version', action='store_true', help="Update the dataset version")
 # parser.add_argument("-i", dest="filename", required=True, help="input file", metavar="FILE")
                     # type=lambda x: is_valid_file(parser, x)
 
 
 def main(args):
+
+    if args.update_dataset_version:
+        update_dataset_versions()
 
     if args.ceda_cc or args.parse_ceda_cc or args.cf_checker or args.parse_cf_checker or args.single_file_time_check \
             or args.parse_time_check:

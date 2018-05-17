@@ -7,12 +7,13 @@ from django.db.models import Count, Max, Min, Sum, Avg
 
 import collections
 import os
+import shutil
 import timeit
 import datetime
 import time
 import re
 import glob
-import commands
+import comman
 import requests, itertools
 from subprocess import call
 from netCDF4 import Dataset as ncDataset
@@ -23,6 +24,83 @@ from time_checks.run_multifile_timechecks import main as multi_file_time_checks
 from esgf_dict import EsgfDict
 from qc_settings import *
 from is_latest import check_datafile_is_latest
+
+def parse_is_latest_version_error(msg):
+
+    err, checksums, versions, query = msg.split(' :: ')
+    cksum_parts = checksums.split(' ')
+    ceda_cksum = cksum_parts[4]
+    latest_cksum = cksum_parts[-1]
+
+    version_parts = versions.split(' ')
+    ceda_version = version_parts[2]
+    latest_version = version_parts[6]
+
+    return ceda_cksum, latest_cksum, ceda_version, latest_version
+
+def make_new_version(error, ceda_version, latest_version):
+
+    gwsPath = error.file.gws_path
+    gwsdir = os.path.dirname(gwsPath).strip('/latest')
+
+    # Update file paths
+    os.chdir(gwsdir)
+    if not os.exists(ceda_version):
+        error_msg = "CEDA DIR DOESN'T EXIST {}/{}".format(gwsdir, ceda_version)
+        print error_msg
+    else:
+        # Make the new version directory for all the files
+        if not os.path.exists(latest_version):
+            shutil.copytree(ceda_version, latest_version, symlinks=True)
+            os.remove('latest')
+            os.symlink(version, 'latest')
+
+    # update the db
+    info_msg = "INFO [UPDATED] :: CEDA VERSION :: {} UPDATED TO LATEST VERSION {} :: FILE {}".format(
+        ceda_version_no, latest_version_no, df.file)
+    error.error_level = info_msg
+    error.save()
+    with open(logfile, 'a+') as w:
+        w.writelines(info_msg)
+
+    # make a new record that duplicates the old one...
+
+
+def update_dataset_versions():
+
+    logfile = "dataset_version_update_error.log"
+    datafiles = QCerror.objects.filter(error_msg__contains='VERSION ERROR').exclude(file__duplicate_of=True)
+
+    for error in datafiles[0]:
+
+        ceda_cksum, latest_cksum, ceda_version_no, latest_version_no = parse_is_latest_version_error(error.error.msg)
+
+        ceda_version = "v{}".format(ceda_version_no)
+        latest_version = "v{}".format(latest_version_no)
+
+        # ENSURE CHECKSUMS ARE THE SAME
+        if ceda_cksum == latest_cksum:
+
+            # CHECK THE VERSION IS NEWER
+            if datetime.strptime(ceda_version_no, '%Y%m%d') < datetime.strptime(latest_version_no, '%Y%m%d'):
+                make_new_version(error, ceda_version, latest_version)
+            else:
+                info_msg = "INFO [NO UPDATE] :: CEDA VERSION :: {} IS GREATER THAN OR EQUAL TO LATEST {} :: FILE {}".format(
+                    ceda_version_no, latest_version_no, df.file)
+                error.error_level = info_msg
+                error.save()
+                with open(logfile, 'a+') as w:
+                    w.writelines(info_msg)
+
+        else:
+            error_msg = "FAIL [CHECKSUM MATCH] :: CEDA CHECKSUM {} :: LATEST CHECKSUM {} :: " \
+                        "FILE {}".format(ceda_cksum, latest_cksum, df.file)
+            error.error_level = error_msg
+            error.save()
+            with open(logfile, 'a+') as w:
+                w.writelines(error_msg)
+
+
 
 def run_is_latest(variable, frequency, table):
 

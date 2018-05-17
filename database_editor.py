@@ -43,6 +43,64 @@ parser.add_argument('--move_cferr_files', action='store_true', help='Move the cf
 parser.add_argument('--fix_archivepath_checksums', action='store_true', help='Correct the archive path and recalculate all the md5 checksums for all datafiles')
 parser.add_argument('--fix_cfchecker_output', action='store_true', help='Check all cf-checker err logs are needed by re-running the checker')
 parser.add_argument('--create_islatest_qclog', action='store_true', help='Move the information in the Datafile up_to_date_note to a QC record')
+parser.add_argument('--create_duplicates', action='store_true', help='Move the information in the Datafile up_to_date_note to a QC record')
+parser.add_argument('--create_update_list', action='store_true', help='Move the information in the Datafile up_to_date_note to a QC record')
+
+
+def create_update_filelist():
+
+    odir = '/group_workspaces/jasmin2/cp4cds1/synda/sdt/selection/cp4cds/cp4cds-update'
+    dfs = DataFile.objects.filter(duplicate_of=None, up_to_date_note__contains="CHECKSUM")
+    for d in dfs:
+        drs = d.dataset.esgf_drs
+        version = d.up_to_date_note.split(' :: ')[2].split(',')[1].split(' ')[-1]
+        file = d.ncfile
+        ofile = "{}.v{}.{}.txt".format(drs, version, file)
+        id = "instance_id={}.v{}.{}\n".format(drs, version, file)
+        ofile = os.path.join(odir, ofile)
+        with open(ofile, 'a+') as fw:
+            fw.writelines("protocol=gridftp\n")
+            fw.writelines(id)
+
+
+def make_duplicates():
+    logfile = "../duplicate_files.txt"
+    ensp2 = 'r1i1p2'
+    with open(logfile) as fr:
+        files = fr.readlines()
+
+    for f in files:
+        f = f.strip()
+        fncfile = os.path.basename(f)
+        df = DataFile.objects.filter(ncfile=fncfile, dataset__ensemble=ensp2)
+
+        if df.count() == 1:
+            orig = df.first()
+        else:
+            print "ERROR with file: {}".format(f)
+            pass
+        if not os.path.exists(orig.gws_path):
+            print "ERROR gws_path doesn't exist: {}".format(f)
+            pass
+
+        var, table, model, expt, ensp1, temp = orig.ncfile.split('_')
+        # ## CHECK CORRECT RECORD & FILE exist
+        correct_ncfile = '_'.join([var, table, model, expt, ensp2, temp])
+        correct_filepath = os.path.join(os.path.dirname(f), correct_ncfile)
+
+        if not os.path.exists(correct_filepath):
+            print "ERROR correct_path doesn't exist: {}".format(correct_filepath)
+            pass
+
+        correct_dfs = DataFile.objects.filter(ncfile=correct_ncfile, dataset__ensemble=ensp2)
+        if correct_dfs.count() != 1:
+            print "Multiple Records: {}".format(correct_filepath)
+            pass
+        df_correct = correct_dfs.first()
+        orig.duplicate_of = df_correct
+        orig.save()
+        print correct_filepath
+        
 
 
 def make_qc_err_record(dfile, checkType, errorType, errorMessage, filepath):
@@ -212,6 +270,12 @@ def get_missing_ceda_cc_filelist():
 if __name__ == "__main__":
 
     args = parser.parse_args()
+
+    if args.create_update_list:
+        create_update_filelist()
+
+    if args.create_duplicates:
+        make_duplicates()
 
     if args.create_islatest_qclog:
         dfs = DataFile.objects.filter(variable=args.variable, dataset__frequency=args.frequency,
