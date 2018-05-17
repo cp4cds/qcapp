@@ -41,11 +41,11 @@ def parse_is_latest_version_error(msg):
 def make_new_version(error, ceda_version, latest_version):
 
     gwsPath = error.file.gws_path
-    gwsdir = os.path.dirname(gwsPath).strip('/latest')
+    gwsdir = os.path.dirname(gwsPath).strip('latest')
 
     # Update file paths
     os.chdir(gwsdir)
-    if not os.exists(ceda_version):
+    if not os.path.exists(ceda_version):
         error_msg = "CEDA DIR DOESN'T EXIST {}/{}".format(gwsdir, ceda_version)
         print error_msg
     else:
@@ -55,51 +55,59 @@ def make_new_version(error, ceda_version, latest_version):
             os.remove('latest')
             os.symlink(version, 'latest')
 
-    # update the db
-    info_msg = "INFO [UPDATED] :: CEDA VERSION :: {} UPDATED TO LATEST VERSION {} :: FILE {}".format(
-        ceda_version_no, latest_version_no, df.file)
-    error.error_level = info_msg
-    error.save()
-    with open(logfile, 'a+') as w:
-        w.writelines(info_msg)
+        # update the db
+        info_msg = "INFO [UPDATED] :: CEDA VERSION :: {} UPDATED TO LATEST VERSION {} :: FILE {}".format(
+            ceda_version_no, latest_version_no, df.file)
+        error.error_level = info_msg
+        error.save()
+        with open(logfile, 'a+') as w:
+            w.writelines(info_msg)
 
-    # make a new record that duplicates the old one...
+        # update datafile and dataset records
+        error.file.new_version = True
+        error.file.save()
 
+        error.file.dataset.old_version = error.file.dataset.version
+        error.file.dataset.version = latest_version
+        error.file.dataset.save()
 
 def update_dataset_versions():
 
     logfile = "dataset_version_update_error.log"
     datafiles = QCerror.objects.filter(error_msg__contains='VERSION ERROR').exclude(file__duplicate_of=True)
+    print "Will update dataset version"
+    for error in datafiles[0:50]:
+        print error.file
 
-    for error in datafiles[0]:
-
-        ceda_cksum, latest_cksum, ceda_version_no, latest_version_no = parse_is_latest_version_error(error.error.msg)
-
+        ceda_cksum, latest_cksum, ceda_version_no, latest_version_no = parse_is_latest_version_error(error.error_msg)
+        print ceda_cksum, latest_cksum, ceda_version_no, latest_version_no
         ceda_version = "v{}".format(ceda_version_no)
         latest_version = "v{}".format(latest_version_no)
-
+        print ceda_version, latest_version
         # ENSURE CHECKSUMS ARE THE SAME
         if ceda_cksum == latest_cksum:
 
             # CHECK THE VERSION IS NEWER
-            if datetime.strptime(ceda_version_no, '%Y%m%d') < datetime.strptime(latest_version_no, '%Y%m%d'):
-                make_new_version(error, ceda_version, latest_version)
+            if datetime.datetime.strptime(ceda_version_no, '%Y%m%d') < datetime.datetime.strptime(latest_version_no, '%Y%m%d'):
+                print "will make new version"
+                  # make_new_version(error, ceda_version, latest_version)
             else:
                 info_msg = "INFO [NO UPDATE] :: CEDA VERSION :: {} IS GREATER THAN OR EQUAL TO LATEST {} :: FILE {}".format(
                     ceda_version_no, latest_version_no, df.file)
-                error.error_level = info_msg
-                error.save()
-                with open(logfile, 'a+') as w:
-                    w.writelines(info_msg)
+                print info_msg
+                # error.error_level = info_msg
+                # error.save()
+                # with open(logfile, 'a+') as w:
+                #     w.writelines(info_msg)
 
         else:
             error_msg = "FAIL [CHECKSUM MATCH] :: CEDA CHECKSUM {} :: LATEST CHECKSUM {} :: " \
                         "FILE {}".format(ceda_cksum, latest_cksum, df.file)
-            error.error_level = error_msg
-            error.save()
-            with open(logfile, 'a+') as w:
-                w.writelines(error_msg)
-
+            # error.error_level = error_msg
+            # error.save()
+            # with open(logfile, 'a+') as w:
+            #     w.writelines(error_msg)
+            print error_msg
 
 
 def run_is_latest(variable, frequency, table):

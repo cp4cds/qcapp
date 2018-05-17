@@ -28,9 +28,9 @@ GWS_BASEDIR = "/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/"
 JSONDIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/DATAFILE_CACHE"
 
 parser = argparse.ArgumentParser()
-parser.add_argument('variable', type=str, help='A CP4CDS variable')
-parser.add_argument('frequency', type=str, help='A CP4CDS frequency')
-parser.add_argument('table', type=str, help='A CP4CDS table')
+parser.add_argument('variable', type=str, nargs='?', help='A CP4CDS variable')
+parser.add_argument('frequency', type=str, nargs='?', help='A CP4CDS frequency')
+parser.add_argument('table', type=str, nargs='?', help='A CP4CDS table')
 parser.add_argument('--ceda_cc',action='store_true', help='Run CEDA-CC')
 parser.add_argument('--parse_ceda_cc',action='store_true', help='Parse CEDA-CC output')
 parser.add_argument('--cf_checker',action='store_true', help='Run CF-Checker')

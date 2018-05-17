@@ -48,12 +48,12 @@ class Dataset(models.Model):
     cmor_table = models.CharField(max_length=20)
     ensemble = models.CharField(max_length=10)
     version = models.CharField(max_length=10)
-    old_version = models.CharField(max_length=10, default=None, blank=True, null=True)
     start_time = models.DateField(blank=True, null=True)
     end_time = models.DateField(blank=True, null=True)
     variable = models.CharField(max_length=20)
     esgf_drs = models.CharField(max_length=200, blank=True)
     esgf_node = models.CharField(max_length=80, blank=True)
+    supersedes = models.ForeignKey('self', default=None, blank=True, null=True)
     up_to_date = models.NullBooleanField(default=None, blank=True, null=True)
     up_to_date_note = models.CharField(default=None, max_length=1000, blank=True, null=True)
 
