@@ -66,7 +66,7 @@ def make_new_version(logfile, error, ceda_version, latest_version):
         new_ds.version = latest_version
         new_ds.save()
 
-        error.file.new_version = True
+        error.file.new_dataset_version = True
         error.file.dataset = new_ds
         error.file.save()
 
