@@ -38,7 +38,7 @@ def parse_is_latest_version_error(msg):
 
     return ceda_cksum, latest_cksum, ceda_version, latest_version
 
-def make_new_version(error, ceda_version, latest_version):
+def make_new_version(logfile, error, ceda_version, latest_version):
 
     gwsPath = error.file.gws_path
     gwsdir = os.path.dirname(gwsPath).strip('latest')
@@ -46,8 +46,8 @@ def make_new_version(error, ceda_version, latest_version):
     # Update file paths
     os.chdir(gwsdir)
     if not os.path.exists(ceda_version):
-        error_msg = "CEDA DIR DOESN'T EXIST {}/{}".format(gwsdir, ceda_version)
-        print error_msg
+        message = "CEDA DIR DOESN'T EXIST {}/{}".format(gwsdir, ceda_version)
+        _save_errorobj_message(error, message, logfile, print_msg=True)
     else:
         # Make the new version directory for all the files
         if not os.path.exists(latest_version):
@@ -56,58 +56,70 @@ def make_new_version(error, ceda_version, latest_version):
             os.symlink(version, 'latest')
 
         # update the db
-        info_msg = "INFO [UPDATED] :: CEDA VERSION :: {} UPDATED TO LATEST VERSION {} :: FILE {}".format(
-            ceda_version_no, latest_version_no, df.file)
-        error.error_level = info_msg
-        error.save()
-        with open(logfile, 'a+') as w:
-            w.writelines(info_msg)
+        message = "INFO [UPDATED] :: CEDA VERSION :: {} UPDATED TO LATEST VERSION {} :: FILE {}".format(
+            ceda_version, latest_version, error.file)
+        _save_errorobj_message(error, message, logfile)
 
-        # update datafile and dataset records
+        new_ds = Dataset.objects.get(error.file.dataset)
+        new_ds.pk = None
+        new_ds.id = None
+        new_ds.version = latest_version
+        new_ds.save()
+
         error.file.new_version = True
+        error.file.dataset = new_ds
         error.file.save()
 
-        error.file.dataset.old_version = error.file.dataset.version
-        error.file.dataset.version = latest_version
-        error.file.dataset.save()
+
+def _save_errorobj_message(eobj, message, logfile, print_msg=False):
+
+    eobj.error_level = message
+    eobj.save()
+    if print_msg == True:
+        with open(logfile, 'a+') as w:
+            w.writelines(message)
 
 def update_dataset_versions():
 
     logfile = "dataset_version_update_error.log"
     datafiles = QCerror.objects.filter(error_msg__contains='VERSION ERROR').exclude(file__duplicate_of=True)
-    print "Will update dataset version"
-    for error in datafiles[0:50]:
+
+    for error in datafiles[:1]:
         print error.file
 
         ceda_cksum, latest_cksum, ceda_version_no, latest_version_no = parse_is_latest_version_error(error.error_msg)
-        print ceda_cksum, latest_cksum, ceda_version_no, latest_version_no
         ceda_version = "v{}".format(ceda_version_no)
         latest_version = "v{}".format(latest_version_no)
-        print ceda_version, latest_version
+
         # ENSURE CHECKSUMS ARE THE SAME
         if ceda_cksum == latest_cksum:
 
             # CHECK THE VERSION IS NEWER
-            if datetime.datetime.strptime(ceda_version_no, '%Y%m%d') < datetime.datetime.strptime(latest_version_no, '%Y%m%d'):
-                print "will make new version"
-                  # make_new_version(error, ceda_version, latest_version)
-            else:
-                info_msg = "INFO [NO UPDATE] :: CEDA VERSION :: {} IS GREATER THAN OR EQUAL TO LATEST {} :: FILE {}".format(
-                    ceda_version_no, latest_version_no, df.file)
-                print info_msg
-                # error.error_level = info_msg
-                # error.save()
-                # with open(logfile, 'a+') as w:
-                #     w.writelines(info_msg)
+            if len(ceda_version_no) == 1 and len(latest_version_no) ==1:
+                if int(ceda_version_no) < int(latest_version_no):
+                    make_new_version(logfile, error, ceda_version, latest_version)
+                else:
+                    message = "INFO [NO UPDATE] :: CEDA VERSION :: {} IS GREATER THAN OR EQUAL TO LATEST {} :: FILE {}".format(
+                        ceda_version_no, latest_version_no, error.file)
+                    _save_errorobj_message(error, message, logfile)
 
+            elif len(ceda_version_no) == 8 and len(latest_version_no) == 8:
+
+                if datetime.datetime.strptime(ceda_version_no, '%Y%m%d') < datetime.datetime.strptime(latest_version_no, '%Y%m%d'):
+                    make_new_version(logfile, error, ceda_version, latest_version)
+                else:
+                    message = "INFO [NO UPDATE] :: CEDA VERSION :: {} IS GREATER THAN OR EQUAL TO LATEST {} :: FILE {}".format(
+                        ceda_version_no, latest_version_no, error.file)
+                    _save_errorobj_message(error, message, logfile)
+
+            else:
+                message = "FAIL [VERSION TYPES INCOMPATIBLE] :: CEDA VERSION {} :: LATEST VERSION {} :: " \
+                            "FILE {}".format(ceda_version, latest_version, error.file)
+                _save_errorobj_message(error, message, logfile, print_msg=True)
         else:
-            error_msg = "FAIL [CHECKSUM MATCH] :: CEDA CHECKSUM {} :: LATEST CHECKSUM {} :: " \
-                        "FILE {}".format(ceda_cksum, latest_cksum, df.file)
-            # error.error_level = error_msg
-            # error.save()
-            # with open(logfile, 'a+') as w:
-            #     w.writelines(error_msg)
-            print error_msg
+            message = "FAIL [CHECKSUM MATCH] :: CEDA CHECKSUM {} :: LATEST CHECKSUM {} :: " \
+                        "FILE {}".format(ceda_cksum, latest_cksum, error.file)
+            _save_errorobj_message(error, message, logfile, print_msg=True)
 
 
 def run_is_latest(variable, frequency, table):
