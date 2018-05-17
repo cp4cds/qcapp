@@ -53,7 +53,7 @@ def make_new_version(logfile, error, ceda_version, latest_version):
         if not os.path.exists(latest_version):
             shutil.copytree(ceda_version, latest_version, symlinks=True)
             os.remove('latest')
-            os.symlink(version, 'latest')
+            os.symlink(latest_version, 'latest')
 
         # update the db
         message = "INFO [UPDATED] :: CEDA VERSION :: {} UPDATED TO LATEST VERSION {} :: FILE {}".format(
