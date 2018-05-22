@@ -408,27 +408,31 @@ def parse_cf_checker(df, file, log_dir):
 
         # If the input file is in the logdir parse the output
         if cf_file_pattern.match(logfile):
+
             with open(os.path.join(log_dir, logfile), 'r') as fr:
                 cf_out = fr.readlines()
+                # Identify where CF picks up a QC error
 
-    if not cf_out:
-        make_qc_err_record(df, checkType, 'FATAL', 'NO CF-LOG FILE', os.path.join(log_dir, logfile))
-    else:
-
-        # Identify where CF picks up a QC error
-        for line in cf_out:
-            print line
-
-            # for regex, label in regexlist:
-            #     if regex.match(line.strip()):
-            #         make_qc_err_record(df, checkType, label, line, os.path.join(log_dir, logfile))
+            for line in cf_out:
+                print line
+                for regex, label in regexlist:
+                    if regex.match(line.strip()):
+                        done = True
+                        make_qc_err_record(df, checkType, done, label, line, os.path.join(log_dir, logfile))
+        else:
+            done = False
+            make_qc_err_record(df, checkType, done, 'FATAL', 'NO CF-LOG FILE', os.path.join(log_dir, logfile))
 
 
-def make_qc_err_record(dfile, checkType, errorType, errorMessage, filepath):
+def make_qc_err_record(dfile, checkType, done, errorType, errorMessage, filepath):
 
-    qc_err, _ = QCerror.objects.get_or_create(
-        file=dfile, check_type=checkType, error_type=errorType,
-        error_msg=errorMessage, report_filepath=filepath)
+    qc_err, _ = QCerror.objects.get_or_create(file=dfile,
+                                              check_type=checkType,
+                                              check_performed=done,
+                                              error_type=errorType,
+                                              error_msg=errorMessage,
+                                              report_filepath=filepath
+                                             )
 
     # TODO: Must add in a test for a non-zero .cf-err.txt and record perhaps retry or read in only here
 

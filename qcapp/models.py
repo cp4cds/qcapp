@@ -116,7 +116,6 @@ class QCerror(models.Model):
 
     file = models.ForeignKey(DataFile, null=True)
     check_type = models.CharField(max_length=20, null=True, blank=True)
-    check_performed = models.NullBooleanField(default=False, blank=True, null=True)
     error_type = models.CharField(max_length=20, null=True, blank=True)
     error_msg = models.CharField(max_length=800, null=True, blank=True)
     error_level = models.CharField(max_length=1000, null=True, blank=True)
