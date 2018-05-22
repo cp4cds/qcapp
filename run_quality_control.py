@@ -40,11 +40,15 @@ parser.add_argument('--multifile_time_check', action='store_true', help="Run the
 parser.add_argument('--is_latest', action='store_true', help="Work out if a datafile is the latest")
 parser.add_argument('--parse_time_check', action='store_true', help="Parse the single and multifile timecheck data")
 parser.add_argument('--update_dataset_version', action='store_true', help="Update the dataset version")
+parser.add_argument('--create_updated_dataset_records', action='store_true', help="Update the dataset version")
 # parser.add_argument("-i", dest="filename", required=True, help="input file", metavar="FILE")
                     # type=lambda x: is_valid_file(parser, x)
 
 
 def main(args):
+
+    if args.create_updated_dataset_records:
+        create_new_dataset_records()
 
     if args.update_dataset_version:
         update_dataset_versions()

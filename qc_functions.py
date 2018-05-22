@@ -25,6 +25,45 @@ from esgf_dict import EsgfDict
 from qc_settings import *
 from is_latest import check_datafile_is_latest
 
+
+def create_new_dataset_records():
+
+    errs = QCerror.objects.filter(check_type__contains='LATEST', error_msg__contains='VERSION ERROR',
+                                  error_level__contains='INFO [UPDATED]')
+
+    for e in errs[1:]:
+        fname = e.file.gws_path
+        print fname
+        variable = fname.split('/')[-1].split('_')[0]
+        version = "v{}".format(os.readlink(e.file.gws_path).split('/')[-2])
+        drs = e.file.dataset.esgf_drs
+        drs_parts = drs.split('.')
+        drs_parts[0] = drs_parts[0].upper()
+        drs_parts.append(variable)
+        drs_parts.append(version)
+        dsid = '.'.join(drs_parts)
+
+        if e.file.dataset.version == version:
+            pass
+
+        elif Dataset.objects.filter(dataset_id=dsid).exists:
+            print "EXISTS"
+            e.file.dataset = Dataset.objects.filter(dataset_id=dsid).first()
+            e.file.save()
+
+        else:
+            print "NEW"
+            orig_ds = e.file.dataset
+            new_ds = Dataset.objects.get(pk=e.file.dataset.pk)
+            new_ds.pk = None
+            new_ds.id = None
+            new_ds.version = version
+            new_ds.supersedes = orig_ds
+            new_ds.save()
+
+            e.file.dataset = orig_ds
+            e.file.save()
+
 def parse_is_latest_version_error(msg):
 
     err, checksums, versions, query = msg.split(' :: ')
@@ -60,14 +99,18 @@ def make_new_version(logfile, error, ceda_version, latest_version):
             ceda_version, latest_version, error.file)
         _save_errorobj_message(error, message, logfile)
 
-        new_ds = Dataset.objects.get(error.file.dataset)
-        new_ds.pk = None
-        new_ds.id = None
-        new_ds.version = latest_version
-        new_ds.save()
+        #
+        # if not error.file.dataset.version == latest_version:
+        #     new_ds = Dataset.objects.get(pk=error.file.dataset.pk)
+        #     new_ds.pk = None
+        #     new_ds.id = None
+        #     new_ds.version = latest_version
+        #     new_ds.save()
+        # else:
+        #     new_ds = error.file.dataset
 
         error.file.new_dataset_version = True
-        error.file.dataset = new_ds
+        # error.file.dataset = new_ds
         error.file.save()
 
 
@@ -82,44 +125,72 @@ def _save_errorobj_message(eobj, message, logfile, print_msg=False):
 def update_dataset_versions():
 
     logfile = "dataset_version_update_error.log"
-    datafiles = QCerror.objects.filter(error_msg__contains='VERSION ERROR').exclude(file__duplicate_of=True)
+    errors = QCerror.objects.filter(error_msg__contains='VERSION ERROR').exclude(file__duplicate_of=True)
 
-    for error in datafiles[:1]:
-        print error.file
+    done = ['/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CMS/rcp85/mon/atmos/Amon/r1i1p1/ps/latest/ps_Amon_CMCC-CMS_rcp85_r1i1p1_208001-208912.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/ICHEC/EC-EARTH/rcp45/mon/atmos/Amon/r13i1p1/ps/latest/ps_Amon_EC-EARTH_rcp45_r13i1p1_201001-201012.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CESM/historical/mon/atmos/Amon/r1i1p1/ps/latest/ps_Amon_CMCC-CESM_historical_r1i1p1_187001-187412.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/ICHEC/EC-EARTH/rcp45/mon/atmos/Amon/r13i1p1/ps/latest/ps_Amon_EC-EARTH_rcp45_r13i1p1_202801-202812.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp45/mon/atmos/Amon/r3i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp45_r3i1p3_210101-212512.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp85/mon/atmos/Amon/r2i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp85_r2i1p3_205101-207512.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CMS/rcp85/mon/atmos/Amon/r1i1p1/ts/latest/ts_Amon_CMCC-CMS_rcp85_r1i1p1_207001-207912.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-H/rcp85/mon/atmos/Amon/r1i1p3/ts/latest/ts_Amon_GISS-E2-H_rcp85_r1i1p3_225101-230012.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CESM/piControl/mon/atmos/Amon/r1i1p1/ts/latest/ts_Amon_CMCC-CESM_piControl_r1i1p1_439001-439512.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp26/mon/atmos/Amon/r1i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp26_r1i1p3_220101-222512.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp26/mon/atmos/Amon/r1i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp26_r1i1p3_207601-210012.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CESM/historical/mon/atmos/Amon/r1i1p1/ps/latest/ps_Amon_CMCC-CESM_historical_r1i1p1_187001-187412.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/ICHEC/EC-EARTH/rcp45/mon/atmos/Amon/r13i1p1/ps/latest/ps_Amon_EC-EARTH_rcp45_r13i1p1_202801-202812.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/ICHEC/EC-EARTH/rcp45/mon/atmos/Amon/r13i1p1/ps/latest/ps_Amon_EC-EARTH_rcp45_r13i1p1_202801-202812.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp45/mon/atmos/Amon/r3i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp45_r3i1p3_210101-212512.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CMS/rcp85/mon/atmos/Amon/r1i1p1/ts/latest/ts_Amon_CMCC-CMS_rcp85_r1i1p1_207001-207912.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-H/rcp85/mon/atmos/Amon/r1i1p3/ts/latest/ts_Amon_GISS-E2-H_rcp85_r1i1p3_225101-230012.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CMS/rcp85/mon/atmos/Amon/r1i1p1/ps/latest/ps_Amon_CMCC-CMS_rcp85_r1i1p1_208001-208912.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/piControl/mon/atmos/Amon/r1i1p1/tas/latest/tas_Amon_GISS-E2-R_piControl_r1i1p1_435601-438012.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp45/mon/atmos/Amon/r3i1p1/tas/latest/tas_Amon_GISS-E2-R_rcp45_r3i1p1_215101-217512.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp45/mon/atmos/Amon/r3i1p1/tas/latest/tas_Amon_GISS-E2-R_rcp45_r3i1p1_217601-220012.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp45/mon/atmos/Amon/r3i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp45_r3i1p3_210101-212512.nc',
+            ]
 
-        ceda_cksum, latest_cksum, ceda_version_no, latest_version_no = parse_is_latest_version_error(error.error_msg)
-        ceda_version = "v{}".format(ceda_version_no)
-        latest_version = "v{}".format(latest_version_no)
+    for error in errors:
+        if not error.file in done:
 
-        # ENSURE CHECKSUMS ARE THE SAME
-        if ceda_cksum == latest_cksum:
+            print error.file
+            ceda_cksum, latest_cksum, ceda_version_no, latest_version_no = parse_is_latest_version_error(error.error_msg)
+            ceda_version = "v{}".format(ceda_version_no)
+            latest_version = "v{}".format(latest_version_no)
 
-            # CHECK THE VERSION IS NEWER
-            if len(ceda_version_no) == 1 and len(latest_version_no) ==1:
-                if int(ceda_version_no) < int(latest_version_no):
-                    make_new_version(logfile, error, ceda_version, latest_version)
+            # ENSURE CHECKSUMS ARE THE SAME
+            if ceda_cksum == latest_cksum:
+
+                # CHECK THE VERSION IS NEWER
+                if len(ceda_version_no) == 1 and len(latest_version_no) ==1:
+                    if int(ceda_version_no) < int(latest_version_no):
+                        make_new_version(logfile, error, ceda_version, latest_version)
+                    else:
+                        message = "INFO [NO UPDATE] :: CEDA VERSION :: {} IS GREATER THAN OR EQUAL TO LATEST {} :: FILE {}".format(
+                            ceda_version_no, latest_version_no, error.file)
+                        _save_errorobj_message(error, message, logfile)
+
+                elif len(ceda_version_no) == 8 and len(latest_version_no) == 8:
+
+                    if datetime.datetime.strptime(ceda_version_no, '%Y%m%d') < datetime.datetime.strptime(latest_version_no, '%Y%m%d'):
+                        make_new_version(logfile, error, ceda_version, latest_version)
+                    else:
+                        message = "INFO [NO UPDATE] :: CEDA VERSION :: {} IS GREATER THAN OR EQUAL TO LATEST {} :: FILE {}".format(
+                            ceda_version_no, latest_version_no, error.file)
+                        _save_errorobj_message(error, message, logfile)
+
                 else:
-                    message = "INFO [NO UPDATE] :: CEDA VERSION :: {} IS GREATER THAN OR EQUAL TO LATEST {} :: FILE {}".format(
-                        ceda_version_no, latest_version_no, error.file)
-                    _save_errorobj_message(error, message, logfile)
-
-            elif len(ceda_version_no) == 8 and len(latest_version_no) == 8:
-
-                if datetime.datetime.strptime(ceda_version_no, '%Y%m%d') < datetime.datetime.strptime(latest_version_no, '%Y%m%d'):
-                    make_new_version(logfile, error, ceda_version, latest_version)
-                else:
-                    message = "INFO [NO UPDATE] :: CEDA VERSION :: {} IS GREATER THAN OR EQUAL TO LATEST {} :: FILE {}".format(
-                        ceda_version_no, latest_version_no, error.file)
-                    _save_errorobj_message(error, message, logfile)
-
+                    message = "FAIL [VERSION TYPES INCOMPATIBLE] :: CEDA VERSION {} :: LATEST VERSION {} :: " \
+                                "FILE {}".format(ceda_version, latest_version, error.file)
+                    _save_errorobj_message(error, message, logfile, print_msg=True)
             else:
-                message = "FAIL [VERSION TYPES INCOMPATIBLE] :: CEDA VERSION {} :: LATEST VERSION {} :: " \
-                            "FILE {}".format(ceda_version, latest_version, error.file)
+                message = "FAIL [CHECKSUM MATCH] :: CEDA CHECKSUM {} :: LATEST CHECKSUM {} :: " \
+                            "FILE {}".format(ceda_cksum, latest_cksum, error.file)
                 _save_errorobj_message(error, message, logfile, print_msg=True)
-        else:
-            message = "FAIL [CHECKSUM MATCH] :: CEDA CHECKSUM {} :: LATEST CHECKSUM {} :: " \
-                        "FILE {}".format(ceda_cksum, latest_cksum, error.file)
-            _save_errorobj_message(error, message, logfile, print_msg=True)
+
+
+
 
 
 def run_is_latest(variable, frequency, table):
@@ -305,6 +376,8 @@ def parse_cf_checker(df, file, log_dir):
 
     :return:
     """
+
+    print("PARSING CF OUTPUT")
     # CF regex expressions for errors
     cf_global_error = re.compile('.*ERROR.*(global|Global|Convention).*')
     cf_variable_error = re.compile('.*ERROR.*(units|cell).*(?!.*(time|boundary|coordinate)).*variable.*')
@@ -344,9 +417,11 @@ def parse_cf_checker(df, file, log_dir):
 
         # Identify where CF picks up a QC error
         for line in cf_out:
-            for regex, label in regexlist:
-                if regex.match(line.strip()):
-                    make_qc_err_record(df, checkType, label, line, os.path.join(log_dir, logfile))
+            print line
+
+            # for regex, label in regexlist:
+            #     if regex.match(line.strip()):
+            #         make_qc_err_record(df, checkType, label, line, os.path.join(log_dir, logfile))
 
 
 def make_qc_err_record(dfile, checkType, errorType, errorMessage, filepath):

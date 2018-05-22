@@ -11,6 +11,8 @@ import requests
 import commands
 import datetime
 import argparse
+import filecmp
+
 from subprocess import call
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from sys import argv
@@ -45,6 +47,141 @@ parser.add_argument('--fix_cfchecker_output', action='store_true', help='Check a
 parser.add_argument('--create_islatest_qclog', action='store_true', help='Move the information in the Datafile up_to_date_note to a QC record')
 parser.add_argument('--create_duplicates', action='store_true', help='Move the information in the Datafile up_to_date_note to a QC record')
 parser.add_argument('--create_update_list', action='store_true', help='Move the information in the Datafile up_to_date_note to a QC record')
+parser.add_argument('--fix_latest_dataset', action='store_true', help='Fix the latest Dataset version')
+parser.add_argument('--fix_new_version_dirs', action='store_true', help='Fix the new version dataset directories')
+
+
+def fix_new_version_dirs():
+
+    dfs = DataFile.objects.filter(new_dataset_version=True)
+
+    for df in dfs[1:]:
+        print df.gws_path
+        filebasedir = os.path.dirname(df.gws_path).strip('latest')
+        os.chdir(filebasedir)
+        new_version_no = os.readlink('latest').strip('v')
+        os.chdir('files')
+        dirs = os.listdir('.')
+
+
+        if len(dirs) > 1:
+            print "MULTIPLE VERSIONS EXIST".format(df.gws_path)
+            continue
+        else:
+            files_to_link = os.listdir(dirs[0])
+
+        if not os.path.isdir(new_version_no):
+            os.makedirs(new_version_no)
+        else:
+            print "Directory already exists"
+            continue
+
+        # FILES DIR
+        for f in files_to_link:
+            target = os.path.join('..', dirs[0], f)
+            linkname = os.path.join(new_version_no, f)
+            os.symlink(target, linkname)
+
+
+        # VERSION DIR
+        os.chdir(os.path.join('..', 'v'+new_version_no))
+        for f in files_to_link:
+            target = os.path.join('..', 'files', new_version_no, f)
+            linkname = f
+            if os.path.exists(linkname):
+                os.remove(linkname)
+
+            os.symlink(target, linkname)
+
+def fix_latest_dataset():
+    # done = [
+    #     '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CMS/rcp85/mon/atmos/Amon/r1i1p1/ps/latest/ps_Amon_CMCC-CMS_rcp85_r1i1p1_208001-208912.nc',
+    #     # '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/ICHEC/EC-EARTH/rcp45/mon/atmos/Amon/r13i1p1/ps/latest/ps_Amon_EC-EARTH_rcp45_r13i1p1_201001-201012.nc',
+    #     '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CESM/historical/mon/atmos/Amon/r1i1p1/ps/latest/ps_Amon_CMCC-CESM_historical_r1i1p1_187001-187412.nc',
+    #     # '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/ICHEC/EC-EARTH/rcp45/mon/atmos/Amon/r13i1p1/ps/latest/ps_Amon_EC-EARTH_rcp45_r13i1p1_202801-202812.nc',
+    #     '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp45/mon/atmos/Amon/r3i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp45_r3i1p3_210101-212512.nc',
+    #     '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp85/mon/atmos/Amon/r2i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp85_r2i1p3_205101-207512.nc',
+    #     '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CMS/rcp85/mon/atmos/Amon/r1i1p1/ts/latest/ts_Amon_CMCC-CMS_rcp85_r1i1p1_207001-207912.nc',
+    #     '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-H/rcp85/mon/atmos/Amon/r1i1p3/ts/latest/ts_Amon_GISS-E2-H_rcp85_r1i1p3_225101-230012.nc',
+    #     '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CESM/piControl/mon/atmos/Amon/r1i1p1/ts/latest/ts_Amon_CMCC-CESM_piControl_r1i1p1_439001-439512.nc',
+    #     '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp26/mon/atmos/Amon/r1i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp26_r1i1p3_220101-222512.nc',
+    #     '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp26/mon/atmos/Amon/r1i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp26_r1i1p3_207601-210012.nc',
+    #     '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CESM/historical/mon/atmos/Amon/r1i1p1/ps/latest/ps_Amon_CMCC-CESM_historical_r1i1p1_187001-187412.nc',
+    #     '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp45/mon/atmos/Amon/r3i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp45_r3i1p3_210101-212512.nc',
+    #     '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CMS/rcp85/mon/atmos/Amon/r1i1p1/ts/latest/ts_Amon_CMCC-CMS_rcp85_r1i1p1_207001-207912.nc',
+    #     '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-H/rcp85/mon/atmos/Amon/r1i1p3/ts/latest/ts_Amon_GISS-E2-H_rcp85_r1i1p3_225101-230012.nc',
+    #     '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CMS/rcp85/mon/atmos/Amon/r1i1p1/ps/latest/ps_Amon_CMCC-CMS_rcp85_r1i1p1_208001-208912.nc',
+    #     '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/piControl/mon/atmos/Amon/r1i1p1/tas/latest/tas_Amon_GISS-E2-R_piControl_r1i1p1_435601-438012.nc',
+    #     '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp45/mon/atmos/Amon/r3i1p1/tas/latest/tas_Amon_GISS-E2-R_rcp45_r3i1p1_215101-217512.nc',
+    #     '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp45/mon/atmos/Amon/r3i1p1/tas/latest/tas_Amon_GISS-E2-R_rcp45_r3i1p1_217601-220012.nc',
+    #     '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp45/mon/atmos/Amon/r3i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp45_r3i1p3_210101-212512.nc',
+    #     ]
+
+    dfs = DataFile.objects.filter(new_dataset_version=True)
+
+    with open('dataset_update_errors.log') as reader:
+        files = reader.readlines()
+
+    for f in files:
+        f = f.strip()
+        df = DataFile.objects.filter(gws_path=f).first()
+
+    # for df in dfs[1:]:
+
+        if df.dataset.supersedes == None:
+            fname = df.gws_path
+            print fname
+            variable = fname.split('/')[-1].split('_')[0]
+            version = "v{}".format(os.readlink(df.gws_path).split('/')[-2])
+            version = format(os.readlink(os.path.dirname(df.gws_path)).split('/')[-1])
+            old_version = df.archive_path.split('/')[-3]
+            drs = df.dataset.esgf_drs
+            drs_parts = drs.split('.')
+            drs_parts[0] = drs_parts[0].upper()
+            drs_parts.append(variable)
+            drs_parts.append(version)
+            dsid = '.'.join(drs_parts)
+            # print dsid
+            odrs = df.dataset.esgf_drs
+            odrs_parts = odrs.split('.')
+            odrs_parts[0] = odrs_parts[0].upper()
+            odrs_parts.append(variable)
+            odrs_parts.append(old_version)
+            odsid = '.'.join(odrs_parts)
+            # print odsid
+            ds = Dataset.objects.filter(dataset_id=dsid).first()
+            old_ds = Dataset.objects.filter(dataset_id=odsid).first()
+
+
+            if df.dataset.version == version:
+                # print "versions ok"
+                # print df.dataset.version
+                # print df.dataset.supersedes
+                if df.dataset.supersedes == None:
+                    print "making supersede"
+                    df.dataset.supersedes = old_ds
+                    df.dataset.save()
+
+            # elif not ds == None:
+            #     # print "EXISTS"
+            #     df.dataset = ds
+            #     df.save()
+            #
+            # else:
+            #     # print "NEW"
+            #     orig_ds = df.dataset
+            #     # print orig_ds
+            #     new_ds = Dataset.objects.get(pk=df.dataset.pk)
+            #     new_ds.pk = None
+            #     new_ds.id = None
+            #     new_ds.version = version
+            #     new_ds.supersedes = orig_ds
+            #     new_ds.save()
+            #     # print new_ds
+            #
+            #     df.dataset = new_ds
+            #     df.save()
+
 
 
 def create_update_filelist():
@@ -270,6 +407,12 @@ def get_missing_ceda_cc_filelist():
 if __name__ == "__main__":
 
     args = parser.parse_args()
+
+    if args.fix_new_version_dirs:
+        fix_new_version_dirs()
+
+    if args.fix_latest_dataset:
+        fix_latest_dataset()
 
     if args.create_update_list:
         create_update_filelist()
