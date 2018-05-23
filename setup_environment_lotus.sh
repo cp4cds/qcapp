@@ -12,6 +12,6 @@ source /group_workspaces/jasmin2/cp4cds1/qc/qc-app2/venv2/bin/activate
 export DJANGO_SETTINGS_MODULE=qcproj.settings
 
 ## Call the python program with the arguments variable, table, frequency and any command line arguments
-python /group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/database_editor.py ${var} ${freq} ${table} ${cmd_line_args}
-#python /group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/run_quality_control.py ${var} ${freq} ${table} ${cmd_line_args}
+#python /group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/database_editor.py ${var} ${freq} ${table} ${cmd_line_args}
+python /group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/run_quality_control.py ${var} ${freq} ${table} ${cmd_line_args}
 #python /group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/esgf_datafile_search.py ${var} ${freq} ${table}

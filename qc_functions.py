@@ -377,11 +377,10 @@ def parse_cf_checker(df, file, log_dir):
     :return:
     """
 
-    print("PARSING CF OUTPUT")
     # CF regex expressions for errors
     cf_global_error = re.compile('.*ERROR.*(global|Global|Convention).*')
-    cf_variable_error = re.compile('.*ERROR.*(units|cell).*(?!.*(time|boundary|coordinate)).*variable.*')
-    cf_other_error = re.compile('.*ERROR.*(bound|Boundary|grid|coordinate|dimension).*')
+    cf_variable_error = re.compile('.*ERROR.*(units|cell).*(?!.*(time|boundary|coordinate|co-ordinate)).*')
+    cf_other_error = re.compile('.*ERROR.*(bound|Boundary|grid|coordinate|co-ordinate|dimension).*')
     cf_abort = re.compile('.*suffix.*')
 
     # Dictionary mapping the CF regex with type of error
@@ -397,38 +396,38 @@ def parse_cf_checker(df, file, log_dir):
     file_base = "_".join([variable, table, model, experiment, ensemble, temporal_range])
 
     # Constructs a CF file regex based on variable_table_model_experiment_ensemble_temporal-range.cf-log.txt
-    cf_file_pattern = re.compile(file_base + ".cf-log.txt")
-
+    cf_log = file_base + ".cf-log.txt"
+    cf_file_pattern = re.compile(cf_log)
+    
     # List files in the CF logdir
     # log_dir = os.path.join(CF_DIR, institute, model, experiment, frequency, realm, version)
     log_dir_files = os.listdir(log_dir)
 
     cf_out = None
+    found = False
     for logfile in log_dir_files:
 
         # If the input file is in the logdir parse the output
         if cf_file_pattern.match(logfile):
-
+            found = True
             with open(os.path.join(log_dir, logfile), 'r') as fr:
                 cf_out = fr.readlines()
-                # Identify where CF picks up a QC error
 
             for line in cf_out:
-                print line
+                line = line.strip()
                 for regex, label in regexlist:
-                    if regex.match(line.strip()):
-                        done = True
-                        make_qc_err_record(df, checkType, done, label, line, os.path.join(log_dir, logfile))
-        else:
-            done = False
-            make_qc_err_record(df, checkType, done, 'FATAL', 'NO CF-LOG FILE', os.path.join(log_dir, logfile))
+                    if regex.match(line):
+                        print label
+                        make_qc_err_record(df, checkType, label, line, os.path.join(log_dir, logfile))
+
+    if not found:
+        make_qc_err_record(df, checkType, 'FATAL', 'NO CF-LOG FILE', os.path.join(log_dir, cf_log))
 
 
-def make_qc_err_record(dfile, checkType, done, errorType, errorMessage, filepath):
+def make_qc_err_record(dfile, checkType, errorType, errorMessage, filepath):
 
     qc_err, _ = QCerror.objects.get_or_create(file=dfile,
                                               check_type=checkType,
-                                              check_performed=done,
                                               error_type=errorType,
                                               error_msg=errorMessage,
                                               report_filepath=filepath

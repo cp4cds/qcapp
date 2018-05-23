@@ -57,7 +57,6 @@ def main(args):
             or args.parse_time_check:
 
         for experiment in ALLEXPTS:
-
             for df in DataFile.objects.filter(variable=args.variable, dataset__frequency=args.frequency,
                                               dataset__cmor_table=args.table, dataset__experiment=experiment):
                 ensemble = df.gws_path.split('/')[-4]
