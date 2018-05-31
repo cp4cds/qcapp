@@ -19,12 +19,156 @@ from subprocess import call
 from netCDF4 import Dataset as ncDataset
 from ceda_cc import c4
 from cfchecker.cfchecks import CFVersion, CFChecker, STANDARDNAME, AREATYPES, newest_version
-from time_checks.run_file_timechecks import main as single_file_time_checks
-from time_checks.run_multifile_timechecks import main as multi_file_time_checks
+# from time_checks.run_file_timechecks import main as single_file_time_checks
+# from time_checks.run_multifile_timechecks import main as multi_file_time_checks
 from esgf_dict import EsgfDict
 from qc_settings import *
 from is_latest import check_datafile_is_latest
 
+
+def update_for_missing_cf_records(fpath, odir):
+
+    cf_logfile = os.path.join(odir, os.path.basename(fpath).replace(".nc", ".cf-log.txt"))
+    if not os.path.exists(cf_logfile):
+        print "LOG FILE MISSING {}".format(fpath)
+        print "RUNNING CF CHECKER"
+        run_cf_checker(fpath, odir)
+        df = DataFile.objects.filter(gws_path=fpath).first()
+        print "PARSING CF CHECKER"
+        parse_cf_checker(df, fpath, odir)
+
+        if os.path.exists(cf_logfile):
+            print "LOG FILE EXISTS REMOVING RECORD"
+            e = QCerror.objects.filter(check_type='CF', error_msg='NO CF-LOG FILE',
+                                       file__gws_path=fpath).first()
+            e.delete()
+
+
+def update_cf_qc_error_record():
+
+    logdir_base = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/QC_LOGS/"
+    cf_errs = QCerror.objects.filter(check_type='CF')
+
+    cfe = cf_errs.values_list('error_msg', flat=True).distinct()
+
+    for e in cfe:
+        print "{} :: {}".format(e, cf_errs.filter(error_msg=e).count())
+
+    # DONE - ASSIGNED
+    error_msg_level_dict = {}
+    error_msg_level_dict["ERROR (7.3): Invalid unit mintues) in cell_methods comment"] = "FAIL"
+    error_msg_level_dict["ERROR (5): co-ordinate variable 'time' not monotonic"] = "FATAL :: NOT FIXABLE"
+    error_msg_level_dict["ERROR (5): co-ordinate variable 'lon' not monotonic"] = "FATAL :: NOT FIXABLE"
+    error_msg_level_dict["ERROR (5): co-ordinate variable 'plev' not monotonic"] = "FATAL :: NOT FIXABLE"
+    error_msg_level_dict["ERROR (4): Axis attribute is not allowed for auxillary coordinate variables."] = "INFO :: IGNORING"
+    error_msg_level_dict["ERROR (5): co-ordinate variable 'lat' not monotonic"] = "FATAL :: NOT FIXABLE"
+    error_msg_level_dict["ERROR (3.1): Invalid units:  psu"] = "FAIL"
+    error_msg_level_dict["ERROR (7.3) Invalid syntax for cell_methods attribute"] = "FAIL"
+
+    # for e in error_msg_level_dict.keys():
+    #     print "{} :: {}".format(e, cf_errs.filter(error_msg=e).count())
+
+    # missing = cf_errs.filter(error_msg='NO CF-LOG FILE')
+    #
+    # print missing.count()
+    # for i in missing:
+    #
+    #     df = i.file
+    #     ins, model, exp, freq, realm, table, ens, version, var, ncfile = df.archive_path.split('/')[6:]
+    #     odir = os.path.join(logdir_base, var, table, exp, ens, version)
+    #     cf_logfile = os.path.join(odir, ncfile.replace(".nc", ".cf-log.txt"))
+    #     if not os.path.exists(cf_logfile):
+    #
+    #         print "LOG FILE MISSING {}".format(cf_logfile)
+    #
+    #     else:
+    #         print "DELETING ERROR RECORD LOG FILE PRESENT {}".format(cf_logfile)
+    #         i.delete()
+
+
+def resolve_cedacc_exceptions():
+
+    print "resolve cedacc exceptions"
+    logdir_base = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/QC_LOGS/"
+    cc_errs = QCerror.objects.filter(check_type='CEDA-CC', error_msg='C4.100.001: [exception]: FAILED:: Exception has occured')
+
+    for err in cc_errs[1:]:
+        file = err.file.archive_path
+
+        institute, model, experiment, frequency, realm, table, ensemble, version, variable, ncfile = file.split('/')[6:]
+        logdir = os.path.join(logdir_base, variable, table, experiment, ensemble, version)
+        logdir_files = os.listdir(logdir)
+        df = err.file
+
+        for f in logdir_files:
+            print "f {}".format(f)
+
+            if f.startswith(ncfile.replace('.nc', '__qclog_')):
+                cedacc_file = os.path.join(logdir, f)
+
+                if os.path.exists(cedacc_file):
+                    print "exists removing redo ceda-cc and parse {}".format(cedacc_file)
+                    os.remove(cedacc_file)
+
+                print "QC file {}".format(file)
+                # print "logdir {}".format(logdir)
+                # print "DO CEDA CC"
+                cedacc_args = ['ceda-cc', '-p', 'CMIP5', '-f', file, '--log', 'multi', '--ld', logdir, '--cae',
+                               '--blfmode', 'a', ]
+                run_cedacc = call(cedacc_args)
+                err.delete()
+                break
+
+
+    # e = cc_errs.first()
+    # file = e.file.gws_path
+    # print e.file.gws_path
+    # odir = '.'
+    # cedacc_args = ['-p', 'CMIP5', '-f', file, '--log', 'multi', '--ld', odir, '--cae', '--blfmode', 'a', ]
+    # run_cedacc = c4.main(cedacc_args)
+
+
+def update_cedacc_qc_errors():
+
+    cc_errs = QCerror.objects.filter(check_type='CEDA-CC')
+
+    get_values_list = True
+    if get_values_list:
+        cce = cc_errs.values_list('error_msg', flat=True).distinct()
+        for e in cce:
+            print "{} :: {}".format(e, cc_errs.filter(error_msg=e).count())
+
+    # for e in cc_errs.filter(error_msg__contains='Exception'):
+    #     print e.report_filepath
+    #     print e.file.archive_path
+
+
+    cf_error_msg_level_dict = {}
+
+    cf_error_msg_level_dict['C4.002.005: [variable_ncattribute_mipvalues]: FAILED:: Variable [tos] has incorrect attributes: standard_name="surface_temperature" [correct: "sea_surface_temperature"]'] = ""
+    cf_error_msg_level_dict['C4.002.005: [variable_ncattribute_mipvalues]: FAILED:: Variable [uas] has incorrect attributes: long_name="Eastward Near-Surface Wind" [correct: "Eastward Near-Surface Wind Speed"]'] = ""
+    cf_error_msg_level_dict['C4.002.005: [variable_ncattribute_mipvalues]: FAILED:: Variable [od550aer] has incorrect attributes: long_name="Ambient Aerosol Opitical Thickness at 550 nm" [correct: "Ambient Aerosol Optical Thickness at 550 nm"]'] = ""
+    cf_error_msg_level_dict["C4.002.004: [variable_ncattribute_present]: FAILED:: Required variable attributes missing: ['standard_name']"] = ""
+    cf_error_msg_level_dict['loggedException'] = ""
+    cf_error_msg_level_dict['C4.002.005: [variable_ncattribute_mipvalues]: FAILED:: Variable [vas] has incorrect attributes: long_name="Northward Near-Surface Wind Speed" [correct: "Northward Near-Surface Wind"]'] = ""
+    cf_error_msg_level_dict['C4.002.005: [variable_ncattribute_mipvalues]: FAILED:: missing_value must be present if _FillValue is [evspsbl]'] = ""
+    cf_error_msg_level_dict['C4.002.005: [variable_ncattribute_mipvalues]: FAILED:: missing_value must be present if _FillValue is [rsdt]'] = ""
+    cf_error_msg_level_dict['C4.100.001: [exception]: FAILED:: Exception has occured'] = ""
+    cf_error_msg_level_dict['raise loggedException'] = ""
+    cf_error_msg_level_dict['C4.002.005: [variable_ncattribute_mipvalues]: FAILED:: missing_value must be present if _FillValue is [ps]'] = ""
+    cf_error_msg_level_dict['C4.002.005: [variable_ncattribute_mipvalues]: FAILED:: Variable [prsn] has incorrect attributes: long_name="Solid Precipitation" [correct: "Snowfall Flux"]'] = ""
+    cf_error_msg_level_dict["C4.002.007: [filename_filemetadata_consistency]: FAILED:: File name segments do not match corresponding global attributes: [(2, 'model_id')]"] = ""
+    cf_error_msg_level_dict['C4.002.005: [variable_ncattribute_mipvalues]: FAILED:: missing_value must be present if _FillValue is [tas]'] = ""
+    cf_error_msg_level_dict['C4.002.005: [variable_ncattribute_mipvalues]: FAILED:: Variable [uas] has incorrect attributes: long_name="Eastward Near-Surface Wind Speed" [correct: "Eastward Near-Surface Wind"]'] = ""
+    cf_error_msg_level_dict['C4.002.005: [variable_ncattribute_mipvalues]: FAILED:: missing_value must be present if _FillValue is [psl]'] = ""
+    cf_error_msg_level_dict['C4.002.005: [variable_ncattribute_mipvalues]: FAILED:: Variable [sos] has incorrect attributes: units="1.e-3" [correct: "psu"]'] = ""
+    cf_error_msg_level_dict['Exception has occured'] = ""
+    cf_error_msg_level_dict['C4.002.005: [variable_ncattribute_mipvalues]: FAILED:: Variable [mrsos] has incorrect attributes: long_name="Moisture in Upper 0.1 m of Soil Column" [correct: "Moisture in Upper Portion of Soil Column"]'] = ""
+    cf_error_msg_level_dict['C4.002.005: [variable_ncattribute_mipvalues]: FAILED:: Variable [sos] has incorrect attributes: units="1" [correct: "psu"]'] = ""
+    cf_error_msg_level_dict['C4.002.005: [variable_ncattribute_mipvalues]: FAILED:: missing_value must be present if _FillValue is [tasmax]'] = ""
+    cf_error_msg_level_dict['C4.002.005: [variable_ncattribute_mipvalues]: FAILED:: Variable [vas] has incorrect attributes: long_name="Northward Near-Surface Wind" [correct: "Northward Near-Surface Wind Speed"]'] = ""
+    cf_error_msg_level_dict['C4.002.005: [variable_ncattribute_mipvalues]: FAILED:: missing_value must be present if _FillValue is [pr]'] = ""
+                        
 
 def create_new_dataset_records():
 
@@ -121,73 +265,6 @@ def _save_errorobj_message(eobj, message, logfile, print_msg=False):
     if print_msg == True:
         with open(logfile, 'a+') as w:
             w.writelines(message)
-
-def update_dataset_versions():
-
-    logfile = "dataset_version_update_error.log"
-    errors = QCerror.objects.filter(error_msg__contains='VERSION ERROR').exclude(file__duplicate_of=True)
-
-    done = ['/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CMS/rcp85/mon/atmos/Amon/r1i1p1/ps/latest/ps_Amon_CMCC-CMS_rcp85_r1i1p1_208001-208912.nc',
-            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/ICHEC/EC-EARTH/rcp45/mon/atmos/Amon/r13i1p1/ps/latest/ps_Amon_EC-EARTH_rcp45_r13i1p1_201001-201012.nc',
-            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CESM/historical/mon/atmos/Amon/r1i1p1/ps/latest/ps_Amon_CMCC-CESM_historical_r1i1p1_187001-187412.nc',
-            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/ICHEC/EC-EARTH/rcp45/mon/atmos/Amon/r13i1p1/ps/latest/ps_Amon_EC-EARTH_rcp45_r13i1p1_202801-202812.nc',
-            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp45/mon/atmos/Amon/r3i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp45_r3i1p3_210101-212512.nc',
-            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp85/mon/atmos/Amon/r2i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp85_r2i1p3_205101-207512.nc',
-            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CMS/rcp85/mon/atmos/Amon/r1i1p1/ts/latest/ts_Amon_CMCC-CMS_rcp85_r1i1p1_207001-207912.nc',
-            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-H/rcp85/mon/atmos/Amon/r1i1p3/ts/latest/ts_Amon_GISS-E2-H_rcp85_r1i1p3_225101-230012.nc',
-            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CESM/piControl/mon/atmos/Amon/r1i1p1/ts/latest/ts_Amon_CMCC-CESM_piControl_r1i1p1_439001-439512.nc',
-            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp26/mon/atmos/Amon/r1i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp26_r1i1p3_220101-222512.nc',
-            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp26/mon/atmos/Amon/r1i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp26_r1i1p3_207601-210012.nc',
-            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CESM/historical/mon/atmos/Amon/r1i1p1/ps/latest/ps_Amon_CMCC-CESM_historical_r1i1p1_187001-187412.nc',
-            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/ICHEC/EC-EARTH/rcp45/mon/atmos/Amon/r13i1p1/ps/latest/ps_Amon_EC-EARTH_rcp45_r13i1p1_202801-202812.nc',
-            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/ICHEC/EC-EARTH/rcp45/mon/atmos/Amon/r13i1p1/ps/latest/ps_Amon_EC-EARTH_rcp45_r13i1p1_202801-202812.nc',
-            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp45/mon/atmos/Amon/r3i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp45_r3i1p3_210101-212512.nc',
-            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CMS/rcp85/mon/atmos/Amon/r1i1p1/ts/latest/ts_Amon_CMCC-CMS_rcp85_r1i1p1_207001-207912.nc',
-            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-H/rcp85/mon/atmos/Amon/r1i1p3/ts/latest/ts_Amon_GISS-E2-H_rcp85_r1i1p3_225101-230012.nc',
-            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CMS/rcp85/mon/atmos/Amon/r1i1p1/ps/latest/ps_Amon_CMCC-CMS_rcp85_r1i1p1_208001-208912.nc',
-            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/piControl/mon/atmos/Amon/r1i1p1/tas/latest/tas_Amon_GISS-E2-R_piControl_r1i1p1_435601-438012.nc',
-            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp45/mon/atmos/Amon/r3i1p1/tas/latest/tas_Amon_GISS-E2-R_rcp45_r3i1p1_215101-217512.nc',
-            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp45/mon/atmos/Amon/r3i1p1/tas/latest/tas_Amon_GISS-E2-R_rcp45_r3i1p1_217601-220012.nc',
-            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp45/mon/atmos/Amon/r3i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp45_r3i1p3_210101-212512.nc',
-            ]
-
-    for error in errors:
-        if not error.file in done:
-
-            print error.file
-            ceda_cksum, latest_cksum, ceda_version_no, latest_version_no = parse_is_latest_version_error(error.error_msg)
-            ceda_version = "v{}".format(ceda_version_no)
-            latest_version = "v{}".format(latest_version_no)
-
-            # ENSURE CHECKSUMS ARE THE SAME
-            if ceda_cksum == latest_cksum:
-
-                # CHECK THE VERSION IS NEWER
-                if len(ceda_version_no) == 1 and len(latest_version_no) ==1:
-                    if int(ceda_version_no) < int(latest_version_no):
-                        make_new_version(logfile, error, ceda_version, latest_version)
-                    else:
-                        message = "INFO [NO UPDATE] :: CEDA VERSION :: {} IS GREATER THAN OR EQUAL TO LATEST {} :: FILE {}".format(
-                            ceda_version_no, latest_version_no, error.file)
-                        _save_errorobj_message(error, message, logfile)
-
-                elif len(ceda_version_no) == 8 and len(latest_version_no) == 8:
-
-                    if datetime.datetime.strptime(ceda_version_no, '%Y%m%d') < datetime.datetime.strptime(latest_version_no, '%Y%m%d'):
-                        make_new_version(logfile, error, ceda_version, latest_version)
-                    else:
-                        message = "INFO [NO UPDATE] :: CEDA VERSION :: {} IS GREATER THAN OR EQUAL TO LATEST {} :: FILE {}".format(
-                            ceda_version_no, latest_version_no, error.file)
-                        _save_errorobj_message(error, message, logfile)
-
-                else:
-                    message = "FAIL [VERSION TYPES INCOMPATIBLE] :: CEDA VERSION {} :: LATEST VERSION {} :: " \
-                                "FILE {}".format(ceda_version, latest_version, error.file)
-                    _save_errorobj_message(error, message, logfile, print_msg=True)
-            else:
-                message = "FAIL [CHECKSUM MATCH] :: CEDA CHECKSUM {} :: LATEST CHECKSUM {} :: " \
-                            "FILE {}".format(ceda_cksum, latest_cksum, error.file)
-                _save_errorobj_message(error, message, logfile, print_msg=True)
 
 
 
@@ -321,8 +398,8 @@ def parse_ceda_cc(df_obj, odir):
             cedacc_global_error = re.compile('.*global.*FAILED::.*')
             cedacc_variable_error = re.compile('.*variable.*FAILED::.*')
             cedacc_other_error = re.compile('.*filename.*FAILED::.*')
-            cedacc_exception = re.compile('.*Exception.*')
-            cedacc_abort = re.compile('.*aborted.*')
+            cedacc_exception = re.compile('.*FAILED:: Exception has occured.*')
+            cedacc_abort = re.compile('.*(aborted|ABORTED).*')
 
             # For CEDA-CC ouput search for errors and if found make a QCerror record
             for line in ceda_cc_out:
@@ -417,7 +494,6 @@ def parse_cf_checker(df, file, log_dir):
                 line = line.strip()
                 for regex, label in regexlist:
                     if regex.match(line):
-                        print label
                         make_qc_err_record(df, checkType, label, line, os.path.join(log_dir, logfile))
 
     if not found:
@@ -539,3 +615,70 @@ def parse_timechecks(df_obj, log_dir):
 #                 path = error.file.archive_path
 #                 file = error.file.ncfile
 
+
+def update_dataset_versions():
+
+    logfile = "dataset_version_update_error.log"
+    errors = QCerror.objects.filter(error_msg__contains='VERSION ERROR').exclude(file__duplicate_of=True)
+
+    done = ['/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CMS/rcp85/mon/atmos/Amon/r1i1p1/ps/latest/ps_Amon_CMCC-CMS_rcp85_r1i1p1_208001-208912.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/ICHEC/EC-EARTH/rcp45/mon/atmos/Amon/r13i1p1/ps/latest/ps_Amon_EC-EARTH_rcp45_r13i1p1_201001-201012.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CESM/historical/mon/atmos/Amon/r1i1p1/ps/latest/ps_Amon_CMCC-CESM_historical_r1i1p1_187001-187412.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/ICHEC/EC-EARTH/rcp45/mon/atmos/Amon/r13i1p1/ps/latest/ps_Amon_EC-EARTH_rcp45_r13i1p1_202801-202812.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp45/mon/atmos/Amon/r3i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp45_r3i1p3_210101-212512.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp85/mon/atmos/Amon/r2i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp85_r2i1p3_205101-207512.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CMS/rcp85/mon/atmos/Amon/r1i1p1/ts/latest/ts_Amon_CMCC-CMS_rcp85_r1i1p1_207001-207912.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-H/rcp85/mon/atmos/Amon/r1i1p3/ts/latest/ts_Amon_GISS-E2-H_rcp85_r1i1p3_225101-230012.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CESM/piControl/mon/atmos/Amon/r1i1p1/ts/latest/ts_Amon_CMCC-CESM_piControl_r1i1p1_439001-439512.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp26/mon/atmos/Amon/r1i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp26_r1i1p3_220101-222512.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp26/mon/atmos/Amon/r1i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp26_r1i1p3_207601-210012.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CESM/historical/mon/atmos/Amon/r1i1p1/ps/latest/ps_Amon_CMCC-CESM_historical_r1i1p1_187001-187412.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/ICHEC/EC-EARTH/rcp45/mon/atmos/Amon/r13i1p1/ps/latest/ps_Amon_EC-EARTH_rcp45_r13i1p1_202801-202812.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/ICHEC/EC-EARTH/rcp45/mon/atmos/Amon/r13i1p1/ps/latest/ps_Amon_EC-EARTH_rcp45_r13i1p1_202801-202812.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp45/mon/atmos/Amon/r3i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp45_r3i1p3_210101-212512.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CMS/rcp85/mon/atmos/Amon/r1i1p1/ts/latest/ts_Amon_CMCC-CMS_rcp85_r1i1p1_207001-207912.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-H/rcp85/mon/atmos/Amon/r1i1p3/ts/latest/ts_Amon_GISS-E2-H_rcp85_r1i1p3_225101-230012.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/CMCC/CMCC-CMS/rcp85/mon/atmos/Amon/r1i1p1/ps/latest/ps_Amon_CMCC-CMS_rcp85_r1i1p1_208001-208912.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/piControl/mon/atmos/Amon/r1i1p1/tas/latest/tas_Amon_GISS-E2-R_piControl_r1i1p1_435601-438012.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp45/mon/atmos/Amon/r3i1p1/tas/latest/tas_Amon_GISS-E2-R_rcp45_r3i1p1_215101-217512.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp45/mon/atmos/Amon/r3i1p1/tas/latest/tas_Amon_GISS-E2-R_rcp45_r3i1p1_217601-220012.nc',
+            '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/NASA-GISS/GISS-E2-R/rcp45/mon/atmos/Amon/r3i1p3/ts/latest/ts_Amon_GISS-E2-R_rcp45_r3i1p3_210101-212512.nc',
+            ]
+
+    for error in errors:
+        if not error.file in done:
+
+            print error.file
+            ceda_cksum, latest_cksum, ceda_version_no, latest_version_no = parse_is_latest_version_error(error.error_msg)
+            ceda_version = "v{}".format(ceda_version_no)
+            latest_version = "v{}".format(latest_version_no)
+
+            # ENSURE CHECKSUMS ARE THE SAME
+            if ceda_cksum == latest_cksum:
+
+                # CHECK THE VERSION IS NEWER
+                if len(ceda_version_no) == 1 and len(latest_version_no) ==1:
+                    if int(ceda_version_no) < int(latest_version_no):
+                        make_new_version(logfile, error, ceda_version, latest_version)
+                    else:
+                        message = "INFO [NO UPDATE] :: CEDA VERSION :: {} IS GREATER THAN OR EQUAL TO LATEST {} :: FILE {}".format(
+                            ceda_version_no, latest_version_no, error.file)
+                        _save_errorobj_message(error, message, logfile)
+
+                elif len(ceda_version_no) == 8 and len(latest_version_no) == 8:
+
+                    if datetime.datetime.strptime(ceda_version_no, '%Y%m%d') < datetime.datetime.strptime(latest_version_no, '%Y%m%d'):
+                        make_new_version(logfile, error, ceda_version, latest_version)
+                    else:
+                        message = "INFO [NO UPDATE] :: CEDA VERSION :: {} IS GREATER THAN OR EQUAL TO LATEST {} :: FILE {}".format(
+                            ceda_version_no, latest_version_no, error.file)
+                        _save_errorobj_message(error, message, logfile)
+
+                else:
+                    message = "FAIL [VERSION TYPES INCOMPATIBLE] :: CEDA VERSION {} :: LATEST VERSION {} :: " \
+                                "FILE {}".format(ceda_version, latest_version, error.file)
+                    _save_errorobj_message(error, message, logfile, print_msg=True)
+            else:
+                message = "FAIL [CHECKSUM MATCH] :: CEDA CHECKSUM {} :: LATEST CHECKSUM {} :: " \
+                            "FILE {}".format(ceda_cksum, latest_cksum, error.file)
+                _save_errorobj_message(error, message, logfile, print_msg=True)

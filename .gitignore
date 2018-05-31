@@ -1,6 +1,7 @@
 qcproj/settings_local.py
 .clear_cedacc.sh
 test.txt
+logs_02/
 tests/
 scripts/
 missing_files/ 

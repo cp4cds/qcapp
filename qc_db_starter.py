@@ -25,8 +25,8 @@ from subprocess import call
 #command_line_args = "--is_latest_consistent"
 
 
-command_line_args = "--parse_cf_checker" #""--multifile_time_check"
-lotus_out = 'parse_cf_checker'
+command_line_args = "--parse_ceda_cc" #""--multifile_time_check"
+lotus_out = 'parse_ceda_cc'
 vars_file = "ancil_files/cp4cds_all_vars.txt"
 
 delimiter = ','
