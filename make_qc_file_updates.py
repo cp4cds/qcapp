@@ -91,7 +91,8 @@ class QCerror_fixer(object):
             corrected_cellMethod =' '.join(_parts)
             error_info = "{} - information given in wrong order".format(error_message)
             self._run_ncatted('cell_methods', variable, 'o', 'c', corrected_cellMethod, ifile, newfile=ofile)
-            self._ncatted_common_updates(ofile, error_info)
+            return ofile, error_info
+            # self._ncatted_common_updates(ofile, error_info)
 
 
     def fix_cf_73a(self, ifile, error_message):
@@ -101,7 +102,8 @@ class QCerror_fixer(object):
         corrected_cellMethod = cellMethod.replace('mintues', 'minutes')
         error_info = "{} - a cell_methods typo".format(error_message)
         self._run_ncatted('cell_methods', variable, 'o', 'c', corrected_cellMethod, ifile, newfile=ofile)
-        self._ncatted_common_updates(ofile, error_info)
+        # self._ncatted_common_updates(ofile, error_info)
+        return ofile, error_info
 
 
     def fix_cf_31(self, ifile, error_message):
@@ -113,8 +115,50 @@ class QCerror_fixer(object):
         dt_string = datetime.datetime.now().strftime('%Y-%m%d %H:%M:%S')
         methods_history_update_comment = "\n{}: CP4CDS project changed units from PSU to 1.e-3 to be CF compliant\n".format(dt_string)
         self._run_ncatted('history', 'sos', 'a', 'c', methods_history_update_comment, ofile)
-        self._ncatted_common_updates(ofile, error_info)
+        return ofile, error_info
 
+
+    def fix_c4_002_005_tos(self, ifile, error_message):
+        ofile = os.path.join(NEW_DATA_DIR, os.path.basename(ifile))
+        error_info = "Corrected error where {}".format(error_message.split('::')[-1].strip())
+        self._run_ncatted('standard_name','tos','o','c','sea_surface_temperature', ifile, newfile=ofile)
+        return ofile, error_info
+
+
+    def fix_c4_002_005_tsice(self, ifile, error_message):
+        ofile = os.path.join(NEW_DATA_DIR, os.path.basename(ifile))
+        assert os.path.basename(ifile).split('_')[0] == 'tsice'
+        error_info = "Corrected error where {} : CF standard_name for tsice is [surface_temperature]".format(error_message.split('::')[-1].strip())
+        self._run_ncatted('standard_name','tsice','c','c','surface_temperature', ifile, newfile=ofile)
+        return ofile, error_info
+
+
+    def fix_c4_002_005_long_name(self, ifile, error_message):
+        ofile = os.path.join(NEW_DATA_DIR, os.path.basename(ifile))
+        variable = error_message.split(': ')[3].split(' ')[1].strip('[').strip(']')
+        correct_longname = error_message.split(': ')[-1].strip(']').strip('"')
+        error_info = "Corrected error where {} : corrected CF long_name inserted".format(error_message.split('::')[-1].strip())
+        self._run_ncatted('long_name',variable,'o','c',correct_longname, ifile, newfile=ofile)
+        return ofile, error_info
+
+
+    def fix_c4_002_005_missing_value(self, ifile, error_message):
+        ofile = os.path.join(NEW_DATA_DIR, os.path.basename(ifile))
+        variable = error_message.split(' ')[-1].strip('[').strip(']')
+        error_info = "Corrected error where {} : correct missing value of 1.0e+20f inserted".format(error_message.split('::')[-1].strip())
+        self._run_ncatted('missing_value',variable,'o','f','1.0e20', ifile, newfile=ofile)
+        return ofile, error_info
+
+    def fix_c4_002_007_model_id(self, ifile, error_message):
+        """
+        [u'CESM1-CAM5-1-FV2', u'FGOALS-g2', u'ACCESS1-3']
+        :return:
+        """
+        ofile = os.path.join(NEW_DATA_DIR, os.path.basename(ifile))
+        model = os.path.basename(ifile).split('_')[2]
+        error_info = "Corrected error where {} : corrected model_id {} inserted".format(error_message.split('::')[-1].strip(), model)
+        self._run_ncatted('model_id','global','o','c',model, ifile, newfile=ofile)
+        return ofile, error_info
 
     def cf_fix_wrapper(self, filepath, error_message):
 
@@ -130,13 +174,31 @@ class QCerror_fixer(object):
 
 
         if error_message == "ERROR (7.3): Invalid unit mintues) in cell_methods comment":
-            self.fix_cf_73a(filepath, error_message)
+            ofile, error_info = self.fix_cf_73a(filepath, error_message)
         if error_message == "ERROR (3.1): Invalid units:  psu":
             print error_message
-            self.fix_cf_31(filepath, error_message)
+            ofile, error_info = self.fix_cf_31(filepath, error_message)
         if error_message == "ERROR (7.3) Invalid syntax for cell_methods attribute":
-            self.fix_cf_73b(filepath, error_message)
+            ofile, error_info = self.fix_cf_73b(filepath, error_message)
+        if error_message == 'C4.002.005: [variable_ncattribute_mipvalues]: FAILED:: ' \
+                            'Variable [tos] has incorrect attributes: ' \
+                            'standard_name="surface_temperature" [correct: "sea_surface_temperature"]':
+            ofile, error_info = self.fix_c4_002_005_tos(filepath, error_message)
+        if error_message == "C4.002.004: [variable_ncattribute_present]: FAILED:: " \
+                            "Required variable attributes missing: ['standard_name']":
+            ofile, error_info = self.fix_c4_002_005_tsice(filepath, error_message)
 
+        if error_message == "C4.002.007: [filename_filemetadata_consistency]: FAILED:: " \
+                            "File name segments do not match corresponding global attributes: [(2, 'model_id')]":
+            ofile, error_info = self.fix_c4_002_007_model_id(filepath, error_message)
+        if 'missing_value must be present if _FillValue' in error_message:
+            ofile, error_info = self.fix_c4_002_005_missing_value(filepath, error_message)
+        if 'long_name' in error_message:
+            ofile, error_info = self.fix_c4_002_005_long_name(filepath, error_message)
+
+
+
+        return ofile, error_info
 
     def fix_cf_errors(self):
 
@@ -154,7 +216,8 @@ class QCerror_fixer(object):
                 same_file_errs = e.file.qcerror_set.all()
                 multiple_errs = same_file_errs.filter(check_type='CF').exclude(check_type='CF',error_msg=error_message).filter(check_type='CEDA-CC')
                 if len(multiple_errs) == 0:
-                    self.cf_fix_wrapper(fpath, error_message)
+                    ofile, error_info = self.cf_fix_wrapper(fpath, error_message)
+                    self._ncatted_common_updates(ofile, error_info)
                 else:
                     continue
 
