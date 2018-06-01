@@ -2,6 +2,7 @@ import django
 django.setup()
 
 import os
+import re
 import fnmatch
 import json
 import requests
@@ -26,68 +27,110 @@ WEBROOT = "http://esgf-data1.ceda.ac.uk/thredds/fileServer/esg_dataroot/"
 ARCHIVE_BASEDIR = "/badc/cmip5/data/cmip5/output1/"
 GWS_BASEDIR = "/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/"
 JSONDIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/DATAFILE_CACHE"
-
+NEW_DATA_DIR = "/group_workspaces/jasmin2/cp4cds1/data/corrected/v20180531"
 # for datafiles in DataFile.objects.all():
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--set_cf_error_levels',action='store_true', help='Set the CF-error level')
 parser.add_argument('--set_cedacc_error_levels',action='store_true', help='Set the CEDA CC error level')
-parser.add_argument('--unique_cf_files_to_fix',action='store_true', help='Check CF-errors are unique')
-parser.add_argument('--fix_cf_error_73a',action='store_true', help='Fix first CF error')
+parser.add_argument('--cf_only_fixer',action='store_true', help='Check CF-errors are unique')
 
 
-def fix_cf_73a():
+        # ncatted -a units,sos,o,c,'1e-3'
 
+def _get_cell_methods_contents(ifile):
 
-    # error_message = "ERROR (7.3): Invalid unit mintues) in cell_methods comment"
-    # errs = QCerror.objects.filter(check_type='CF', file__duplicate_of=None, error_msg=error_message)
-    #
-    # multiple_error_files = []
-    # single_error_files = []
-    # for e in errs:
-    #     multiple_errs = e.file.qcerror_set.filter(check_type='CEDA-CC')
-    #     if len(multiple_errs) > 0:
-    #         for m in multiple_errs:
-    #             multiple_error_files.append(e.file.gws_path)
-    #     else:
-    #         single_error_files.append(e.file.gws_path)
-    #
-    # print("MULTIPLES :: {}".format(len(multiple_error_files)))
-    # print("SINGLE :: {}".format(len(single_error_files)))
-    #
-    # print single_error_files[0]
-
-    new_data_dir = "/group_workspaces/jasmin2/cp4cds1/data/corrected/v20180531"
-    ifile = "/home/users/rpetrie/cp4cds/qc-test/ps_Amon_bcc-csm1-1_amip_r3i1p1_197901-200812.nc"
-    ofile = "ps_Amon_bcc-csm1-1_amip_r3i1p1_197901-200812.nc"
-    ncds = ncDataset(ifile)
     variable = os.path.basename(ifile).split('_')[0]
+    ncds = ncDataset(ifile)
     v = ncds.variables[variable]
-    cellMethod = getattr(v, 'cell_methods')
-    error_type = "Invalid unit mintues) in cell_methods comment - a cell_methods typo"
+    return getattr(v, 'cell_methods')
+
+def _ncatted_common_updates(ofile, error_info):
+
     mod_date = datetime.datetime.now().strftime('%Y-%m-%d')
 
-    corrected_cellMethod = cellMethod.replace('mintues', 'minutes')
-    cmd_correct_cellMethod = ["ncatted", "-a", "cell_methods,{},o,c,{}".format(variable,corrected_cellMethod), ifile, ofile]
-    call(cmd_correct_cellMethod)
-
-    new_tracking_id = str(uuid.uuid4())
-    cmd_update_tracking_id = ["ncatted", "-a", "tracking_id,global,o,c,{}".format(new_tracking_id), ofile]
-    call(cmd_update_tracking_id)
-
     cp4cds_statement = "As part of the Climate Projections for the Copernicus Data Store (CP4CDS) CMIP5 quality assurance " \
-                       "testing the following error(s) were corrected by the CP4CDS team: {}. " \
+                       "testing the following error(s) were corrected by the CP4CDS team:: {}. " \
                        "The tracking id was also updated. " \
-                       "For further details contact ruth.petrie@ceda.ac.uk".format(error_type)
-    cmd_add_cp4cds_attribute = ["ncatted", "-a", "cp4cds_update_info,global,c,c,{}".format(cp4cds_statement), ofile]
-    call(cmd_add_cp4cds_attribute)
+                       "For further details contact ruth.petrie@ceda.ac.uk".format(error_info)
 
-    update_string = "Updates made on {} were made as part of CP4CDS project see cp4cds_update_info".format(mod_date)
-    cmd_append_history = ["ncatted", "-a", "history,global,a,c,{}".format(update_string), ofile]
-    call(cmd_append_history)
+    run_ncatted('tracking_id', 'global', 'o', 'c', str(uuid.uuid4()), ofile)
+    run_ncatted('cp4cds_update_info', 'global', 'c', 'c', cp4cds_statement, ofile, noHistory=True)
+    run_ncatted('history', 'global', 'a', 'c',
+                "Updates made on {} were made as part of CP4CDS project see cp4cds_update_info".format(mod_date), ofile)
 
 
-def get_unique_cf_files_for_fixing():
+def fix_cf_73b(ifile):
+    """
+    By quick inspection it is determined that the error here is
+
+        time: minimum (interval: 3 hours) within days time: mean over days
+    it should be written
+        time: minimum within days (interval: 3 hours) time: mean over days
+
+    :param ifile:
+    :return:
+    """
+
+    ofile = os.path.join(NEW_DATA_DIR, os.path.basename(ifile))
+    cellMethod = _get_cell_methods_contents(ifile)
+
+    interval_before_within = re.compile("\(interval.*?within")
+    if re.search(interval_before_within, cellMethod):
+        # wrong ordering discovered and must reorder...
+        _parts = cellMethod.split()
+        _parts[2:4], _parts[4:7] = _parts[5:7], _parts[2:5]
+        corrected_cellMethod =' '.join(_parts)
+
+        error_info = "ERROR (7.3) Invalid syntax for cell_methods attribute - information given in wrong order"
+        run_ncatted('cell_methods', variable, 'o', 'c', corrected_cellMethod, ifile, newfile=ofile)
+        _ncatted_common_updates(ofile, error_info)
+
+
+
+def fix_cf_73a(ifile):
+
+    ofile = os.path.join(NEW_DATA_DIR, os.path.basename(ifile))
+    cellMethod = _get_cell_methods_contents(ifile)
+    corrected_cellMethod = cellMethod.replace('mintues', 'minutes')
+
+    error_info = "Invalid unit mintues) in cell_methods comment - a cell_methods typo"
+
+    run_ncatted('cell_methods', variable, 'o', 'c', corrected_cellMethod, ifile, newfile=ofile)
+    _ncatted_common_updates(ofile, error_info)
+
+
+def fix_cf_31(ifile):
+    print ifile
+
+
+def run_ncatted(att_nm, var_nm, mode, att_type, att_val, file, newfile=None, noHistory=False):
+
+    if noHistory: history = 'h'
+    else: history = ''
+    if not newfile:
+        run_cmd = ["ncatted", "-{}a".format(history), "{},{},{},{},{}".format(att_nm, var_nm, mode, att_type, att_val), file]
+        call(run_cmd)
+    else:
+        run_cmd = ["ncatted", "-{}a".format(history), "{},{},{},{},{}".format(att_nm, var_nm, mode, att_type, att_val), file, newfile]
+        call(run_cmd)
+
+
+def cf_fix_wrapper(filepath, error_message):
+
+
+    if error_message == "ERROR (7.3): Invalid unit mintues) in cell_methods comment":
+        fix_cf_73a(filepath)
+    if error_message == "ERROR (3.1): Invalid units:  psu":
+        print error_message
+        fix_cf_31(filepath)
+    if error_message == "ERROR (7.3) Invalid syntax for cell_methods attribute":
+        fix_cf_73b(filepath)
+
+
+
+
+def fix_cf_errors():
 
 
     cf_errs = QCerror.objects.filter(check_type='CF', file__duplicate_of=None)
@@ -96,14 +139,17 @@ def get_unique_cf_files_for_fixing():
               "ERROR (7.3) Invalid syntax for cell_methods attribute",
               ]
 
-    for err in e_msgs[2:3]:
-        errs = cf_errs.filter(error_msg=err)
-        for e in errs:
-            df = e.file
-            other_error_recs = df.qcerror_set.filter(check_type='CEDA-CC')
-            if len(other_error_recs) > 0:
-                for o in other_error_recs:
-                    print("MULTIPLES {} :: {}".format(o.check_type, o.error_msg))
+    for error_message in e_msgs[1:2]:
+        errs = cf_errs.filter(error_msg=error_message)
+        for e in errs[:1]:
+            fpath = e.file.gws_path
+            same_file_errs = e.file.qcerror_set.all()
+            multiple_errs = same_file_errs.filter(check_type='CF').exclude(check_type='CF',error_msg=error_message).filter(check_type='CEDA-CC')
+            if len(multiple_errs) == 0:
+                cf_fix_wrapper(fpath, error_message)
+            else:
+                continue
+
 
 
 def set_ceda_cc_error_level():
@@ -177,11 +223,8 @@ def set_cf_error_level():
 if __name__ == "__main__":
     args = parser.parse_args()
 
-    if args.fix_cf_error_73a:
-        fix_cf_73a()
-
-    if args.unique_cf_files_to_fix:
-        get_unique_cf_files_for_fixing()
+    if args.cf_only_fixer:
+        fix_cf_errors()
 
     if args.set_cf_error_levels:
         set_cf_error_level()
