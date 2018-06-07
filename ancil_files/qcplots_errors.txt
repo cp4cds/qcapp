@@ -1,0 +1,44 @@
+tos,Omon,GFDL-CM2p1,Wrong units Celcius not K,http://clipc-services.ceda.ac.uk/ranges/omon2d/pages/bar_tos.html,FIXABLE
+tos,Omon,MIROC5,Masking error (zero on land points: confirmed by viewing on climate4imapact),http://clipc-services.ceda.ac.uk/ranges/omon2d/pages/bar_tos.html,DO NOT FIX
+tos,Omon,MRI-CGCM3,Masking error (zero on land points: confirmed by viewing on climate4imapact),http://clipc-services.ceda.ac.uk/ranges/omon2d/pages/bar_tos.html,DO NOT FIX
+tos,Omon,MRI-ESM1,Masking error (zero on land points: confirmed by viewing on climate4imapact),http://clipc-services.ceda.ac.uk/ranges/omon2d/pages/bar_tos.html,DO NOT FIX
+sos,Omon,MIROC5,Using zero for land instead of missing value except for a line or points along the coast,http://clipc-services.ceda.ac.uk/ranges/omon2d/pages/bar_sos.html,DO NOT FIX
+sos,Omon,EC-EARTH,Using zero for land instead of missing value,http://clipc-services.ceda.ac.uk/ranges/omon2d/pages/bar_sos.html,DO NOT FIX
+sos,Omon,CCSM4,Data scaled by factor 1000 and wrong mask applied,http://clipc-services.ceda.ac.uk/ranges/omon2d/pages/bar_sos.html,DO NOT FIX
+sos,Omon,CESM1-BGC, Data scaled by factor 1000,http://clipc-services.ceda.ac.uk/ranges/omon2d/pages/bar_sos.html,FIXABLE
+sos,Omon,CESM1-CAM5, Data scaled by factor 1000,http://clipc-services.ceda.ac.uk/ranges/omon2d/pages/bar_sos.html,FIXABLE
+sos,Omon,CESM1-CAM5-1-FV2,Data scaled by factor 1000,http://clipc-services.ceda.ac.uk/ranges/omon2d/pages/bar_sos.html,FIXABLE
+sos,Omon,CESM1-FASTCHEM,Data scaled by factor 1000,http://clipc-services.ceda.ac.uk/ranges/omon2d/pages/bar_sos.html,FIXABLE
+sos,Omon,CESM1-WACCM,Data scaled by factor 1000,http://clipc-services.ceda.ac.uk/ranges/omon2d/pages/bar_sos.html,FIXABLE
+so,Omon,EC-EARTH,Probably using zero for land instead of missing value,http://clipc-services.ceda.ac.uk/ranges/omon3d/pages/bar_so.html,DO NOT FIX
+so,Omon,MIROC5,Probably using zero for land instead of missing value,http://clipc-services.ceda.ac.uk/ranges/omon3d/pages/bar_so.html,DO NOT FIX
+so,Omon,MRI-CGCM3,Using zero for land instead of missing value,http://clipc-services.ceda.ac.uk/ranges/omon3d/pages/bar_so.html,DO NOT FIX
+so,Omon,MRI	MRI-ESM1,Probably using zero for land instead of missing value,http://clipc-services.ceda.ac.uk/ranges/omon3d/pages/bar_so.html,DO NOT FIX
+zos,Omon,EC-EARTH,Large range contact data provider,http://clipc-services.ceda.ac.uk/ranges/omon2d/pages/bar_zos.html,DO NOT FIX
+zos,Omon,CNRM-CM5,Large range contact data provider,http://clipc-services.ceda.ac.uk/ranges/omon2d/pages/bar_zos.html,DO NOT FIX
+zos,Omon,MIROC-ESM,Large range contact data provider,http://clipc-services.ceda.ac.uk/ranges/omon2d/pages/bar_zos.html,DO NOT FIX
+zos,Omon,MIROC-ESM-CHEM,Large range contact data provider,http://clipc-services.ceda.ac.uk/ranges/omon2d/pages/bar_zos.html,DO NOT FIX
+zos,Omon,MIROC5,Large range contact data provider,http://clipc-services.ceda.ac.uk/ranges/omon2d/pages/bar_zos.html,DO NOT FIX
+zos,Omon,GISS-E2-R,Large range contact data provider,http://clipc-services.ceda.ac.uk/ranges/omon2d/pages/bar_zos.html,DO NOT FIX
+zos,Omon,GISS-E2-R-CC,Large range contact data provider,http://clipc-services.ceda.ac.uk/ranges/omon2d/pages/bar_zos.html,DO NOT FIX
+msftmyz,Omon,CNRM-CM5,Values 5 orders of magnitude different to other models,http://clipc-services.ceda.ac.uk/ranges/omon3d/pages/bar_msftmyz.html,DO NOT FIX
+sic,OImon,EC-EARTH,Wrong scale using 0-1 instead of 0-100%,http://clipc-services.ceda.ac.uk/ranges/oimon2d/pages/bar_sic.html,FIXABLE
+sit,OImon,GISS-E2-H-CC,Max value unrealistic,http://clipc-services.ceda.ac.uk/ranges/oimon2d/pages/bar_sit.html,DO NOT FIX
+sit,OImon,GFDL-CM3,Max value unrealistic,http://clipc-services.ceda.ac.uk/ranges/oimon2d/pages/bar_sit.html,DO NOT FIX
+sim,OImon,BNU-ESM,Data are three orders of magnitude larger than other models,http://clipc-services.ceda.ac.uk/ranges/oimon2d/pages/bar_sim.html,DO NOT FIX
+tsice,OImon,EC-EARTH,Using Deg C instead of K,http://clipc-services.ceda.ac.uk/ranges/oimon2d/pages/bar_tsice.html,FIXABLE
+ccb,Amon,CanESM2,Large range however definition of "convective cloud" in model parameterisation very unclear and values maybe ok,http://clipc-services.ceda.ac.uk/ranges/amon2d/pages/bar_ccb.html,ADD NOTE TO FILE
+ccb,Amon,IPSL-CM5A-LR,Large range however definition of "convective cloud" in model parameterisation very unclear and values maybe ok,http://clipc-services.ceda.ac.uk/ranges/amon2d/pages/bar_ccb.html,ADD NOTE TO FILE
+ccb,Amon,IPSL-CM5A-MR,Large range however definition of "convective cloud" in model parameterisation very unclear and values maybe ok,http://clipc-services.ceda.ac.uk/ranges/amon2d/pages/bar_ccb.html,ADD NOTE TO FILE
+ci,Amon,GISS-E2-H,Maximum value is out of valid range (fraction > 1),http://clipc-services.ceda.ac.uk/ranges/amon2d/pages/bar_ci.html,DO NOT FIX
+ci,Amon,GISS-E2-H-CC,Maximum value is out of valid range (fraction > 1),http://clipc-services.ceda.ac.uk/ranges/amon2d/pages/bar_ci.html,DO NOT FIX
+ci,Amon,GISS-E2-R,Maximum value is out of valid range (fraction > 1),http://clipc-services.ceda.ac.uk/ranges/amon2d/pages/bar_ci.html,DO NOT FIX
+ci,Amon,GISS-E2-R-CC,Maximum value is out of valid range (fraction > 1),http://clipc-services.ceda.ac.uk/ranges/amon2d/pages/bar_ci.html,DO NOT FIX
+evspsbl,Amon,CMCC-CESM,Variable has different sign compared with other models,http://clipc-services.ceda.ac.uk/ranges/amon2d/pages/bar_evspsbl.html,DO NOT FIX
+snw,LImon,HadCM3,Range error contact data provider,http://clipc-services.ceda.ac.uk/ranges/limon/pages/bar_snw.html,DO NOT FIX
+snw,LImon,HadGEM2-AO,Range error contact data provider,http://clipc-services.ceda.ac.uk/ranges/limon/pages/bar_snw.html,DO NOT FIX
+snw,LImon,HadGEM2-CC,Range error contact data provider,http://clipc-services.ceda.ac.uk/ranges/limon/pages/bar_snw.html,DO NOT FIX
+snw,LImon,HadGEM2-ES,Range error contact data provider,http://clipc-services.ceda.ac.uk/ranges/limon/pages/bar_snw.html,DO NOT FIX
+snw,LImon,CNRM-CM5-2,Range error contact data provider,http://clipc-services.ceda.ac.uk/ranges/limon/pages/bar_snw.html,DO NOT FIX
+snw,LImon,CMCC-CESM,Range error contact data provider,http://clipc-services.ceda.ac.uk/ranges/limon/pages/bar_snw.html,DO NOT FIX
+snw,LImon,BNU-ESM,Range error contact data provider,http://clipc-services.ceda.ac.uk/ranges/limon/pages/bar_snw.html,DO NOT FIX

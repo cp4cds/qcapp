@@ -20,6 +20,8 @@ from qcapp.models import *
 from utils import *
 from qc_settings import *
 from qc_functions import *
+from time_checks.run_file_timechecks import main as singlefile_time_checks
+
 
 requests.packages.urllib3.disable_warnings()
 ARCHIVE_ROOT = "/badc/cmip5/data/"
@@ -51,7 +53,106 @@ parser.add_argument('--fix_latest_dataset', action='store_true', help='Fix the l
 parser.add_argument('--fix_new_version_dirs', action='store_true', help='Fix the new version dataset directories')
 parser.add_argument('--set_cf_error_levels',action='store_true', help='Set the CF-error level')
 parser.add_argument('--set_cedacc_error_levels',action='store_true', help='Set the CEDA CC error level')
+parser.add_argument('--add_qcplots_errors',action='store_true', help='Set the CF-PLOTS error level')
+parser.add_argument('--get_missing_timechecks',action='store_true', help='where a timecheck log is missing redo')
 
+
+def get_missing_timechecks_qcinfo():
+    checkType = "TEMPORAL"
+    qc_logdir = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/QC_LOGS"
+    valid_files = QCerror.objects.exclude(check_type='CF', error_msg__startswith='COULD NOT OPEN FILE')
+    singlefile_time_errors = valid_files.filter(check_type='TEMPORAL',error_msg="Timecheck log file does not exist")
+    multifile_time_errors = valid_files.filter(check_type='TEMPORAL', error_msg="Multifile timecheck log file does not exist")
+    print("Single file timechecks missing {}").format(singlefile_time_errors.count())
+    print("Multi file timechecks missing {}").format(multifile_time_errors.count())
+
+    for e in singlefile_time_errors:
+
+        file_path = e.file.gws_path
+        version = e.file.archive_path.split('/')[-3]
+        temporal_range = file_path.split("_")[-1].strip(".nc").split("_")[0]
+        institute, model, experiment, frequency, realm, table, ensemble, variable, latest, ncfile = file_path.split(
+            '/')[8:]
+        file_timecheck_filename = "_".join(
+            [variable, table, model, experiment, ensemble, temporal_range]) + "__file_timecheck.log"
+        # multifile_timecheck_filename = "_".join(
+        #     [variable, table, model, experiment, ensemble]) + "__multifile_timecheck.log"
+        file_timecheck_logdir = os.path.join(qc_logdir, variable, table, experiment, ensemble, version)
+        file_timecheck_logfile = os.path.join(file_timecheck_logdir, file_timecheck_filename)
+        if os.path.exists(file_timecheck_logfile):
+            print "logfile exists {}".format(file_timecheck_logfile)
+            print "delete old record"
+            e.delete()
+            print "PARSING"
+            try:
+                parse_timechecks(e.file, file_timecheck_logdir)
+            except(IOError):
+                cf_logfile = file_timecheck_logfile.replace('__file_timecheck.log', '.cf-log.txt')
+                if os.path.exists(cf_logfile):
+                    with open(cf_logfile) as reader:
+                        cf = reader.readlines()
+
+                    for line in cf:
+                        line = line.strip()
+                        if line.startswith('COULD NOT OPEN FILE'):
+                            print 'COULD NOT OPEN FILE {}'.format(cf_logfile)
+                            make_qc_err_record(e.file, 'CF', 'FATAL', line, file_path, errorLevel='FATAL')
+                else:
+                    print file_timecheck_logfile
+                    singlefile_time_checks(file_path, file_timecheck_logdir)
+
+        # with open('timechecks.log', 'a+') as w:
+        #     w.writelines(["{}\n".format(file_path)])
+        # print file_timecheck_logfile
+        # asdfasdf
+        # # multifile_timecheck_logfile = os.path.join(qc_logdir, multifile_timecheck_filename)
+        # if not os.path.exists(file_timecheck_logfile):
+        #     # retry time-checks:
+        #     print file_timecheck_logfile
+        #     singlefile_time_checks(file_path, file_timecheck_logdir)
+
+            # cf_logfile = file_timecheck_logfile.replace('__file_timecheck.log', '.cf-log.txt')
+            # if os.path.exists(cf_logfile):
+            #     with open(cf_logfile) as reader:
+            #         cf = reader.readlines()
+            #
+            #     for line in cf:
+            #         line = line.strip()
+            #         if line.startswith('COULD NOT OPEN FILE'):
+            #             print 'COULD NOT OPEN FILE {}'.format(cf_logfile)
+            #             make_qc_err_record(e.file, 'CF', 'FATAL', line, file_path, errorLevel='FATAL')
+
+
+
+            # check if cf-log exists and file is failled
+        #     print "doesn't exist running {}".format(file_path)
+        #     singlefile_time_checks(file_path, file_timecheck_logdir)
+
+        # if os.path.exists(file_timecheck_logfile):
+        #     print "re-running"
+            # e.delete()
+            # parse_timechecks(e.file, file_timecheck_logdir)
+
+
+def set_error_level_from_qcplots():
+
+    checkType = "QCPlot"
+    errorType = "Data"
+    qcplot_error_logfile = "ancil_files/qcplots_errors.txt"
+
+    with open(qcplot_error_logfile) as reader:
+        errors = reader.readlines()
+
+    for line in errors:
+        variable, table, model, error, url, status = [l.strip() for l in line.split(',')]
+        if variable in ['so', 'ccb', 'ci'] : continue
+        if 'MIROC'in model or 'MRI' in model: continue
+        error_level = "FATAL :: {}".format(status)
+        dfs = DataFile.objects.filter(variable=variable, dataset__cmor_table=table, dataset__model=model)
+
+
+        for df in dfs:
+            make_qc_err_record(df, checkType, errorType, error, url, errorLevel=error_level)
 
 
 
@@ -313,12 +414,6 @@ def make_duplicates():
         
 
 
-def make_qc_err_record(dfile, checkType, errorType, errorMessage, filepath):
-    qc_err, _ = QCerror.objects.get_or_create(
-        file=dfile, check_type=checkType, error_type=errorType,
-        error_msg=errorMessage, report_filepath=filepath)
-
-
 def make_is_latest_qcerror(datafiles):
 
     qc_type = "LATEST"
@@ -480,6 +575,12 @@ def get_missing_ceda_cc_filelist():
 if __name__ == "__main__":
 
     args = parser.parse_args()
+
+    if args.get_missing_timechecks:
+        get_missing_timechecks_qcinfo()
+
+    if args.add_qcplots_errors:
+        set_error_level_from_qcplots()
 
     if args.set_cf_error_levels:
         set_cf_error_level()

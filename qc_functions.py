@@ -322,6 +322,13 @@ def run_multifile_time_checker(datasets, var, table, expt):
 
 
 def file_time_checks(ifile, odir):
+    """
+
+    :param ifile: no path information
+    :param odir:
+    :return:
+    """
+
 
     try:
         d = ncDataset(ifile)
@@ -500,13 +507,14 @@ def parse_cf_checker(df, file, log_dir):
         make_qc_err_record(df, checkType, 'FATAL', 'NO CF-LOG FILE', os.path.join(log_dir, cf_log))
 
 
-def make_qc_err_record(dfile, checkType, errorType, errorMessage, filepath):
+def make_qc_err_record(dfile, checkType, errorType, errorMessage, filepath, errorLevel=None):
 
     qc_err, _ = QCerror.objects.get_or_create(file=dfile,
                                               check_type=checkType,
                                               error_type=errorType,
                                               error_msg=errorMessage,
-                                              report_filepath=filepath
+                                              report_filepath=filepath,
+                                              error_level=errorLevel
                                              )
 
     # TODO: Must add in a test for a non-zero .cf-err.txt and record perhaps retry or read in only here
@@ -518,7 +526,7 @@ def parse_timechecks(df_obj, log_dir):
 
     Finds any errors recorded by CEDA-CC and then makes a QCerror record for each found.
 
-    :param dbobj:
+    :param df_obj: Model datafile object
     :param log_dir:
     :return:
     """
