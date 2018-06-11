@@ -56,6 +56,7 @@ class Dataset(models.Model):
     supersedes = models.ForeignKey('self', default=None, blank=True, null=True)
     up_to_date = models.NullBooleanField(default=None, blank=True, null=True)
     up_to_date_note = models.CharField(default=None, max_length=1000, blank=True, null=True)
+    qc_passed = models.NullBooleanField(default=None, blank=True, null=True)
 
     # TO DO WHEN QC IS COMPLETE
     #    dataset_qc = models.ForeignKey('DatasetQC', null=True)
@@ -115,6 +116,7 @@ class DataFile(models.Model):
 class QCerror(models.Model):
 
     file = models.ForeignKey(DataFile, null=True)
+    set = models.ForeignKey(Dataset, null=True)
     check_type = models.CharField(max_length=20, null=True, blank=True)
     error_type = models.CharField(max_length=20, null=True, blank=True)
     error_msg = models.CharField(max_length=800, null=True, blank=True)
