@@ -19,7 +19,7 @@ from subprocess import call
 from netCDF4 import Dataset as ncDataset
 from ceda_cc import c4
 from cfchecker.cfchecks import CFVersion, CFChecker, STANDARDNAME, AREATYPES, newest_version
-# from time_checks.run_file_timechecks import main as single_file_time_checks
+from time_checks.run_file_timechecks import main as single_file_time_checks
 # from time_checks.run_multifile_timechecks import main as multi_file_time_checks
 from esgf_dict import EsgfDict
 from qc_settings import *
@@ -329,16 +329,17 @@ def file_time_checks(ifile, odir):
     :return:
     """
 
-
+    logfile = os.path.join(odir, ifile.replace('.nc', '__file_timecheck.log'))
     try:
         d = ncDataset(ifile)
     except(IOError):
         d = None
 
     if isinstance(d, ncDataset):
-        single_file_time_checks(ifile, odir)
+        if not os.path.exists(logfile):
+            single_file_time_checks(ifile, odir)
     else:
-        logfile = os.path.join(odir, ifile.replace('.nc', '__file_timecheck.log'))
+
         with open(logfile, 'w') as fw:
             fw.writelines(["Time checks of: {} \n".format(ifile)])
             fw.writelines(["T0.000::[FATAL]::Not a NetCDF file"])
@@ -466,12 +467,14 @@ def parse_cf_checker(df, file, log_dir):
     cf_variable_error = re.compile('.*ERROR.*(units|cell).*(?!.*(time|boundary|coordinate|co-ordinate)).*')
     cf_other_error = re.compile('.*ERROR.*(bound|Boundary|grid|coordinate|co-ordinate|dimension).*')
     cf_abort = re.compile('.*suffix.*')
-
+    cf_fatal = re.compile('.*COULD NOT OPEN FILE.*')
     # Dictionary mapping the CF regex with type of error
     regexlist = [(cf_global_error, "global"),
                  (cf_variable_error, "variable"),
                  (cf_other_error, "other"),
-                 (cf_abort, "fatal")]
+                 (cf_abort, "fatal"),
+                 (cf_fatal, "fatal")
+                 ]
 
     checkType = "CF"
 
@@ -500,11 +503,25 @@ def parse_cf_checker(df, file, log_dir):
             for line in cf_out:
                 line = line.strip()
                 for regex, label in regexlist:
-                    if regex.match(line):
+                    if regex.search(line):
                         make_qc_err_record(df, checkType, label, line, os.path.join(log_dir, logfile))
 
     if not found:
         make_qc_err_record(df, checkType, 'FATAL', 'NO CF-LOG FILE', os.path.join(log_dir, cf_log))
+
+
+
+#
+# cf_error_levels = {}
+# cf_error_levels['ERROR (7.3): Invalid unit mintues) in cell_methods comment'] = 'WARN'
+# cf_error_levels["ERROR (5): co-ordinate variable 'time' not monotonic"] = 'FATAL'
+# cf_error_levels["ERROR (5): co-ordinate variable 'lon' not monotonic"] =  'FATAL'
+# cf_error_levels["ERROR (5): co-ordinate variable 'plev' not monotonic"] = 'FATAL'
+# cf_error_levels['ERROR (4): Axis attribute is not allowed for auxillary coordinate variables.'] = 'INFO'
+# cf_error_levels["ERROR (5): co-ordinate variable 'lat' not monotonic"] = 'FATAL'
+# cf_error_levels['ERROR (3.1): Invalid units:  psu'] = 'WARN'
+# cf_error_levels['ERROR (7.3) Invalid syntax for cell_methods attribute'] = 'WARN'
+# cf_error_levels['COULD NOT OPEN FILE, PLEASE CHECK THAT NETCDF IS FORMATTED CORRECTLY.'] = 'FATAL'
 
 
 def make_qc_err_record(dfile, checkType, errorType, errorMessage, filepath, errorLevel=None):
@@ -520,7 +537,7 @@ def make_qc_err_record(dfile, checkType, errorType, errorMessage, filepath, erro
     # TODO: Must add in a test for a non-zero .cf-err.txt and record perhaps retry or read in only here
 
 
-def parse_timechecks(df_obj, log_dir):
+def parse_singlefile_timechecks(df_obj, log_dir):
     """
     Parses the CEDA-CC output on the input file.
 
@@ -535,28 +552,45 @@ def parse_timechecks(df_obj, log_dir):
     file_path = df_obj.gws_path
     temporal_range = file_path.split("_")[-1].strip(".nc").split("_")[0]
     institute, model, experiment, frequency, realm, table, ensemble, variable, latest, ncfile = file_path.split('/')[8:]
-    file_timecheck_filename = "_".join([variable, table, model, experiment, ensemble, temporal_range]) + "__file_timecheck.log"
-    multifile_timecheck_filename = "_".join([variable, table, model, experiment, ensemble]) + "__multifile_timecheck.log"
+    file_timecheck_filename = "_".join(
+        [variable, table, model, experiment, ensemble, temporal_range]) + "__file_timecheck.log"
     file_timecheck_logfile = os.path.join(log_dir, file_timecheck_filename)
-    multifile_timecheck_logfile = os.path.join(log_dir, multifile_timecheck_filename)
 
     file_temporal_fatal = re.compile('.*FATAL.*|.*File does not end with.*')
     file_temporal_fail = re.compile('.*FAIL.*')
-  
-    file_regexlist = [(file_temporal_fatal, "fatal"),
-                 (file_temporal_fail, "fail")]
 
+    file_regexlist = [(file_temporal_fatal, "fatal"),
+                      (file_temporal_fail, "fail")]
 
     if os.path.exists(file_timecheck_logfile):
         with open(file_timecheck_logfile, 'r') as fr:
             file_timecheck_data = fr.readlines()
-            
+
             for line in file_timecheck_data:
                 for regex, label in file_regexlist:
                     if regex.match(line.strip()):
                         make_qc_err_record(df_obj, checkType, label, line, file_timecheck_logfile)
     else:
         make_qc_err_record(df_obj, checkType, "FATAL", "Timecheck log file does not exist", file_timecheck_logfile)
+
+
+def parse_multifile_timechecks(ds_obj, log_dir):
+    """
+    Parses the CEDA-CC output on the input file.
+
+    Finds any errors recorded by CEDA-CC and then makes a QCerror record for each found.
+
+    :param df_obj: Model datafile object
+    :param log_dir:
+    :return:
+    """
+
+    checkType = "TEMPORAL"
+    file_path = ds_obj.gws_path
+    temporal_range = file_path.split("_")[-1].strip(".nc").split("_")[0]
+    institute, model, experiment, frequency, realm, table, ensemble, variable, latest, ncfile = file_path.split('/')[8:]
+    multifile_timecheck_filename = "_".join([variable, table, model, experiment, ensemble]) + "__multifile_timecheck.log"
+    multifile_timecheck_logfile = os.path.join(log_dir, multifile_timecheck_filename)
 
 
     multifile_temporal_fatal = re.compile('.*Error.*')
