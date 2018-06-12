@@ -108,10 +108,11 @@ def main(args):
                     parse_timechecks(df, odir)
 
     if args.multifile_time_check:
+        for experiment in ALLEXPTS:
 
-        dss = Dataset.objects.filter(variable=args.variable, cmor_table=args.table, frequency=args.frequency,
-                                     experiment=args.experiment)
-        run_multifile_time_checker(dss, args.variable, args.table, args.experiment)
+            dss = Dataset.objects.filter(variable=args.variable, cmor_table=args.table, frequency=args.frequency,
+                                         experiment=experiment)
+            run_multifile_time_checker(dss, args.variable, args.table, experiment)
 
 
     if args.is_latest:

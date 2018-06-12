@@ -57,7 +57,7 @@ class Dataset(models.Model):
     up_to_date = models.NullBooleanField(default=None, blank=True, null=True)
     up_to_date_note = models.CharField(default=None, max_length=1000, blank=True, null=True)
     qc_passed = models.NullBooleanField(default=None, blank=True, null=True)
-
+    is_timeseries = models.NullBooleanField(default=None, blank=True, null=True)
     # TO DO WHEN QC IS COMPLETE
     #    dataset_qc = models.ForeignKey('DatasetQC', null=True)
 

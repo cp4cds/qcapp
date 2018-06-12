@@ -20,7 +20,8 @@ from netCDF4 import Dataset as ncDataset
 from ceda_cc import c4
 from cfchecker.cfchecks import CFVersion, CFChecker, STANDARDNAME, AREATYPES, newest_version
 from time_checks.run_file_timechecks import main as single_file_time_checks
-# from time_checks.run_multifile_timechecks import main as multi_file_time_checks
+from time_checks.run_multifile_timechecks import main as multi_file_time_checks
+
 from esgf_dict import EsgfDict
 from qc_settings import *
 from is_latest import check_datafile_is_latest
@@ -294,21 +295,30 @@ def run_multifile_time_checker(datasets, var, table, expt):
 
     # ds = datasets.first()
     for ds in datasets:
-        if ds.datafile_set.count() > 1:
+
+        print ds
+        try:
+            datadir = os.path.dirname(ds.datafile_set.first().gws_path)
+        except:
+            return
+        files = os.listdir(datadir)
+        if len(files) > 1:
             for d in ds.datafile_set.all():
                 d.timeseries = True
                 d.save()
 
-            df = ds.datafile_set.first()
-            ensemble = df.gws_path.split('/')[-4]
-            version = "v" + os.readlink(df.gws_path).split('/')[-2]
-            odir = os.path.join(QCLOGS, var, table, expt, ensemble, version)
-            if not os.path.isdir(odir):
-                os.makedirs(odir)
+        df = ds.datafile_set.first()
+        ensemble = df.gws_path.split('/')[-4]
+        version = "v" + os.readlink(df.gws_path).split('/')[-2]
+        odir = os.path.join(QCLOGS, var, table, expt, ensemble, version)
+        if not os.path.isdir(odir):
+            os.makedirs(odir)
 
-            f = os.path.basename(df.gws_path).strip('.nc').split('_')
-            ofile = '_'.join(f[:-1]) + '__multifile_timecheck.log'
-            logfile = os.path.join(odir, ofile)
+        f = os.path.basename(df.gws_path).strip('.nc').split('_')
+        ofile = '_'.join(f[:-1]) + '__multifile_timecheck.log'
+        logfile = os.path.join(odir, ofile)
+
+        if not os.path.exists(logfile):
 
             dir_of_files = os.path.dirname(df.gws_path)
             files = os.listdir(dir_of_files)
@@ -330,19 +340,20 @@ def file_time_checks(ifile, odir):
     """
 
     logfile = os.path.join(odir, ifile.replace('.nc', '__file_timecheck.log'))
-    try:
-        d = ncDataset(ifile)
-    except(IOError):
-        d = None
+    if not os.path.exists(logfile):
+        try:
+            d = ncDataset(ifile)
+        except(IOError):
+            d = None
 
-    if isinstance(d, ncDataset):
-        if not os.path.exists(logfile):
-            single_file_time_checks(ifile, odir)
-    else:
+        if isinstance(d, ncDataset):
+            if not os.path.exists(logfile):
+                single_file_time_checks(ifile, odir)
+        else:
 
-        with open(logfile, 'w') as fw:
-            fw.writelines(["Time checks of: {} \n".format(ifile)])
-            fw.writelines(["T0.000::[FATAL]::Not a NetCDF file"])
+            with open(logfile, 'w') as fw:
+                fw.writelines(["Time checks of: {} \n".format(ifile)])
+                fw.writelines(["T0.000::[FATAL]::Not a NetCDF file"])
 
 
 def run_ceda_cc(file, odir):
@@ -574,7 +585,7 @@ def parse_singlefile_timechecks(df_obj, log_dir):
         make_qc_err_record(df_obj, checkType, "FATAL", "Timecheck log file does not exist", file_timecheck_logfile)
 
 
-def parse_multifile_timechecks(ds_obj, log_dir):
+def parse_multifile_timechecks(df_obj, log_dir):
     """
     Parses the CEDA-CC output on the input file.
 
@@ -586,7 +597,7 @@ def parse_multifile_timechecks(ds_obj, log_dir):
     """
 
     checkType = "TEMPORAL"
-    file_path = ds_obj.gws_path
+    file_path = df_obj.gws_path
     temporal_range = file_path.split("_")[-1].strip(".nc").split("_")[0]
     institute, model, experiment, frequency, realm, table, ensemble, variable, latest, ncfile = file_path.split('/')[8:]
     multifile_timecheck_filename = "_".join([variable, table, model, experiment, ensemble]) + "__multifile_timecheck.log"
