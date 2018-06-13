@@ -296,39 +296,44 @@ def run_multifile_time_checker(datasets, var, table, expt):
     # ds = datasets.first()
     for ds in datasets:
 
-        print ds
-        try:
-            datadir = os.path.dirname(ds.datafile_set.first().gws_path)
-        except:
-            return
-        files = os.listdir(datadir)
-        if len(files) > 1:
-            for d in ds.datafile_set.all():
-                d.timeseries = True
-                d.save()
+        if ds.is_timeseries == True:
+            print ds
+            try:
+                datadir = os.path.dirname(ds.datafile_set.first().gws_path)
+            except:
+                print "Exception no path"
+                return
+            files = os.listdir(datadir)
+            # if len(files) > 1:
+            #     for d in ds.datafile_set.all():
+            #         d.timeseries = True
+            #         d.save()
+            df = ds.datafile_set.first()
+            ensemble = df.gws_path.split('/')[-4]
+            version = "v" + os.readlink(df.gws_path).split('/')[-2]
+            odir = os.path.join(QCLOGS, var, table, expt, ensemble, version)
 
-        df = ds.datafile_set.first()
-        ensemble = df.gws_path.split('/')[-4]
-        version = "v" + os.readlink(df.gws_path).split('/')[-2]
-        odir = os.path.join(QCLOGS, var, table, expt, ensemble, version)
-        if not os.path.isdir(odir):
-            os.makedirs(odir)
+            if not os.path.isdir(odir):
+                os.makedirs(odir)
 
-        f = os.path.basename(df.gws_path).strip('.nc').split('_')
-        ofile = '_'.join(f[:-1]) + '__multifile_timecheck.log'
-        logfile = os.path.join(odir, ofile)
+            f = os.path.basename(df.gws_path).strip('.nc').split('_')
+            _ins, _mod, _exp, _freq, _realm, _table, _ens, _var, _v, _ncfile = df.gws_path.split('/')[8:]
+            ofile = '_'.join([_var, _table, _mod, _exp, _ens]) + '__multifile_timecheck.log'
+            # ofile = '_'.join(f[:-1]) + '__multifile_timecheck.log'
+            logfile = os.path.join(odir, ofile)
+            print logfile
+            print "LOG FILE EXISTS {}".format(os.path.exists(logfile))
 
-        if not os.path.exists(logfile):
+            if not os.path.exists(logfile):
+                dir_of_files = os.path.dirname(df.gws_path)
+                files = os.listdir(dir_of_files)
+                filelist = []
 
-            dir_of_files = os.path.dirname(df.gws_path)
-            files = os.listdir(dir_of_files)
-            filelist = []
+                for f in files:
+                    if f.endswith('.nc'):
+                        filelist.append(os.path.join(dir_of_files, f))
 
-            for f in files:
-                if f.endswith('.nc'):
-                    filelist.append(os.path.join(dir_of_files, f))
-
-            multi_file_time_checks(filelist, logfile)
+                multi_file_time_checks(filelist, logfile)
 
 
 def file_time_checks(ifile, odir):

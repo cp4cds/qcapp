@@ -26,7 +26,7 @@ from subprocess import call
 
 
 command_line_args = "--multifile_time_check" #""--multifile_time_check"
-lotus_out = 'multifile-timechecks-2'
+lotus_out = 'multifile-timechecks-5'
 vars_file = "ancil_files/cp4cds_all_vars.txt"
 
 delimiter = ','
