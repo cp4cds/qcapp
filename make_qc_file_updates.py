@@ -48,6 +48,8 @@ class NCatted(object):
 class QCerror_fixer(object):
 
     ncatt = NCatted()
+    # def __init__(self):
+    #     ncatt = NCatted()
 
     def _get_cell_methods_contents(self, ifile):
 
@@ -106,7 +108,7 @@ class QCerror_fixer(object):
 
 
     def fix_cf_31(self, ifile, error_message):
-
+        ncatt = NCatted
         ofile = os.path.join(NEW_DATA_DIR, os.path.basename(ifile))
         error_info = "{} - not CF compliant units".format(error_message)
         assert os.path.basename(ifile).split('_')[0] == 'sos'
@@ -195,28 +197,27 @@ class QCerror_fixer(object):
         if 'long_name' in error_message:
             ofile, error_info = self.fix_c4_002_005_long_name(filepath, error_message)
 
-        self._ncatted_common_updates(ofile, error_info)
         return ofile, error_info
 
-    def fix_cf_errors(self):
-
-        cf_errs = QCerror.objects.filter(check_type='CF', file__duplicate_of=None, error_level__startswith='FAIL')
-        e_msgs = ["ERROR (7.3): Invalid unit mintues) in cell_methods comment",
-                  "ERROR (3.1): Invalid units:  psu",
-                  "ERROR (7.3) Invalid syntax for cell_methods attribute",
-                  ]
-
-        for error_message in e_msgs[2:3]:
-            errs = cf_errs.filter(error_msg=error_message)
-            for e in errs[:1]:
-                fpath = e.file.gws_path
-                same_file_errs = e.file.qcerror_set.all()
-                multiple_errs = same_file_errs.filter(check_type='CF').exclude(check_type='CF',error_msg=error_message).filter(check_type='CEDA-CC')
-                if len(multiple_errs) == 0:
-                    ofile, error_info = self.cf_fix_wrapper(fpath, error_message)
-                    self._ncatted_common_updates(ofile, error_info)
-                else:
-                    continue
+    # def fix_cf_errors(self):
+    #
+    #     cf_errs = QCerror.objects.filter(check_type='CF', file__duplicate_of=None, error_level__startswith='FAIL')
+    #     e_msgs = ["ERROR (7.3): Invalid unit mintues) in cell_methods comment",
+    #               "ERROR (3.1): Invalid units:  psu",
+    #               "ERROR (7.3) Invalid syntax for cell_methods attribute",
+    #               ]
+    #
+    #     for error_message in e_msgs[2:3]:
+    #         errs = cf_errs.filter(error_msg=error_message)
+    #         for e in errs[:1]:
+    #             fpath = e.file.gws_path
+    #             same_file_errs = e.file.qcerror_set.all()
+    #             multiple_errs = same_file_errs.filter(check_type='CF').exclude(check_type='CF',error_msg=error_message).filter(check_type='CEDA-CC')
+    #             if len(multiple_errs) == 0:
+    #                 ofile, error_info = self.cf_fix_wrapper(fpath, error_message)
+    #                 self._ncatted_common_updates(ofile, error_info)
+    #             else:
+    #                 continue
 
 
 def qc_fixer():
@@ -241,8 +242,9 @@ def qc_fixer():
 
             for e in qcerrs.filter(error_level__icontains='FIX', file__duplicate_of=None)[:1]:
 
-                print e.error_message
-                qcfix.qc_fix_wrapper(e.file.gws_path, e.error_message)
+                print e.error_msg
+                ofile, error_info = qcfix.qc_fix_wrapper(e.file.gws_path, e.error_msg)
+                qcfix._ncatted_common_updates(ofile, error_info)
 
 
 
