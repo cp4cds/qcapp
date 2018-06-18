@@ -25,13 +25,9 @@ WEBROOT = "http://esgf-data1.ceda.ac.uk/thredds/fileServer/esg_dataroot/"
 ARCHIVE_BASEDIR = "/badc/cmip5/data/cmip5/output1/"
 GWS_BASEDIR = "/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/"
 JSONDIR = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/DATAFILE_CACHE"
-NEW_DATA_DIR = "/group_workspaces/jasmin2/cp4cds1/data/corrected/v20180531"
+NEW_DATA_DIR = "/group_workspaces/jasmin2/cp4cds1/data/corrected/v20180618"
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--cf_only_fixer',action='store_true', help='Check CF-errors are unique')
-
-
-class QCerror_fixer(object):
+class NCatted(object):
 
     def _run_ncatted(self, att_nm, var_nm, mode, att_type, att_val, file, newfile=None, noHistory=False):
 
@@ -47,6 +43,11 @@ class QCerror_fixer(object):
             run_cmd = ["ncatted", "-{}a".format(history),
                        "{},{},{},{},{}".format(att_nm, var_nm, mode, att_type, att_val), file, newfile]
             call(run_cmd)
+
+
+class QCerror_fixer(object):
+
+    ncatt = NCatted()
 
     def _get_cell_methods_contents(self, ifile):
 
@@ -64,10 +65,10 @@ class QCerror_fixer(object):
                            "The tracking id was also updated. " \
                            "For further details contact ruth.petrie@ceda.ac.uk".format(error_info)
 
-        self._run_ncatted('tracking_id', 'global', 'o', 'c', str(uuid.uuid4()), ofile)
-        self._run_ncatted('cp4cds_update_info', 'global', 'c', 'c', cp4cds_statement, ofile, noHistory=True)
-        self._run_ncatted('history', 'global', 'a', 'c',
-                    "Updates made on {} were made as part of CP4CDS project see cp4cds_update_info".format(mod_date), ofile)
+        ncatt._run_ncatted('tracking_id', 'global', 'o', 'c', str(uuid.uuid4()), ofile)
+        ncatt._run_ncatted('cp4cds_update_info', 'global', 'c', 'c', cp4cds_statement, ofile, noHistory=True)
+        ncatt._run_ncatted('history', 'global', 'a', 'c',
+                           "Updates made on {} were made as part of CP4CDS project see cp4cds_update_info".format(mod_date), ofile)
 
     def fix_cf_73b(self, ifile, error_message):
         """
@@ -90,9 +91,8 @@ class QCerror_fixer(object):
             _parts[2:4], _parts[4:7] = _parts[5:7], _parts[2:5]
             corrected_cellMethod =' '.join(_parts)
             error_info = "{} - information given in wrong order".format(error_message)
-            self._run_ncatted('cell_methods', variable, 'o', 'c', corrected_cellMethod, ifile, newfile=ofile)
+            ncatt._run_ncatted('cell_methods', variable, 'o', 'c', corrected_cellMethod, ifile, newfile=ofile)
             return ofile, error_info
-            # self._ncatted_common_updates(ofile, error_info)
 
 
     def fix_cf_73a(self, ifile, error_message):
@@ -101,8 +101,7 @@ class QCerror_fixer(object):
         self.cellMethod = _get_cell_methods_contents(ifile)
         corrected_cellMethod = cellMethod.replace('mintues', 'minutes')
         error_info = "{} - a cell_methods typo".format(error_message)
-        self._run_ncatted('cell_methods', variable, 'o', 'c', corrected_cellMethod, ifile, newfile=ofile)
-        # self._ncatted_common_updates(ofile, error_info)
+        ncatt._run_ncatted('cell_methods', variable, 'o', 'c', corrected_cellMethod, ifile, newfile=ofile)
         return ofile, error_info
 
 
@@ -111,17 +110,17 @@ class QCerror_fixer(object):
         ofile = os.path.join(NEW_DATA_DIR, os.path.basename(ifile))
         error_info = "{} - not CF compliant units".format(error_message)
         assert os.path.basename(ifile).split('_')[0] == 'sos'
-        self._run_ncatted('units', 'sos' , 'o', 'c', '1.e-3', ifile, newfile=ofile)
+        ncatt._run_ncatted('units', 'sos' , 'o', 'c', '1.e-3', ifile, newfile=ofile)
         dt_string = datetime.datetime.now().strftime('%Y-%m%d %H:%M:%S')
         methods_history_update_comment = "\n{}: CP4CDS project changed units from PSU to 1.e-3 to be CF compliant\n".format(dt_string)
-        self._run_ncatted('history', 'sos', 'a', 'c', methods_history_update_comment, ofile)
+        ncatt._run_ncatted('history', 'sos', 'a', 'c', methods_history_update_comment, ofile)
         return ofile, error_info
 
 
     def fix_c4_002_005_tos(self, ifile, error_message):
         ofile = os.path.join(NEW_DATA_DIR, os.path.basename(ifile))
         error_info = "Corrected error where {}".format(error_message.split('::')[-1].strip())
-        self._run_ncatted('standard_name','tos','o','c','sea_surface_temperature', ifile, newfile=ofile)
+        ncatt._run_ncatted('standard_name','tos','o','c','sea_surface_temperature', ifile, newfile=ofile)
         return ofile, error_info
 
 
@@ -129,7 +128,7 @@ class QCerror_fixer(object):
         ofile = os.path.join(NEW_DATA_DIR, os.path.basename(ifile))
         assert os.path.basename(ifile).split('_')[0] == 'tsice'
         error_info = "Corrected error where {} : CF standard_name for tsice is [surface_temperature]".format(error_message.split('::')[-1].strip())
-        self._run_ncatted('standard_name','tsice','c','c','surface_temperature', ifile, newfile=ofile)
+        ncatt._run_ncatted('standard_name','tsice','c','c','surface_temperature', ifile, newfile=ofile)
         return ofile, error_info
 
 
@@ -138,7 +137,7 @@ class QCerror_fixer(object):
         variable = error_message.split(': ')[3].split(' ')[1].strip('[').strip(']')
         correct_longname = error_message.split(': ')[-1].strip(']').strip('"')
         error_info = "Corrected error where {} : corrected CF long_name inserted".format(error_message.split('::')[-1].strip())
-        self._run_ncatted('long_name',variable,'o','c',correct_longname, ifile, newfile=ofile)
+        ncatt._run_ncatted('long_name',variable,'o','c',correct_longname, ifile, newfile=ofile)
         return ofile, error_info
 
 
@@ -146,7 +145,7 @@ class QCerror_fixer(object):
         ofile = os.path.join(NEW_DATA_DIR, os.path.basename(ifile))
         variable = error_message.split(' ')[-1].strip('[').strip(']')
         error_info = "Corrected error where {} : correct missing value of 1.0e+20f inserted".format(error_message.split('::')[-1].strip())
-        self._run_ncatted('missing_value',variable,'o','f','1.0e20', ifile, newfile=ofile)
+        ncatt._run_ncatted('missing_value',variable,'o','f','1.0e20', ifile, newfile=ofile)
         return ofile, error_info
 
     def fix_c4_002_007_model_id(self, ifile, error_message):
@@ -157,10 +156,10 @@ class QCerror_fixer(object):
         ofile = os.path.join(NEW_DATA_DIR, os.path.basename(ifile))
         model = os.path.basename(ifile).split('_')[2]
         error_info = "Corrected error where {} : corrected model_id {} inserted".format(error_message.split('::')[-1].strip(), model)
-        self._run_ncatted('model_id','global','o','c',model, ifile, newfile=ofile)
+        ncatt._run_ncatted('model_id','global','o','c',model, ifile, newfile=ofile)
         return ofile, error_info
 
-    def cf_fix_wrapper(self, filepath, error_message):
+    def qc_fix_wrapper(self, filepath, error_message):
 
         # print filepath, error_message
         # error_correction_dict = {}
@@ -196,12 +195,10 @@ class QCerror_fixer(object):
         if 'long_name' in error_message:
             ofile, error_info = self.fix_c4_002_005_long_name(filepath, error_message)
 
-
-
+        self._ncatted_common_updates(ofile, error_info)
         return ofile, error_info
 
     def fix_cf_errors(self):
-
 
         cf_errs = QCerror.objects.filter(check_type='CF', file__duplicate_of=None, error_level__startswith='FAIL')
         e_msgs = ["ERROR (7.3): Invalid unit mintues) in cell_methods comment",
@@ -222,11 +219,32 @@ class QCerror_fixer(object):
                     continue
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+def qc_fixer():
+    """
+    Wrapper to all CF and CEDA-CC fixing scripts fix all errors then write new file.
+    :return:
+    """
 
     qcfix = QCerror_fixer()
 
-    if args.cf_only_fixer:
-        qcfix.fix_cf_errors()
+    with open('failed_datasets_to_fix.log') as r:
+        datasets = r.readlines()
 
+
+    for id in datasets[:1]:
+        dfs = Dataset.objects.filter(dataset_id=id.strip()).first().datafile_set.all()
+        print(id)
+
+        for df in dfs:
+            print(df)
+            qcerrs = df.qcerror_set.all()
+
+            for e in qcerrs.filter(error_level__icontains='FIX', file__duplicate_of=None)[:1]:
+
+                print e.error_message
+                qcfix.qc_fix_wrapper(e.file.gws_path, e.error_message)
+
+
+
+if __name__ == "__main__":
+    qc_fixer()

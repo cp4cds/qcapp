@@ -550,6 +550,15 @@ def make_qc_err_record(dfile, checkType, errorType, errorMessage, filepath, erro
                                               error_level=errorLevel
                                              )
 
+def make_ds_qcerr_record(dset, checkType, errorType, errorMessage, filepath, errorLevel=None):
+    qc_err, _ = QCerror.objects.get_or_create(set=dset,
+                                              check_type=checkType,
+                                              error_type=errorType,
+                                              error_msg=errorMessage,
+                                              report_filepath=filepath,
+                                              error_level=errorLevel
+                                              )
+
     # TODO: Must add in a test for a non-zero .cf-err.txt and record perhaps retry or read in only here
 
 
@@ -590,8 +599,11 @@ def parse_singlefile_timechecks(df_obj, log_dir):
         make_qc_err_record(df_obj, checkType, "FATAL", "Timecheck log file does not exist", file_timecheck_logfile)
 
 
-def parse_multifile_timechecks(df_obj, log_dir):
+def parse_multifile_timechecks(ds_obj):
+
     """
+    # def parse_multifile_timechecks(ds_obj, log_dir):
+
     Parses the CEDA-CC output on the input file.
 
     Finds any errors recorded by CEDA-CC and then makes a QCerror record for each found.
@@ -600,32 +612,37 @@ def parse_multifile_timechecks(df_obj, log_dir):
     :param log_dir:
     :return:
     """
+    basedir = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/QC_LOGS/"
+    checkType = "TIME-SERIES"
+    if ds_obj.is_timeseries == True:
+        try:
+            path = ds_obj.datafile_set.first().gws_path
+        except:
+            make_ds_qcerr_record(ds_obj, checkType, "FATAL", "No datafiles found",
+                                 "", errorLevel='FATAL')
+            return
+        _ins, _mod, _exp, _freq, _realm, _table, _ens, _var, _v, _ncfile = path.split('/')[8:]
+        qcdir = os.path.join(basedir, _var, _table, _exp, _ens, ds_obj.version)
+        ofile = '_'.join([_var, _table, _mod, _exp, _ens]) + '__multifile_timecheck.log'
+        multifile_timecheck_logfile = os.path.join(qcdir, ofile)
+        multifile_temporal_fatal = re.compile('.*Error.*')
+        multifile_temporal_fail = re.compile('.*FAIL.*')
 
-    checkType = "TEMPORAL"
-    file_path = df_obj.gws_path
-    temporal_range = file_path.split("_")[-1].strip(".nc").split("_")[0]
-    institute, model, experiment, frequency, realm, table, ensemble, variable, latest, ncfile = file_path.split('/')[8:]
-    multifile_timecheck_filename = "_".join([variable, table, model, experiment, ensemble]) + "__multifile_timecheck.log"
-    multifile_timecheck_logfile = os.path.join(log_dir, multifile_timecheck_filename)
 
+        multifile_regexlist = [(multifile_temporal_fatal, "fatal"),
+                               (multifile_temporal_fail, "fail")]
 
-    multifile_temporal_fatal = re.compile('.*Error.*')
-    multifile_temporal_fail = re.compile('.*FAIL.*')
+        if os.path.exists(multifile_timecheck_logfile):
+            with open(multifile_timecheck_logfile, 'r') as fr:
+                multifile_timecheck_data = fr.readlines()
 
-    multifile_regexlist = [(multifile_temporal_fatal, "fatal"),
-                 (multifile_temporal_fail, "fail")]
-
-    if os.path.exists(multifile_timecheck_logfile):
-        with open(multifile_timecheck_logfile, 'r') as fr:
-            multifile_timecheck_data = fr.readlines()
-
-            for line in multifile_timecheck_data:
-                for regex, label in multifile_regexlist:
-                    if regex.match(line.strip()):
-                        make_qc_err_record(df_obj, checkType, label, line, multifile_timecheck_logfile)
-    else:
-        make_qc_err_record(df_obj, checkType, "FATAL", "Multifile timecheck log file does not exist", multifile_timecheck_logfile)
-
+                for line in multifile_timecheck_data:
+                    for regex, label in multifile_regexlist:
+                        if regex.match(line.strip()):
+                            make_ds_qcerr_record(ds_obj, checkType, label, line, multifile_timecheck_logfile)
+        else:
+            make_ds_qcerr_record(ds_obj, checkType, "FATAL", "Multifile timecheck log file does not exist",
+                               multifile_timecheck_logfile, errorLevel='FATAL')
 
 
 # def max_timeseries_qc_errors(ts):
