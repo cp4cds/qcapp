@@ -11,6 +11,8 @@ from cfchecker.cfchecks import CFVersion, CFChecker, STANDARDNAME, AREATYPES, ne
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings()
 from qc_functions import *
+from django.db.models import Q
+
 
 print "Counts..."
 
