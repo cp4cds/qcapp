@@ -376,10 +376,13 @@ def check_corrected_are_ok():
             for e in errs:
                 if not e.error_level == 'FATAL':
                     files_ok.add(f)
-                    print "PASSED:: {}".format(f)
+                    with open('corrected_ok.log') as w:
+                        w.writelines(["{}\n".format(f)])
 
         else:
-            print "FAILED:: {}".format(f)
+            with open('corrected_failed.log') as w:
+                w.writelines(["{}\n".format(f)])
+
 
 if __name__ == "__main__":
 

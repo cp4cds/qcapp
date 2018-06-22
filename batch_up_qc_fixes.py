@@ -4,12 +4,13 @@ from sys import argv
 from subprocess import call
 
 start = int(argv[1])
-files_per_batch = 500
+files_per_batch = 314
 srt_idx = start * files_per_batch
 end_idx = srt_idx + files_per_batch
 
 # filelist = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/files_to_correct.log"
-filelist = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/new_v20180618_files_to_qc.log"
+# filelist = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/new_v20180618_files_to_qc.log"
+filelist = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/corrected_files.log"
 
 with open(filelist, 'r') as fr:
     files = fr.readlines()

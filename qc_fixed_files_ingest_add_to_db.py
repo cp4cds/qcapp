@@ -206,9 +206,56 @@ def _read_cedacc(file, log_dir):
     return qc_pass
 
 
+def ingest_to_archive(ncfile):
+    """
 
-def main(ncfile):
+    :param ncfile: of form: '/group_workspaces/jasmin2/cp4cds1/data/corrected/v20180618/hfls_Amon_FGOALS-g2_historical_r1i1p1_196001-196912.nc'
+    :return:
+    """
+    df = DataFile.objects.filter(ncfile=os.path.basename(ncfile)).first()
+    new_version = 'v20180618'
+    # print("new version {}".format(new_version))
+    df_dataset_dir = '/'.join(df.gws_path.split('/')[:-2])
+    print("{} :: {}".format(ncfile, df_dataset_dir))
 
+    # print("Print changing dir to {}".format(df_dataset_dir))
+    os.chdir(df_dataset_dir)
+    # print("CWD {}".format(os.getcwd()))
+    # print("ls {}".format(os.listdir('.')))
+
+    df_files_dir = os.path.join('files', new_version.lstrip('v'))
+
+    # print("Making dir {}".format(df_files_dir))
+    if not os.path.isdir(df_files_dir):
+        os.makedirs(df_files_dir)
+
+    dest = os.path.join(df_dataset_dir, df_files_dir)
+    # print("new file dir {}".format(dest))
+    # print("copying {} to {}".format(ncfile, dest))
+    shutil.copy(ncfile, dest)
+
+    # print("Making dir {}".format(new_version))
+    if not os.path.isdir(new_version):
+        os.makedirs(new_version)
+
+    src = os.path.join('..', 'files', new_version.lstrip('v'), os.path.basename(ncfile))
+    linkname = os.path.join(new_version, os.path.basename(ncfile))
+    # print("symlink {} to {}".format(src, linkname))
+    os.symlink(src, linkname)
+
+    # print("Unlink latest")
+    os.unlink('latest')
+    # print("symlink {} to latest".format(new_version))
+    os.symlink(new_version, 'latest')
+
+    with open('/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/ingested_to_archive.log', 'a+') as w:
+        w.writelines(["{}\n".format(ncfile)])
+
+
+
+def redo_qc(ncfile):
+
+    ncfile = os.path.basename(ncfile)
     df = DataFile.objects.filter(ncfile=ncfile).first()
     institute, model, experiment, frequency, realm, table, ensemble, variable = _get_facets_from_gws_name(df.gws_path)
     new_version = 'v20180618'
@@ -225,6 +272,13 @@ def main(ncfile):
         with open('/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/corrected_files.log', 'a+') as f:
             f.writelines(["{}\n".format(os.path.join(NEW_DATA_DIR, ncfile))])
 
+
+
+def main(ncfile):
+
+    # redo_qc(ncfile)
+    ingest_to_archive(ncfile)
+
 if __name__ == "__main__":
     """
     This script will 
@@ -239,5 +293,4 @@ if __name__ == "__main__":
     """
 
     ncfile = argv[1]
-    main(os.path.basename(ncfile))
-
+    main(ncfile)
