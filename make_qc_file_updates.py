@@ -309,40 +309,86 @@ def get_list_of_files_to_fix():
     Generate a list of files with only CEDA-CC or CF errors to fix
     :return:
     """
+    checks = ['QCPlot', 'LATEST', 'TIME-SERIES', 'TEMPORAL']
     dfs = DataFile.objects.filter(duplicate_of=None)
 
     datafiles_to_fix = set()
     for df in dfs:
+        errs = df.qcerror_set.all()
 
-        if len(df.qcerror_set.all()) == 0:
+        # CASE 1: Datafile has no associated move on
+        if len(errs) == 0:
             continue
-        else:
-            errs = df.qcerror_set.all()
-            for e in errs:
-                if e.check_type == 'TEMPORAL' or e.check_type == 'TIME-SERIES' or \
-                    e.check_type == 'QCPLOT' or e.check_type == 'LATEST':
-                    continue
-                if e.check_type == 'CF':
-                    if e.error_level == 'FIX':
-                        datafiles_to_fix.add(df)
-                    else:
-                        continue
-                if e.check_type == 'CEDA-CC':
-                    if e.error_level == 'FIX':
-                        datafiles_to_fix.add(df)
-                    else:
-                        continue
 
-    with open('files_to_correct.log', 'a+') as w:
+        # CASE 2: Errors to fix (only want CEDA-CC and CF) initially
+        else:
+            # CASE 2a: Error that are type: checks = ['QCPlot', 'LATEST', 'TIME-SERIES', 'TEMPORAL']
+            for e in errs:
+                skip = [True for c in checks if e.check_type == c]
+
+                if skip:
+                    # Not considering this dataset while it has QCPlot, LATEST, TIME-SERIES or TEMPORAL errors
+                    continue
+
+            else:
+                if errs.filter(check_type='CF', error_level='FIX').count() != 0:
+                    datafiles_to_fix.add(df)
+                else:
+                    continue
+                if errs.filter(check_type='CEDA-CC', error_level='FIX').count() != 0:
+                    datafiles_to_fix.add(df)
+                else:
+                    continue
+
+    with open('files_to_correct_4.log', 'a+') as w:
         for f in list(datafiles_to_fix):
             w.writelines(["{}\n".format(f.gws_path)])
 
+def count_datasets():
+
+    with open('files_to_correct_4.log', 'a+') as r:
+        files = r.readlines()
+
+    set_of_datasets = set()
+    for f in files:
+        f = f.strip()
+
+        ds = Dataset.objects.filter(datafile__gws_path=f)
+        # print ds.first().dataset_id
+        set_of_datasets.add(ds.first().dataset_id)
+
+    print len(ds)
+        # print set_of_datasets, type(set_of_datasets)
+
+def check_corrected_are_ok():
+
+    files_ok = set()
+
+    with open('corrected_files.log') as fr:
+        files = fr.readlines()
+
+    for f in files:
+        f = f.strip()
+
+        df = DataFile.objects.filter(ncfile=os.path.basename(f)).first()
+        if df:
+            errs = df.qcerror_set.all()
+            for e in errs:
+                if not e.error_level == 'FATAL':
+                    files_ok.add(f)
+                    print "PASSED:: {}".format(f)
+
+        else:
+            print "FAILED:: {}".format(f)
 
 if __name__ == "__main__":
 
-    qcfile = argv[1]
-    qc_fixer(qcfile)
+    # qcfile = argv[1]
+    # qc_fixer(qcfile)
+    # get_list_of_files_to_fix()
+    # count_datasets()
 
+    check_corrected_are_ok()
 
     # Useful for testing each error message
     # for e in QCerror.objects.filter(file__duplicate_of=None,error_msg=err)[:1]:

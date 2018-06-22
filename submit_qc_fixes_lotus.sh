@@ -1,6 +1,6 @@
 #!/bin/bash
 # This is the starter program and calls the batchup_cp4cds_movefiles.py
-odir=lotus-logs/qc_fixes/
+odir=lotus-logs/new_qc_fixed_files-1/
 
 mkdir -p $odir
 

@@ -219,11 +219,11 @@ def main(ncfile):
     cc_pass = _read_cedacc(ncfile, qc_log_dir)
 
     if not cf_pass or not cc_pass:
-        with open('files_not_fixed_correctly.log', 'a+') as fw:
+        with open('/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/files_not_fixed_correctly.log', 'a+') as fw:
             fw.writelines(["{}\n".format(os.path.join(NEW_DATA_DIR, ncfile))])
     else:
-        with open('corrected_files.log', 'a+') as fw:
-            fw.writelines(["{}\n".format(os.path.join(NEW_DATA_DIR, ncfile))])
+        with open('/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/corrected_files.log', 'a+') as f:
+            f.writelines(["{}\n".format(os.path.join(NEW_DATA_DIR, ncfile))])
 
 if __name__ == "__main__":
     """
@@ -233,10 +233,11 @@ if __name__ == "__main__":
     3. Will then copy this file back into the gws-archive with a new version
     4. Will add this to CP4CDS database
     5. Will append to a list of new files to be published to the CP4CDS index node
-    """
     files = os.listdir(NEW_DATA_DIR)
     for ncfile in files[:1]:
+    print ncfile
+    """
 
-        print ncfile
-        main(ncfile)
+    ncfile = argv[1]
+    main(os.path.basename(ncfile))
 
