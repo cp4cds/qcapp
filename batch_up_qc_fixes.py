@@ -23,4 +23,4 @@ for file in files[srt_idx: end_idx]:
     run_cmd = ["python", "qc_fixed_files_ingest_add_to_db.py", file.strip(), str(start)]
     run = call(run_cmd)
     if run != 0:
-        print "ERROR RUNNING %s" % run_cmd
+        print "ERROR RUNNING %s" % run_cmd 
