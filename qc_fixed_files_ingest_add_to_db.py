@@ -273,11 +273,169 @@ def redo_qc(ncfile):
             f.writelines(["{}\n".format(os.path.join(NEW_DATA_DIR, ncfile))])
 
 
+def add_to_qc_db():
+    """
 
-def main(ncfile):
+    MUST RUN
+
+    :return:
+    """
+    with open('/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/ingested_to_archive.log', 'a+') as r:
+        lines = r.readlines()
+
+    """
+    Write code to add these files into the database 
+    """
+
+
+def set_df_status(file):
+
+
+    """
+    Dealing with the published datasets :
+          /group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/publish_datasets_1.txt'
+    where the input file has the format:
+        /group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/MOHC/HadGEM2-ES/historical/day/atmos/day/r1i1p1/tas/latest
+    """
+
+    # with open('publish_datasets_1.txt') as r:
+    #     files_1 = r.readlines()
+
+    # for file in files_1:
+    # file = file.strip()
+    # print file
+    # dfs = DataFile.objects.filter(gws_path__icontains=file)
+    #
+    # for df in dfs:
+    #     # print("{} :: {}").format(df.qc_passed, os.path.basename(df.gws_path))
+    #     df.qc_passed=True
+    #     df.save()
+
+    """
+     Dealing with failed to publish datasets :
+         /group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/failed_datasets.log'
+     where the input file has the format:
+         /datacentre/opshome/esgf/mapfiles/cp4cds/NSF-DOE-NCAR/CESM1-WACCM/rcp85/mon/seaIce/
+         c3scmip5.output1.NSF-DOE-NCAR.CESM1-WACCM.rcp85.mon.seaIce.OImon.r4i1p1.sic.v20130315.map
+     """
+
+    # if file.endswith('.map'):
+    #     "/datacentre/opshome/esgf/mapfiles/cp4cds/NSF-DOE-NCAR/CESM1-WACCM/rcp85/mon/seaIce/c3scmip5.output1.NSF-DOE-NCAR.CESM1-WACCM.rcp85.mon.seaIce.OImon.r4i1p1.sic.v20130315.map"
+
+    # ins, mod, exp, freq, realm, table, ens, var, v = file.split('/')[-1].split('.')[2:-1]
+    # dfs = Datafile.objects.filter(dataset__institute=ins, dataset__model=mod, dataset__experiment=exp,
+    #                               dataset__frequency=freq, dataset__realm=realm, dataset__cmor_table=table,
+    #                               dataset__ensemble=ens, variable=var, dataset__version=v)
+    #
+    # for df in dfs:
+    #     df.qc_passed=False
+    #     df.save()
+    #
+    # ds = df.dataset
+    # ds.qc_passed = False
+    # ds.save()
+
+
+    """
+    Dealing with corrected datafiles list from the file:
+        /group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/ingested_to_archive.log'
+    where the input file has the format:
+        /group_workspaces/jasmin2/cp4cds1/data/corrected/v20180618
+    """
+    # if file.startswith('/group_workspaces/jasmin2/cp4cds1/data/corrected/v20180618'):
+    ncFile = os.path.basename(file)
+    df =  DataFile.objects.filter(ncfile=ncFile).first()
+    df.qc_passed = True
+    df.new_dataset_version = True
+    """
+    Must come back to this v. soon and amend database correctly
+    """
+    df.save()
+
+def get_new_datasets_list(file, batch):
+    """
+
+    :return:
+    """
+
+    """
+    # FILE: /group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/ingested_to_archive.log
+    # FORMAT: /group_workspaces/jasmin2/cp4cds1/data/corrected/v20180618/hfls_Amon_FGOALS-g2_historical_r1i1p1_196001-196912.nc
+    """
+    ncFile = os.path.basename(file)
+    df =  DataFile.objects.filter(ncfile=ncFile).first()
+    ds = df.dataset
+    dfs = ds.datafile_set.all()
+
+    do_not_publish = None
+    for f in dfs:
+        if not f.qc_passed:
+            do_not_publish = True
+            continue
+
+    if not do_not_publish:
+        with open("publish_datasets_3_{}.txt".format(batch), 'a+') as wr:
+            wr.writelines("{}\n".format(os.path.dirname(df.gws_path)))
+
+    # datafiles_to_publish = set()
+    # for file in lines:
+    #     file = files.strip()
+    #     ncFile = os.path.basename(file)
+    #     gwsDir = os.path.dirname(df.gws_path)
+    #     df = DataFile.objects.filter(ncfile=os.path.basename(file)).first()
+    #     ds = Dataset.objects.filter(datafile__ncfile=os.path.basename(file)).first()
+    #
+    #     nfiles = len(os.listdir(gwsDir))
+    #
+    #     if nfiles == 1:
+    #
+    #         datafiles_to_publish.add(df.gws_path)
+    #         ds.qc_passed = True
+    #         ds.save()
+    #
+    #     elif nfiles > 1:
+    #         # Check all in ts
+    #
+    #         fileslist = os.listdir(gwsDir)
+    #         dsQcPassed = []
+    #         for f in fileslist:
+    #             df = DataFile.objects.filter(gws_path=f).first()
+    #             dsQcPassed.append(df.qc_passed)
+    #
+    #         if not dsQcPassed:
+    #             with open(err_log, 'a+') as w:
+    #                 w.writelines(["{}\n".format(df.gws_path)])
+    #             ds.qc_passed = False
+    #             ds.save()
+    #
+    #         elif false in dsQcPassed:
+    #             with open('/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/dataset_not_qc_passed.log', 'a+') as w:
+    #                 w.writelines(["{}\n".format(df.gws_path)])
+    #                 ds.qc_passed = False
+    #                 ds.save()
+    #
+    #         else:
+    #             with open('/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/datasets_pass_qc_publish_2.log', 'a+') as w:
+    #                 w.writelines(["{}\n".format(os.path.dirname(df.gws_path))])
+    #                 ds.qc_passed = True
+    #                 ds.save()
+    #
+    #     else:
+    #         with open(err_log, 'a+') as w:
+    #             w.writelines(["{}\n".format(df.gws_path)])
+
+
+
+
+
+def main(ncfile, batch):
 
     # redo_qc(ncfile)
-    ingest_to_archive(ncfile)
+    # ingest_to_archive(ncfile)
+    # NOT DONE YET add_to_qc_db()
+    # set_df_status(ncfile)
+
+    get_new_datasets_list(ncfile, batch)
 
 if __name__ == "__main__":
     """
@@ -292,5 +450,8 @@ if __name__ == "__main__":
     print ncfile
     """
 
-    ncfile = argv[1]
-    main(ncfile)
+    ifile = argv[1]
+    batch_no = argv[2]
+    main(ifile.strip(), batch_no)
+
+    # get_new_datasets_list()

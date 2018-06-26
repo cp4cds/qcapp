@@ -1,4 +1,5 @@
 qcproj/settings_local.py
+*.txt
 .clear_cedacc.sh
 test.txt
 logs_02/
