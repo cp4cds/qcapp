@@ -1,3 +1,4 @@
+qcproj/*pyc
 qcproj/settings_local.py
 *.txt
 .clear_cedacc.sh
