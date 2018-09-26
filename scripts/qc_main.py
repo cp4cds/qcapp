@@ -2,36 +2,44 @@
 """
 A driver routine that will run the quality control related routines specified.
 """
-import django
-django.setup()
-
-import os
 import argparse
-from sys import argv
-from qcapp.models import *
-from utils import *
+from esgf_search import *
+from db_builder import *
 
 parser = argparse.ArgumentParser()
+parser.add_argument('variable', type=str, nargs='?', help='A CP4CDS variable')
+parser.add_argument('frequency', type=str, nargs='?', help='A CP4CDS frequency')
+parser.add_argument('table', type=str, nargs='?', help='A CP4CDS table')
 parser.add_argument('--esgf_search',action='store_true', help='Search ESGF for variable information and cache results')
-parser.add_argument('--db_add',action='store_true', help='Add the cached ESGF data to the QC database')
+parser.add_argument('--db_make',action='store_true', help='Add the cached ESGF data to the QC database')
 parser.add_argument('--run_qc',action='store_true', help='Run the quality control')
+parser.add_argument('--echo_inputs',action='store_true', help='Print out input args')
 
+
+def echo_inputs(args):
+
+    print("variable is {}".format(args.variable))
+    print("frequency is {}".format(args.frequency))
+    print("table is {}".format(args.table))
 
 def main(args):
 
+    if args.echo_inputs:
+        echo_inputs(args)
+
     if args.esgf_search:
-        resolve_cedacc_exceptions()
+        esgf_search(args.variable, args.frequency, args.table)
 
-    if args.db_add:
-        update_cf_qc_error_record()
-
-    if args.check_cedacc_output:
-        update_cedacc_qc_errors()
+    if args.db_make:
+        db_make(args.variable, args.frequency, args.table)
 
     if args.run_qc:
-        create_new_dataset_records()
+        run_qc()
+
+
 
 if __name__ == "__main__":
 
     args = parser.parse_args()
+
     main(args)

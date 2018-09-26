@@ -5,10 +5,34 @@ import re
 import glob
 import requests
 import itertools
-import json as jsn
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
-from qc_settings import *
+import json
+from settings import *
 
+def read_json(file):
+    """
+
+    From a given url this routine returns the elements from ["response"]["docs"]
+
+    :param url:
+    :return:
+    """
+    with open(file) as r:
+        jsn = r.read()
+
+    data = json.loads(jsn)
+    res = data["response"]["docs"]
+    return res
+def define_local_json_cache_names(variable, frequency, table, experiment):
+
+    json_logdir = os.path.join(LOCAL_JSON_DF_CACHE)
+
+    if not os.path.isdir(json_logdir):
+        os.makedirs(json_logdir)
+
+    logfile = "{}_{}_{}_{}.json".format(variable, frequency, table, experiment)
+    json_file = os.path.join(json_logdir, logfile)
+
+    return json_logdir, json_file
 
 def convert_to_cp4cds_gws_path(ipath, dir1, dir2):
     path = ipath.replace(dir1, dir2)
