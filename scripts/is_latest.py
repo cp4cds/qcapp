@@ -5,12 +5,155 @@ import re
 import glob
 import json
 import commands
-from qc_settings import *
+from settings import *
 
 import utils
-from esgf_dict import EsgfDict
+
 
 CEDA_DATA_NODE = "esgf-data1.ceda.ac.uk"
+
+
+
+
+class EsgfDict(dict):
+
+    def _format_gen_url(self, template, **kwargs):
+        return template.format(**kwargs)
+
+    def _generate_latest_dfpath(self, basedir, edict):
+
+        json_dir = os.path.join(basedir, edict['variable'], edict['table'], edict['experiment'],
+                                edict['ensemble'], edict['version'])
+        json_file = edict['ncfile'].replace('.nc', '__latest_datafile.json')
+        json_path = os.path.join(json_dir, json_file)
+
+        return json_path
+
+
+    def _generate_jsonfile_path(self, ds_obj, basedir, edict, dtype="dataset", ncfile=None, rw='r'):
+        """
+
+            _generate_local_logdir
+
+        Uses a base directory with a database object (Dataset or DataFile) to build a file path.
+        If "write mode" is selected the file path directories are constructed
+        If the a sub-dircetory is selected an "experiment" sub-directory is included, for DataFile
+        If an ncfile is specifed this is included as the path.
+
+        :param basedir: A base directory
+        :param ds_obj: A Django database object; Dataset
+        :param edict: A esgf_dict object
+        :param dtype: Set type to be dataset, or datafile, log at the experiment level for datafile
+        :param rw: Read or Write mode
+        :param ncfile: If DataFile object use the ncfile as the filename
+
+        :return: Tuple of ([esgf_dict], [JSON-logfile])
+        """
+
+        if dtype not in ["dataset", "datafile"]:
+            raise Exception("No Database object type specified")
+
+        if dtype == "datafile":
+            if ncfile == None:
+                raise Exception("A netcdf file must be specifed for datafile type")
+
+        if dtype == "dataset": logdir = basedir
+        if dtype == "datafile": logdir = os.path.join(basedir, edict["experiment"])
+
+        edict["institute"] = ds_obj.institute
+        edict["model"] = ds_obj.model
+        edict["realm"] = ds_obj.realm
+        edict["ensemble"] = ds_obj.ensemble
+
+
+        if dtype == "datafile":
+            logfile = "{}.{}.json".format(ds_obj.project, ncfile.strip('.nc'))
+        if dtype == "dataset":
+            logfile = "{}.{}.json".format(ds_obj.esgf_drs, edict["variable"])
+
+        json_file = os.path.join(logdir, logfile)
+
+        if rw == 'w':
+            if not os.path.isdir(logdir):
+                os.makedirs(logdir)
+
+        return edict, json_file
+
+
+    def esgf_query(self, url, logfile):
+
+        """
+
+            esgf_query
+
+        Perform an ESGF query based on the input url and log to the JSON file specified.
+
+        :param url: ESGF URL query to ReST API
+        :param logfile: JSON logfile
+        """
+
+        resp = requests.get(url, verify=False)
+        json = resp.json()
+        with open(logfile, 'w+') as fw:
+            jsn.dump(json, fw)
+
+
+
+    def format_is_latest_datafile_url(self):
+
+        """
+
+            format_is_latest_datafile_url
+
+        Construct an is latest DataFile REST API URL query to ESGF
+
+        :return: A latest, distributed, datafile, url query
+        """
+
+        template="https://{node}/esg-search/search?type=File&project={project}&time_frequency={frequency}&" \
+                 "title={ncfile}&distrib={distrib}&latest={latest}" \
+                 "&format=application%2Fsolr%2Bjson&limit=10000"
+
+        return self._format_gen_url(template,
+                                    node=self['node'],
+                                    project=self['project'],
+                                    frequency=self['frequency'],
+                                    ncfile=self['ncfile'],
+                                    distrib=self['distrib'],
+                                    latest=self['latest'],
+                                    )
+
+
+    def format_is_latest_dataset_url(self):
+
+        """
+
+            format_is_latest_dataset_url
+
+        Construct an is latest Dataset REST API URL query to ESGF
+
+        :return: A latest, distributed, dataset, url query
+        """
+
+        template="https://{node}/esg-search/search?type=Dataset&project={project}&institute={institute}&model={model}&" \
+                 "experiment={experiment}&time_frequency={frequency}&realm={realm}&cmor_table={table}&ensemble={ensemble}&" \
+                 "variable={variable}&distrib={distrib}&latest={latest}" \
+                 "&format=application%2Fsolr%2Bjson&limit=10000"
+
+        return self._format_gen_url(template,
+                                    node=self['node'],
+                                    project=self['project'],
+                                    institute=self['institute'],
+                                    model=self['model'],
+                                    experiment=self['experiment'],
+                                    frequency=self['frequency'],
+                                    realm=self['realm'],
+                                    table=self['table'],
+                                    ensemble=self['ensemble'],
+                                    variable=self['variable'],
+                                    distrib=self['distrib'],
+                                    latest=self['latest'],
+                                    )
 
 
 class ESGFError(Exception):
@@ -271,82 +414,94 @@ def get_ceda_checksum(df, cksums, checksum_type="SHA256"):
 
     return ceda_cksum
 
+#
+# def check_datafiles_are_latest(datasets, esgf_dict):
+#     """
+#         dataset_latest_check
+#     Runs test to check whether CP4CDS datafile is the most recent version on ESGF.
+#     :param datasets: A Django QuerySet of Dataset objects
+#     :param esgf_dict: An esgf_dict object
+#     """
+#
+#     for ds in datasets:
+#         dfs = ds.datafile_set.all()
+#         check_datafile_is_latest(ds, dfs, esgf_dict)
+#
 
-def check_datafiles_are_latest(datasets, esgf_dict):
-    """
-        dataset_latest_check
-    Runs test to check whether CP4CDS datafile is the most recent version on ESGF.
-    :param datasets: A Django QuerySet of Dataset objects
-    :param esgf_dict: An esgf_dict object
-    """
+def check_datafile_is_latest(df):
 
-    for ds in datasets:
-        dfs = ds.datafile_set.all()
-        check_datafile_is_latest(ds, dfs, esgf_dict)
+    frequency = df.dataset.frequency
+    table = df.dataset.cmor_table
+    variable = df.variable
 
+    global esgf_dict
+    esgf_dict = EsgfDict([
+        ("node", "esgf-index1.ceda.ac.uk"),
+        ("project", "CMIP5"),
+        ("frequency", frequency),
+        ("table", table),
+        ("variable", variable),
+        ("distrib", "true"),
+        ("latest", "true"),
+    ])
 
-def check_datafile_is_latest(datafiles, edict):
+    try:
 
-    for df in datafiles:
+        df.up_to_date = False
+        df.save()
 
-        try:
+        esgf_dict['ncfile'] = df.ncfile
+        esgf_dict['ensemble'] = df.dataset.ensemble
+        esgf_dict['version'] = df.dataset.version
+        esgf_dict['experiment'] = df.dataset.experiment
 
-            global esgf_dict
-            esgf_dict = edict
-             # if df.ncfile == "sic_OImon_bcc-csm1-1_historical_r3i1p1_185001-201212.nc":
-             #    print(df.ncfile)
-            df.up_to_date = False
-            df.save()
-            esgf_dict['ncfile'] = df.ncfile
-            esgf_dict['ensemble'] = df.dataset.ensemble
-            esgf_dict['version'] = df.dataset.version
+        json_file = esgf_dict._generate_latest_dfpath(QCLOGS, esgf_dict)
+        # # Update the esgf_dict and get the cached json file (a distributed is latest ESGF query)
+        # esgf_dict, json_file = esgf_dict._generate_jsonfile_path(ds, DATAFILE_LATEST_CACHE, esgf_dict,
+        #                                                          dtype="datafile", ncfile=df.ncfile)
 
-            json_file = esgf_dict._generate_latest_dfpath(QCLOGS, esgf_dict)
-            # # Update the esgf_dict and get the cached json file (a distributed is latest ESGF query)
-            # esgf_dict, json_file = esgf_dict._generate_jsonfile_path(ds, DATAFILE_LATEST_CACHE, esgf_dict,
-            #                                                          dtype="datafile", ncfile=df.ncfile)
+        # Open and read cached JSON file
+        json_resp = _read_json_cache_file(df, json_file)
 
-            # Open and read cached JSON file
-            json_resp = _read_json_cache_file(df, json_file)
+        # checksums dictionary: {node: {'replica': T/F, 'version':, 'cksum_type': SHA256/MD5, 'cksum':}}
+        checksums = get_all_checksums(df, json_resp)
 
-            # checksums dictionary: {node: {'replica': T/F, 'version':, 'cksum_type': SHA256/MD5, 'cksum':}}
-            checksums = get_all_checksums(df, json_resp)
+        if CEDA_DATA_NODE not in checksums.keys():
+            raise ESGFError("IS_LATEST [FATAL] :: File has no CEDA published record :: "
+                            "ESGF query {}".format(esgf_dict.format_is_latest_datafile_url()), df)
 
-            if CEDA_DATA_NODE not in checksums.keys():
-                raise ESGFError("IS_LATEST [FATAL] :: File has no CEDA published record :: "
-                                "ESGF query {}".format(esgf_dict.format_is_latest_datafile_url()), df)
+        # Check whether the CEDA published file is the most recent by checksum comparison
+        latest = get_latest_checksum(df, checksums)
 
-            # Check whether the CEDA published file is the most recent by checksum comparison
-            latest = get_latest_checksum(df, checksums)
+        if latest['cksum_type'].upper() == "MD5":
+            cksumType = "MD5"
+        else:
+            cksumType = "SHA256"
 
-            if latest['cksum_type'].upper() == "MD5":
-                cksumType = "MD5"
-            else:
-                cksumType = "SHA256"
+        ceda_checksum = get_ceda_checksum(df, checksums, checksum_type=cksumType)
+        ceda_cksum_is_latest = compare_ceda_with_latest(df, ceda_checksum, latest['cksum'], dbType='df')
 
-            ceda_checksum = get_ceda_checksum(df, checksums, checksum_type=cksumType)
-            ceda_cksum_is_latest = compare_ceda_with_latest(df, ceda_checksum, latest['cksum'], dbType='df')
+        ceda_version = get_ceda_version(df, checksums)
+        ceda_version_is_latest = compare_ceda_with_latest(df, ceda_version, latest['version'], dbType='df')
 
-            ceda_version = get_ceda_version(df, checksums)
-            ceda_version_is_latest = compare_ceda_with_latest(df, ceda_version, latest['version'], dbType='df')
+        if ceda_cksum_is_latest and ceda_version_is_latest:
+            success_message = "IS_LATEST [PASS] :: The CEDA datafile checksum {} is the same as the " \
+                              "ESGF recorded latest {} :: ESGF query {}".format(
+                               ceda_checksum, latest['cksum'], esgf_dict.format_is_latest_datafile_url())
+            # print(success_message)
+            _log_message(df, success_message, set_uptodate=True)
 
-            if ceda_cksum_is_latest and ceda_version_is_latest:
-                success_message = "IS_LATEST [PASS] :: The CEDA datafile checksum {} is the same as the " \
-                                  "ESGF recorded latest {} :: ESGF query {}".format(
-                                   ceda_checksum, latest['cksum'], esgf_dict.format_is_latest_datafile_url())
-                # print(success_message)
-                _log_message(df, success_message, set_uptodate=True)
+        elif ceda_cksum_is_latest and not ceda_version_is_latest:
+            raise ESGFError("IS_LATEST [VERSION ERROR] :: The CEDA datafile checksum {} is the same as the "
+                            "ESGF recorded latest {} :: CEDA version {} is not latest {} and should be updated."
+                            " :: ESGF query {}".format(ceda_checksum, latest['cksum'], ceda_version,
+                                            latest['version'], esgf_dict.format_is_latest_datafile_url()), df)
+        else:
+            raise ESGFError("IS_LATEST [CHECKSUM ERROR] :: Checksum do not match CEDA {} latest {} :: CEDA version {}, "
+                            "latest version {} :: ESGF query {}".format(ceda_checksum, latest['cksum'],
+                                                                        ceda_version, latest['version'],
+                                                                        esgf_dict.format_is_latest_datafile_url()),
+                                                                        df)
 
-            elif ceda_cksum_is_latest and not ceda_version_is_latest:
-                raise ESGFError("IS_LATEST [VERSION ERROR] :: The CEDA datafile checksum {} is the same as the "
-                                "ESGF recorded latest {} :: CEDA version {} is not latest {} and should be updated."
-                                " :: ESGF query {}".format(ceda_checksum, latest['cksum'], ceda_version,
-                                                latest['version'], esgf_dict.format_is_latest_datafile_url()), df)
-            else:
-                raise ESGFError("IS_LATEST [CHECKSUM ERROR] :: Checksum do not match CEDA {} latest {} :: CEDA version {}, "
-                                "latest version {} :: ESGF query {}".format(ceda_checksum, latest['cksum'],
-                                                                            ceda_version, latest['version'],
-                                                                            esgf_dict.format_is_latest_datafile_url()),
-                                                                            df)
-        except ESGFError:
-            pass
+    except ESGFError:
+        pass

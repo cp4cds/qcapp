@@ -8,6 +8,33 @@ import itertools
 import json
 from settings import *
 
+
+
+
+def check_log_exists(file, qcdir, ext):
+
+    qcfiles = os.listdir(qcdir)
+    cc_logfile = "{}{}".format(os.path.basename(file).strip('.nc'), ext)
+    for f in qcfiles:
+        if f.startswith(cc_logfile):
+            return True, f
+    return False, ""
+
+
+
+def get_and_make_logdir(datafile):
+    inst, model, expt, freq, realm, table, ensemble, var, ver, ncfile = datafile.gws_path.split('/')[8:]
+    if ver == 'latest':
+        v_version = os.readlink(os.path.dirname(datafile.gws_path))
+    else:
+        v_version = ver
+    logdir = os.path.join(QCLOGS, var, table, expt, ensemble, v_version)
+
+    if not os.path.isdir(logdir):
+        os.makedirs(logdir)
+
+    return logdir
+
 def read_json(file):
     """
 

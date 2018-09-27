@@ -16,8 +16,12 @@ def add_to_database(df_data):
 
     # Extract all information from df
 
-    proj, product, institution, model, experiment, frequency, realm, table, ensemble, version, file, ext = \
-    df_data['id'].split('|')[0].split('.')
+    proj, product, institution, model, experiment, frequency, realm, table, ensemble, version, file, ext = df_data['id'].split('|')[0].split('.')
+
+    # Do not add any files with nc1, nc2, n3, nc4, etc to db
+    if not ext=='nc':
+        return
+
     ncfile = '.'.join([file, ext])
     datanode = df_data['id'].split('|')[1]
 
@@ -102,7 +106,7 @@ def check_in_database(filename):
         else:
             return False
 
-def parse_json(variable, frequency, table, experiment):
+def parse_json_to_db(variable, frequency, table, experiment):
 
     json_logdir, json_file = define_local_json_cache_names(variable, frequency, table, experiment)
     df_info = read_json(json_file)
@@ -117,7 +121,7 @@ def parse_json(variable, frequency, table, experiment):
 def db_make(variable, frequency, table):
 
     for experiment in ALLEXPTS:
-        datafile_info = parse_json(variable, frequency, table, experiment)
+        datafile_info = parse_json_to_db(variable, frequency, table, experiment)
 
 
 if __name__ == "__main__":
