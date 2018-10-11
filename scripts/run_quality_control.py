@@ -136,6 +136,8 @@ def parse_ceda_cc(df_obj, qcdir):
         # For CEDA-CC ouput search for errors and if found make a QCerror record
         for line in ceda_cc_out:
             line = line.strip()
+            if "Variable [sos] has incorrect attributes" in line:
+                continue
             for regex, errType in ccc_regex_errors:
                 if regex.search(line):
                     make_qc_err_record(df_obj, checkType, errType, line, ceda_cc_file)

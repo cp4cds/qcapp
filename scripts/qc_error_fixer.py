@@ -2,278 +2,246 @@
 from setup_django import *
 import sys
 import re
+import shutil
 from settings import *
 from utils import *
-from ceda_cc import c4
+import run_quality_control as run_qc
 
 
-class NCatted(object):
+def check_error_types(ds, error):
 
-    def _run_ncatted(self, att_nm, var_nm, mode, att_type, att_val, file, newfile=None, noHistory=False):
-        """
-        Python wrapper to ncatted.
-
-        :param att_nm: attribute name, e.g. history
-        :param var_nm: variable name, e.g. global
-        :param mode: change mode, eg, a: append, c: create
-        :param att_type: attribute type, e.g. c: character, f: float
-        :param att_val: attribute value, e.g. 1e-03
-        :param file: file to modify default is in place modification
-        :param newfile: specificy new output file
-        :param noHistory: do not append change to the history attribute
-        :return:
-        """
-        if noHistory:
-            history = 'h'
-        else:
-            history = ''
-        if not newfile:
-            run_cmd = ["ncatted", "-{}a".format(history),
-                       "{},{},{},{},{}".format(att_nm, var_nm, mode, att_type, att_val), file]
-            call(run_cmd)
-        else:
-            run_cmd = ["ncatted", "-{}a".format(history),
-                       "{},{},{},{},{}".format(att_nm, var_nm, mode, att_type, att_val), file, newfile]
-            call(run_cmd)
+    if error.check_type in ['QCPlot', 'LATEST', 'TIME-SERIES', 'TEMPORAL']:
+        return
+    else:
+        if err.check_type == 'CF':
+            error_messages.append(err.error_msg)
+        if err.check_type == 'CEDA-CC':
+            error_messages.append(err.error_msg)
 
 
-class QCerror_fixer(object):
-    """
-    QCerror fixer a class of methods used to make QC changes to files.
-    """
+def copy_file_to_new_files_version_dir(df, new_version_no):
 
-    ncatt = NCatted()
+    # Copy the file to files version dir so that inplace modifications can be made
+    new_dir = os.path.dirname(df.gws_path).strip('latest') + "files/{}".format(new_version_no)
+    new_file = os.path.join(new_dir, os.path.basename(df.gws_path))
+    oversion = os.readlink(os.path.dirname(df.gws_path))
+    if not os.path.isdir(new_dir):
+        os.makedirs(new_dir)
+    if not os.path.exists(new_file):
+        shutil.copy(df.gws_path.replace('latest', oversion), new_file)
 
-    qc_mapping = {
-        "ERROR (7.3): Invalid unit mintues) in cell_methods comment": ('fix_cf_73a', ['filepath', 'error_message']),
-        "ERROR (3.1): Invalid units:  psu": ('fix_cf_31', ['filepath', 'error_message']),
-        "ERROR (7.3) Invalid syntax for cell_methods attribute": ('fix_cf_73b', ['filepath', 'error_message']),
-        'C4.002.005: [variable_ncattribute_mipvalues]: FAILED:: '
-        'Variable [tos] has incorrect attributes: standard_name="surface_temperature" '
-        '[correct: "sea_surface_temperature"]': ('fix_c4_002_005_tos', ['filepath', 'error_message']),
-        "C4.002.004: [variable_ncattribute_present]: FAILED:: "
-        "Required variable attributes missing: ['standard_name']": (
-        'fix_c4_002_005_tsice', ['filepath', 'error_message']),
-        "C4.002.007: [filename_filemetadata_consistency]: FAILED:: "
-        "File name segments do not match corresponding "
-        "global attributes: [(2, 'model_id')]": ('fix_c4_002_007_model_id', ['filepath', 'error_message']),
-        'missing_value must be present if _FillValue': ('fix_c4_002_005_missing_value', ['filepath', 'error_message']),
-        'long_name': ('fix_c4_002_005_long_name', ['filepath', 'error_message']),
-    }
-
-    def _get_cell_methods_contents(self, ifile):
-        """
-        From the input file get the cell methods content
-
-        :param ifile:
-        :return: [string] cell method content
-        """
-        variable = os.path.basename(ifile).split('_')[0]
-        ncds = ncDataset(ifile)
-        v = ncds.variables[variable]
-        return getattr(v, 'cell_methods')
-
-    def _ncatted_common_updates(self, file, errors):
-        """
-        A set of common updates used when all other QC modifications are completed.
-
-        :param file: ncfile name
-        :param errors: list
-        :return:
-        """
-
-        mod_date = datetime.datetime.now().strftime('%Y-%m-%d')
-
-        cp4cds_statement = "As part of the Climate Projections for the Copernicus Data Store (CP4CDS) CMIP5 quality assurance " \
-                           "testing the following error(s) were corrected by the CP4CDS team:: \n {} \n " \
-                           "The tracking id was also updated; the original is stored under source_trackind_id. \n" \
-                           "For further details contact ruth.petrie@ceda.ac.uk or the Centre for Environmental Data Analysis (CEDA) " \
-                           "at support@ceda.ac.uk".format('\n'.join(errors))
-
-        # Get original tracking_id
-        orig_tracking_id = getattr(ncDataset(file), 'tracking_id')
-        self.ncatt._run_ncatted('tracking_id', 'global', 'o', 'c', str(uuid.uuid4()), file, noHistory=True)
-        self.ncatt._run_ncatted('cp4cds_update_info', 'global', 'c', 'c', cp4cds_statement, file, noHistory=True)
-        self.ncatt._run_ncatted('source_tracking_id', 'global', 'c', 'c', orig_tracking_id, file, noHistory=True)
-        self.ncatt._run_ncatted('history', 'global', 'a', 'c',
-                                "\nUpdates made on {} were made as part of CP4CDS project see cp4cds_update_info".format(
-                                    mod_date), file, noHistory=True)
-
-    def qc_fix_wrapper(self, filepath, error_message):
-        """
-
-        A wrapper script to the individual QC error fixes
-
-        :param filepath: full gws path
-        :param error_message: error message as recorded by CF, CEDA-CC
-        :return: [string] error info
-        """
-
-        fix_method, args = self.qc_mapping[error_message]
-        fix = getattr(self, fix_method)
-        os.chdir(os.path.dirname(filepath))
-        error_info = fix(os.path.basename(filepath), error_message)
-
-        return error_info
-
-    def fix_cf_73b(self, file, error_message):
-        """
-        Fix to the CF error (7.3)
-
-        By quick inspection it is determined that the error here is
-
-            time: minimum (interval: 3 hours) within days time: mean over days
-        it should be written
-            time: minimum within days (interval: 3 hours) time: mean over days
-
-        :param file:
-        :return: [string]
-        """
-        variable = file.split('_')[0]
-        cellMethod = self._get_cell_methods_contents(file)
-
-        interval_before_within = re.compile("\(interval.*?within")
-        if re.search(interval_before_within, cellMethod):
-            _parts = cellMethod.split()
-            _parts[2:4], _parts[4:7] = _parts[5:7], _parts[2:5]
-            corrected_cellMethod = ' '.join(_parts)
-            error_info = "{} - information given in wrong order".format(error_message)
-            self.ncatt._run_ncatted('cell_methods', variable, 'o', 'c', corrected_cellMethod, file)
-            return error_info
-
-    def fix_cf_73a(self, file, error_message):
-        """
-        A fix to CF error 7.3 with minutes typo
-
-        :param file:
-        :param error_message:
-        :return: [string]
-        """
-
-        variable = file.split('_')[0]
-        cellMethod = self._get_cell_methods_contents(file)
-        corrected_cellMethod = cellMethod.replace('mintues', 'minutes')
-        error_info = "{} - a cell_methods typo".format(error_message)
-        self.ncatt._run_ncatted('cell_methods', variable, 'o', 'c', corrected_cellMethod, file)
-        return error_info
-
-    def fix_cf_31(self, file, error_message):
-        """
-        Fix to CF error (3.1)
-
-        :param file:
-        :param error_message:
-        :return: [string]
-        """
-
-        error_info = "{} - not CF compliant units".format(error_message)
-        assert file.split('_')[0] == 'sos'
-        self.ncatt._run_ncatted('units', 'sos', 'o', 'c', '1.e-3', file)
-        dt_string = datetime.datetime.now().strftime('%Y-%m%d %H:%M:%S')
-        methods_history_update_comment = "\n{}: CP4CDS project changed units from PSU to 1.e-3 to be CF compliant".format(
-            dt_string)
-        self.ncatt._run_ncatted('history', 'sos', 'a', 'c', methods_history_update_comment, file, noHistory=True)
-        return error_info
-
-    def fix_c4_002_005_tos(self, file, error_message):
-        """
-        Fix to CEDA-CC error C4.002.005 where tos has wrong standard name
-
-        :param file:
-        :param error_message:
-        :return:
-        """
-        error_info = "Corrected error where {}".format(error_message.split('::')[-1].strip())
-        self.ncatt._run_ncatted('standard_name', 'tos', 'o', 'c', 'sea_surface_temperature', file)
-        return error_info
-
-    def fix_c4_002_005_tsice(self, file, error_message):
-        """
-        Fix to CEDA-CC error C4.002.005 where tsice standard name is wrong
-        :param file:
-        :param error_message:
-        :return:
-        """
-
-        assert os.path.basename(file).split('_')[0] == 'tsice'
-        error_info = "Corrected error where {} : CF standard_name for tsice is [surface_temperature]".format(
-            error_message.split('::')[-1].strip())
-        self.ncatt._run_ncatted('standard_name', 'tsice', 'c', 'c', 'surface_temperature', file)
-        return error_info
-
-    def fix_c4_002_005_long_name(self, file, error_message):
-        """
-        Fix to CEDA-CC error C4.002.005 error in long name
-        :param file:
-        :param error_message:
-        :return:
-        """
-
-        variable = file.split('_')[0]
-        correct_longname = error_message.split(': ')[-1].strip(']').strip('"')
-        error_info = "Corrected error where {} : corrected CF long_name inserted".format(
-            error_message.split('::')[-1].strip())
-        self.ncatt._run_ncatted('long_name', variable, 'o', 'c', correct_longname, file)
-        return error_info
-
-    def fix_c4_002_005_missing_value(self, file, error_message):
-        """
-        Fix to CEDA-CC error C4.002.005 insert/overwrite correct missing value
-        :param file:
-        :param error_message:
-        :return:
-        """
-        variable = file.split('_')[0]
-        error_info = "Corrected error where {} : correct missing value of 1.0e+20f inserted".format(
-            error_message.split('::')[-1].strip())
-        self.ncatt._run_ncatted('missing_value', variable, 'o', 'f', '1.0e20', file, newfile=ofile)
-        return error_info
-
-    def fix_c4_002_007_model_id(self, file, error_message):
-        """
-        Fix CEDA-CC error C4.002.007 wrong model name or not correctly formatted applies to:
-            [u'CESM1-CAM5-1-FV2', u'FGOALS-g2', u'ACCESS1-3']
-        :param file:
-        :param error_message:
-        :return:
-        """
-        model = file.split('_')[2]
-        error_info = "Corrected error where {} : corrected model_id {} inserted".format(
-            error_message.split('::')[-1].strip(), model)
-        self.ncatt._run_ncatted('model_id', 'global', 'o', 'c', model, file)
-        return error_info
+    return new_file
 
 
+def get_or_create_new_datafile_record(df, nds, new_version_no):
 
-def fix_errors(variable, frequency, table):
+    d = DataFile.objects.filter(gws_path=df.gws_path)
+    for i in d:
+        if i.dataset.version.lstrip('v') == new_version_no:
+            return i
+
+    new_df = df
+    new_df.pk = None
+    # link to new dataset
+    new_df.dataset = nds
+    new_df.save()
+
+    return new_df
+
+def get_or_create_new_dataset_record(ds, new_version_no):
+    new_drs_version = '.'.join(ds.dataset_id.split('.')[:-1]) + '.v' + new_version_no
+    nds_query = Dataset.objects.filter(dataset_id=new_drs_version)
+
+    if len(nds_query) == 0:
+        new_ds = ds
+        new_ds.pk = None
+        new_ds.version = 'v{}'.format(new_version_no)
+        new_ds.save()
+
+    else:
+        new_ds = nds_query.first()
+
+    # Attach all datafile records to new dataset
+    for df in ds.datafile_set.all():
+        ndf = get_or_create_new_datafile_record(df, new_ds, new_version_no)
+
+    return new_ds
+
+
+def qc_file_fix(error_messages, new_file):
 
     qcfix = QCerror_fixer()
-
-    for experiment in ALLEXPTS:
-        
-        datafiles = DataFile.objects.filter(dataset__variable=variable, dataset__frequency=frequency, 
-                                            dataset__cmor_table=table, dataset__experiment=experiment)
-        
-        for df in datafiles:
-            qc_errors = df.qcerror_set.all()
-            if qc_errors:
-                for e in qcerrs:
-                    # 27th sept got to here.. move to new location in archive...
-                    ifile = df.gws_path
-                    ofile = os.path.join(NEW_DATA_DIR, os.path.basename(ifile))
-                    # take a copy of the file to temporary location so that inplace modifications can be made
-                    shutil.copy(ifile, ofile)
-
-                    error_info = qcfix.qc_fix_wrapper(ofile, e.error_msg)
-                    all_errs.append(error_info)
-                qcfix._ncatted_common_updates(ofile, all_errs)
+    for error in error_messages:
+        qcfix.qc_fix_wrapper(new_file, error)
+    qcfix._ncatted_common_updates(new_file, error_messages)
 
 
+def check_errors_can_fix(qc_errors):
+
+    error_messages = set()
+    for e in qc_errors:
+        if e.check_type in ['QCPlot', 'LATEST', 'TIME-SERIES', 'TEMPORAL']:
+            can_fix = False
+            return can_fix, list(error_messages)
+        else:
+            can_fix = True
+            if e.check_type == 'CF':
+                error_messages.add(e.error_msg)
+            if e.check_type == 'CEDA-CC':
+                error_messages.add(e.error_msg)
+
+    return can_fix, list(error_messages)
+
+
+
+def create_new_filesystem_version(ds, version_no):
+
+    ds_basepath = os.path.dirname(ds.datafile_set.first().gws_path).strip('latest')
+    # check new files dir exists
+    new_files_dir = os.path.join(ds_basepath, 'files', version_no)
+    assert(new_files_dir)
+    # assert(len(os.listdir(new_files_dir)) == len(os.listdir(os.path.dirname(ds.datafile_set.first().gws_path))))
+
+    os.chdir(ds_basepath)
+    new_version_dir = 'v'+version_no
+    if not os.path.exists(new_version_dir): os.makedirs(new_version_dir)
+    os.chdir(new_version_dir)
+    for file in os.listdir(new_files_dir):
+        if not file.endswith('.nc'): os.remove(os.path.join(new_files_dir, file))
+        if not os.path.exists(os.path.join(ds_basepath, 'v{}'.format(version_no), file)):
+            os.symlink(os.path.join('..', 'files', version_no, file), file)
+
+    os.chdir('../')
+    latest_link = 'latest'
+    os.remove(latest_link)
+    os.symlink(new_version_dir, latest_link)
+
+
+def check_all_files_exist_in_new_version(orig_ds, new_version_no):
+    """
+
+    :return:
+    """
+    ds_basepath = os.path.dirname(orig_ds.datafile_set.first().gws_path).strip('latest')
+    orig_version = orig_ds.version
+    orig_files = os.listdir(os.path.join(ds_basepath, orig_version))
+    new_files = os.listdir(os.path.join(ds_basepath, 'v{}'.format(new_version_no)))
+
+    if len(orig_files) == len(new_files):
+        print "    All psuedo archive files present at {}".format(os.path.join(ds_basepath, 'v{}'.format(new_version_no)))
+
+    else:
+        for file in orig_files:
+            file_passed_qc = check_file_passed_qc(file)
+            if not file_passed_qc:
+                return 
+            else:
+                newfile = os.path.join(ds_basepath, 'v{}'.format(new_version_no), file)
+                if not os.path.exists(newfile):
+                    ofile = os.path.join(ds_basepath, 'files', orig_version.lstrip('v'), file)
+                    os.symlink(ofile, newfile)
+            
+
+def check_file_passed_qc(file):
+
+    df = DataFile.objects.filter(ncfile=file).first()
+    if df.qc_passed:
+        return True
+    else:
+        print("    FILE FAILED QC {}".format(df.gws_path))
+        return False
+
+def write_datasetid_to_log(esgf_log_file, nds):
+
+    datasetid = "{}\n".format(nds.dataset_id)
+    with open(esgf_log_file, "r+") as file:
+        for line in file:
+            if nds.dataset_id in line:
+                break
+        else:  # not found, we are at the eof
+            file.write(datasetid)  # append missing data
+
+
+def fix_errors(drs):
+
+    new_version_no = '20181001'
+    ds = Dataset.objects.filter(dataset_id=drs).first()
+    if ds.version == "v{}".format(new_version_no):
+        return
+
+    print("Checking Dataset {}".format(ds))
+    datafiles = ds.datafile_set.all()
+    nds = None
+
+    for df in datafiles:
+        print("    Datafile {}".format(df))
+
+        qc_errors = df.qcerror_set.all()
+
+        # No QC errors for this file
+        if not qc_errors:
+            df.qc_passed = True
+            df.save()
+
+        else:
+            can_fix, error_messages = check_errors_can_fix(qc_errors)
+
+            # If can't fix
+            if not can_fix:
+                print("    FATAL QC")
+                df.qc_passed = False
+                df.save()
+                ds.qc_passed = False
+                ds.save()
+                return
+
+            # QC errors can be fixed
+            else:
+                print("    CAN FIX QC")
+                nds = get_or_create_new_dataset_record(ds, new_version_no)
+                nds.qc_passed = True
+                nds.save()
+                ndf = get_or_create_new_datafile_record(df, nds, new_version_no)
+
+                # Copy the file to a new versions dir to perform QC-fix
+                new_file = copy_file_to_new_files_version_dir(ndf, new_version_no)
+                # Fix the file, via in-place modifications
+                qc_file_fix(error_messages, new_file)
+
+                qcdir = get_and_make_logdir(ndf, force_version=new_version_no)
+
+                """
+                RUN QC
+                CEDA-CC writes output files - chdir to avoid them on psuedo-archive. 
+                """
+                os.chdir('/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev')
+                run_qc.run_ceda_cc(new_file, qcdir)
+                run_qc.parse_ceda_cc(ndf, qcdir)
+                run_qc.run_cfchecker(new_file, qcdir)
+                run_qc.parse_cf_checker(ndf, qcdir)
+
+                # Check that there no errors left
+                if len(ndf.qcerror_set.all()) != 0:
+                    ndf.qc_passed = False
+                    ndf.save()
+                    nds.qc_passed = False
+                    nds.save()
+                    return
+                else:
+                    ndf.qc_passed = True
+                    ndf.save()
+
+    if nds.qc_passed:
+        create_new_filesystem_version(nds, new_version_no)
+        check_all_files_exist_in_new_version(ds, new_version_no)
+        nds.supersedes = ds
+        nds.save()
+        esgf_log_file = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/datasets_to_publish_to_esgf.log"
+        write_datasetid_to_log(esgf_log_file, nds)
+    else:
+        print("Dataset fails {}".format(ds))
 
 if __name__ == "__main__":
 
-    variable = sys.argv[1]
-    frequency = sys.argv[2]
-    table = sys.argv[3]
-
-    fix_errors(variable, frequency, table)
+    drs = sys.argv[1]    
+    fix_errors(drs)
