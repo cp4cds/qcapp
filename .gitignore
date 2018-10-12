@@ -1,3 +1,4 @@
+.cache/
 test/files
 logfiles/
 qcproj/*pyc
