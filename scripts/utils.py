@@ -12,6 +12,76 @@ from subprocess import call
 from settings import *
 
 
+model_dict = {}
+model_dict['BCC'] = [u'bcc-csm1-1', u'bcc-csm1-1-m']
+model_dict['BNU'] = [u'BNU-ESM']
+model_dict['CCCma'] = [u'CanCM4', u'CanESM2', u'CanAM4']
+model_dict['CMCC'] = [u'CMCC-CESM', u'CMCC-CM', u'CMCC-CMS']
+model_dict['CNRM-CERFACS'] = [u'CNRM-CM5-2', u'CNRM-CM5']
+model_dict['CSIRO-BOM'] = [u'ACCESS1-3', u'ACCESS1-0']
+model_dict['CSIRO-QCCCE'] = [u'CSIRO-Mk3-6-0']
+model_dict['FIO'] = [u'FIO-ESM']
+model_dict['ICHEC'] = [u'EC-EARTH']
+model_dict['INM'] = [u'inmcm4']
+model_dict['IPSL'] = [u'IPSL-CM5B-LR', u'IPSL-CM5A-MR', u'IPSL-CM5A-LR']
+model_dict['LASG-CESS'] = [u'FGOALS-g2']
+model_dict['LASG-IAP'] = [u'FGOALS-s2']
+model_dict['MOHC'] = [u'HadGEM2-ES', u'HadCM3', u'HadGEM2-CC', u'HadGEM2-A']
+model_dict['MPI-M'] = [u'MPI-ESM-LR', u'MPI-ESM-MR', u'MPI-ESM-P']
+model_dict['NASA-GISS'] = [u'GISS-E2-H', u'GISS-E2-R', u'GISS-E2-R-CC', u'GISS-E2-H-CC']
+model_dict['NCAR'] = [u'CCSM4']
+model_dict['NCC'] = [u'NorESM1-M', u'NorESM1-ME']
+model_dict['NIMR-KMA'] = [u'HadGEM2-AO']
+model_dict['NOAA-GFDL'] = [u'GFDL-HIRAM-C360', u'GFDL-ESM2M', u'GFDL-ESM2G', u'GFDL-CM2p1', u'GFDL-CM3', u'GFDL-HIRAM-C180']
+model_dict['NSF-DOE-NCAR'] = [u'CESM1-BGC', u'CESM1-CAM5', u'CESM1-FASTCHEM', u'CESM1-CAM5-1-FV2', u'CESM1-WACCM']
+
+table_freq_mapping = {}
+table_freq_mapping['mon'] = ['LImon']
+table_freq_mapping['mon'] = ['Lmon']
+table_freq_mapping['3hr'] = ['3hr']
+table_freq_mapping['mon'] = ['Amon']
+table_freq_mapping['mon'] = ['OImon']
+table_freq_mapping['day'] = ['day']
+table_freq_mapping['mon'] = ['aero']
+table_freq_mapping['mon'] = ['Omon']
+table_freq_mapping['3hr'] = ['cf3hr']
+
+table_realm_mapping = {}
+table_realm_mapping['landIce'] = ['LImon']
+table_realm_mapping['land'] = ['Lmon']
+table_realm_mapping['atmos'] = ['3hr']
+table_realm_mapping['atmos'] = ['Amon']
+table_realm_mapping['seaIce'] = ['OImon']
+table_realm_mapping['atmos'] = ['day']
+table_realm_mapping['aerosol'] = ['aero']
+table_realm_mapping['ocean'] = ['Omon']
+table_realm_mapping['atmos'] = ['cf3hr']
+
+
+def get_institute_from_model(model):
+
+    for ins, models in model_dict.iteritems():
+        if model in models:
+            return ins
+
+    return None
+
+def get_frequency_from_table(t):
+
+    for freq, table in table_freq_mapping.iteritems():
+        if t in table:
+            return freq
+
+    return None
+
+def get_realm_from_table(t):
+
+    for realm, table in table_realm_mapping.iteritems():
+        if t in table:
+            return realm
+
+    return None
+
 class NCatted(object):
 
     def _run_ncatted(self, att_nm, var_nm, mode, att_type, att_val, file, newfile=None, noHistory=False):

@@ -6,7 +6,7 @@ import argparse
 from esgf_search import esgf_search
 from db_builder import db_make
 from run_quality_control import run_qc
-from qc_error_fixer import fix_errors
+from qc_error_fixer import fix_errors, get_latest_version
 from setup_django import *
 from settings import *
 
@@ -21,8 +21,8 @@ parser.add_argument('--esgf_search',action='store_true', help='Search ESGF for v
 parser.add_argument('--db_make',action='store_true', help='Add the cached ESGF data to the QC database')
 parser.add_argument('--run_qc',action='store_true', help='Run the quality control')
 parser.add_argument('--fix_errors',action='store_true', help='Fix any qc errors')
+parser.add_argument('--get_new_version',action='store_true', help='Get new datafiles')
 parser.add_argument('--echo_inputs',action='store_true', help='Print out input args')
-
 
 def echo_inputs(args):
 
@@ -51,6 +51,17 @@ def main(args):
         for ensemble in ensembles:
             for ds in datasets.filter(model=args.model, ensemble=ensemble):
                 fix_errors(ds.dataset_id)
+
+
+    if args.get_new_version:
+
+        datasets = Dataset.objects.filter(variable=args.variable, frequency=args.frequency, cmor_table=args.table,
+                                          experiment=args.exp, model=args.model)
+        ensembles = list(datasets.values_list('ensemble', flat=True).distinct())
+        for ensemble in ensembles:
+            dss = datasets.filter(model=args.model, ensemble=ensemble)
+            print dss, type(dss)
+            get_latest_version(dss)
 
 
 if __name__ == "__main__":

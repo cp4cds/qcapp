@@ -1,4 +1,5 @@
 .cache/
+ancil_files/tst.nc
 test/files
 logfiles/
 qcproj/*pyc

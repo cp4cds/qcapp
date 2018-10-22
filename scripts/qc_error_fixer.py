@@ -3,9 +3,106 @@ from setup_django import *
 import sys
 import re
 import shutil
+import json
+import subprocess
 from settings import *
 from utils import *
+
 import run_quality_control as run_qc
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings()
+
+
+def get_latest_version(datasets):
+
+    # dss = set()
+    # for dataset in datasets:
+    #     print dataset
+    print datasets
+    superseders = datasets.filter(supersedes__isnull=False)
+    superseded_by = set()
+    for ds in superseders:
+        orig_version = ds.supersedes.version
+        orig_drs = '.'.join(ds.dataset_id.split('.')[:-1]) + '.{}'.format(orig_version)
+        orig_record = Dataset.objects.filter(dataset_id=orig_drs).first()
+        superseded_by.add(orig_record)
+
+    dss = set(datasets) - set(superseders) - superseded_by
+    print dss
+        # for i in s: dss.add(s)
+
+    for ds in list(dss):
+        datafiles = ds.datafile_set.all()
+
+        for df in datafiles:
+            errors = df.qcerror_set.all()
+
+            for e in errors:
+                if 'VERSION' in e.error_type:
+                    esgf_query = e.error_msg.split(' :: ')[-1].lstrip('ESGF query').strip()
+                    # print("Getting a newer version {}, {}, {}".format(ds, e.error_type, e.error_msg))
+                    get_newer_version(esgf_query)
+
+
+def parse_json(url):
+    resp = requests.get(url, verify=False)
+    json_resp = resp.json()
+    results = json_resp["response"]["docs"]
+    return results
+
+
+def get_newer_version(query_url):
+    """
+    :param url: 
+    :return: 
+    """
+    json_results = parse_json(query_url)
+    
+    replica_status = {}
+    for res in json_results:
+        replica_status[res['data_node']] = res['replica']
+    no_master_copies = sum(1 for replica in replica_status.values() if not replica)
+
+    if no_master_copies == 1:
+        file_url = get_file_url(json_results, replica_status)
+        if file_url:
+            wget_new_file(file_url)
+        else:
+            print("No file url {}".format(query_url))
+    else:
+        print("Master copy can not be identified {}".format(query_url))
+
+
+def get_file_url(json_results, replica_status):
+
+    file_url = ''
+    for k, v in replica_status.iteritems():
+        if not v:
+            datanode = k
+
+
+    for res in json_results:
+        if res['data_node'] == datanode:
+            try:
+                file_url = res['url'][0].split('|')[0]
+            except:
+                print("Unable to get file url")
+
+    return file_url
+        
+
+def wget_new_file(url):
+
+    certificate = '/home/users/rpetrie/.globus/certificate-file'
+    odir = '/group_workspaces/jasmin2/cp4cds1/data/new_version'
+    ofile = os.path.join(odir, url.split('/')[-1])
+    if not os.path.exists(ofile):
+        try:
+            cmd = ['wget', '-nv', '--certificate', certificate, '--no-check-certificate', url, '-O', ofile]
+            subprocess.call(cmd)
+            print("RETRIEVED file :: {}".format(ofile))
+        except:
+            print("FAILED to retrieve :: {}".format(url))
 
 
 def check_error_types(ds, error):
@@ -18,6 +115,30 @@ def check_error_types(ds, error):
         if err.check_type == 'CEDA-CC':
             error_messages.append(err.error_msg)
 
+def ingest_new_files():
+    version_no = '20181001'
+    arrivals_dir = '/group_workspaces/jasmin2/cp4cds1/data/new_version/'
+    psuedo_archive = '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5/output1/'
+
+    for file in os.listdir(arrivals_dir):
+        var, table, model, expt, ens, time = file.split('_')
+        inst = get_institute_from_model(model)
+        freq = get_frequency_from_table(table)
+        realm = get_realm_from_table(table)
+        deposit_path_base = os.path.join(psuedo_archive, inst, model, expt, freq, realm, table, ens, var)
+        deposit_path_files_version = os.path.join(deposit_path_base, 'files', version_no)
+        if os.path.exists(deposit_path_files_version):
+            print("ERROR path exists {}".format(deposit_path_files_version))
+            pass
+        else:
+
+            print("MAKING DIR {}".format(deposit_path_files_version))
+            # os.makedirs(deposit_path_files_version)
+
+
+        src = os.path.join(arrivals_dir, file)
+        print("COPY {} TO  {}".format(src, deposit_path_files_version))
+        # shutil.copy(src, deposit_path_files_version)
 
 def copy_file_to_new_files_version_dir(df, new_version_no):
 
