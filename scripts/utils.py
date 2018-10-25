@@ -82,6 +82,13 @@ def get_realm_from_table(t):
 
     return None
 
+def get_and_parse_json(url):
+    resp = requests.get(url, verify=False)
+    json_resp = resp.json()
+    results = json_resp["response"]["docs"]
+    return results
+
+
 class NCatted(object):
 
     def _run_ncatted(self, att_nm, var_nm, mode, att_type, att_val, file, newfile=None, noHistory=False):

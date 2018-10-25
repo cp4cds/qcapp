@@ -131,7 +131,6 @@ def ingest_new_files():
             print("ERROR path exists {}".format(deposit_path_files_version))
             pass
         else:
-
             print("MAKING DIR {}".format(deposit_path_files_version))
             # os.makedirs(deposit_path_files_version)
 
