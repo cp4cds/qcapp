@@ -83,10 +83,17 @@ def get_realm_from_table(t):
     return None
 
 def get_and_parse_json(url):
+
     resp = requests.get(url, verify=False)
     json_resp = resp.json()
     results = json_resp["response"]["docs"]
     return results
+
+
+def write_json(file, json_content):
+    print file
+    with open(file, 'w+') as fw:
+        json.dump(json_content, fw)
 
 
 class NCatted(object):

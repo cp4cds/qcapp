@@ -53,7 +53,6 @@ class Dataset(models.Model):
     variable = models.CharField(max_length=20)
     esgf_drs = models.CharField(max_length=200, blank=True)
     esgf_node = models.CharField(max_length=80, blank=True)
-    # supersedes = models.ForeignKey('self', default=None, blank=True, null=True)
     supersedes = models.ForeignKey('self', default=None, blank=True, null=True, related_name='superseded_by')
     up_to_date = models.NullBooleanField(default=None, blank=True, null=True)
     up_to_date_note = models.CharField(default=None, max_length=1000, blank=True, null=True)

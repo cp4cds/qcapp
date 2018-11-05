@@ -5,9 +5,12 @@ import re
 import glob
 import json
 import commands
-from settings import *
-
+import requests
+import settings
 import utils
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings()
+
 
 
 CEDA_DATA_NODE = "esgf-data1.ceda.ac.uk"
