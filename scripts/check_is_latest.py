@@ -69,12 +69,12 @@ def cache_json_results(ncfile):
 
 
 
-def main(variable, frequency, table, experiment):
+def generate_json_cache(variable, frequency, table, experiment):
 
    for df in DataFile.objects.filter(variable=variable, dataset__cmor_table=table, dataset__frequency=frequency,
                                   dataset__experiment=experiment):
     # ncfile = 'tas_Amon_HadGEM2-ES_rcp45_r1i1p1_212412-214911.nc'
-    cache_json_results(df.ncfile)
+        cache_json_results(df.ncfile)
 
 
 if __name__ == "__main__":
@@ -83,5 +83,4 @@ if __name__ == "__main__":
     table = sys.argv[3]
     experiment = sys.argv[4]
 
-
-    main(variable, frequency, table, experiment)
+    generate_json_cache(variable, frequency, table, experiment)

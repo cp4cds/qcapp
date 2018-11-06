@@ -21,7 +21,7 @@ with open(vars_file) as reader:
 
         for experiment in ALLEXPTS:
 
-            datasets = Dataset.objects.filter(variable=variable, frequency=frequency, cmor_table=table, experiment=experiment)
+            # datasets = Dataset.objects.filter(variable=variable, frequency=frequency, cmor_table=table, experiment=experiment)
             # models = list(datasets.values_list('model', flat=True).distinct())
             # for model in models:
 
