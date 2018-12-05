@@ -48,7 +48,6 @@ def get_and_parse_json(url):
 
 
 def write_json(file, json_content):
-    print file
     with open(file, 'w+') as fw:
         json.dump(json_content, fw)
 

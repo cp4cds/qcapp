@@ -3,7 +3,7 @@
 var=$1
 freq=$2
 table=$3
-expt=$4
+#expt=$4
 #model=$5
 #args=$6
 
@@ -19,4 +19,4 @@ export DJANGO_SETTINGS_MODULE=qcproj.settings
 #python /group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/esgf_datafile_search.py ${var} ${freq} ${table}
 
 #python /group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/scripts/qc_main.py ${var} ${freq} ${table} ${expt} ${model} ${args}
-python /group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/scripts/check_is_latest.py ${var} ${freq} ${table} ${expt}
+python /group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/scripts/check_is_latest.py ${var} ${freq} ${table}
