@@ -13,6 +13,7 @@ class DataRequester(models.Model):
     def __str__(self):
         return self.requested_by
 
+
 class DataSpecification(models.Model):
     """
     The data specification
@@ -70,7 +71,7 @@ class Dataset(models.Model):
                      (self.project, self.product, self.institute, self.model, self.experiment, self.frequency,
                       self.realm, self.cmor_table, self.ensemble, self.variable, self.version)
 
-        self.dataset_id = dataset_id
+        self.dataset_id = dataset_id.strip()
         super(Dataset, self).save(*args, **kwargs)
 
     def __str__(self):
@@ -99,7 +100,7 @@ class DataFile(models.Model):
     published = models.NullBooleanField(default=None, blank=True, null=True)
     timeseries = models.NullBooleanField(default=None, blank=True, null=True)
     up_to_date = models.NullBooleanField(default=None, blank=True, null=True)
-    up_to_date_note = models.CharField(default=None, max_length=1000, blank=True, null=True)
+    up_to_date_note = models.CharField(default=None, max_length=2000, blank=True, null=True)
     restricted = models.NullBooleanField(default=None, blank=True, null=True)
     # duplicate_of = models.ForeignKey('self', default=None, blank=True, null=True)
     new_dataset_version = models.NullBooleanField(default=False, blank=True, null=True)
@@ -120,10 +121,10 @@ class QCerror(models.Model):
     file = models.ForeignKey(DataFile, null=True)
     set = models.ForeignKey(Dataset, null=True)
     check_type = models.CharField(max_length=20, null=True, blank=True)
-    error_type = models.CharField(max_length=20, null=True, blank=True)
-    error_msg = models.CharField(max_length=800, null=True, blank=True)
-    error_level = models.CharField(max_length=1000, null=True, blank=True)
-    report_filepath = models.CharField(max_length=500, null=True, blank=True)
+    error_type = models.CharField(max_length=100, null=True, blank=True)
+    error_msg = models.CharField(max_length=2000, null=True, blank=True)
+    error_level = models.CharField(max_length=100, null=True, blank=True)
+    report_filepath = models.CharField(max_length=2000, null=True, blank=True)
 
     def __str__(self):
         return self.report_filepath
