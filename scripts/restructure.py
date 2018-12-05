@@ -109,8 +109,8 @@ def move_failed_datasets_data(datasets):
 
         shutil.copytree(src, dst, symlinks=True)
 
-        # for df in datafiles:
-        #     update_database(df, latest_dir)
+        for df in datafiles:
+            update_database(df, dst)
 
 
         print "REMOVE ", src
