@@ -168,6 +168,7 @@ def get_or_create_new_datafile_record(df, nds, new_version_no):
 
     return new_df
 
+
 def get_or_create_new_dataset_record(ds, new_version_no):
     new_drs_version = '.'.join(ds.dataset_id.split('.')[:-1]) + '.v' + new_version_no
     nds_query = Dataset.objects.filter(dataset_id=new_drs_version)
@@ -270,6 +271,7 @@ def check_file_passed_qc(file):
     else:
         print("    FILE FAILED QC {}".format(df.gws_path))
         return False
+
 
 def write_datasetid_to_log(esgf_log_file, nds):
 

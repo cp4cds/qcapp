@@ -106,7 +106,7 @@ class QCerror_fixer(object):
         'long_name': ('fix_c4_002_005_long_name', ['filepath', 'error_message']),
     }
 
-    def _get_cell_methods_contents(self, ifile):
+    def get_cell_methods_contents(self, ifile):
         """
         From the input file get the cell methods content
 
@@ -118,7 +118,7 @@ class QCerror_fixer(object):
         v = ncds.variables[variable]
         return getattr(v, 'cell_methods')
 
-    def _ncatted_common_updates(self, file, errors):
+    def ncatted_common_updates(self, file, errors):
         """
         A set of common updates used when all other QC modifications are completed.
 
@@ -143,6 +143,7 @@ class QCerror_fixer(object):
         self.ncatt._run_ncatted('history', 'global', 'a', 'c',
                                 "\nUpdates made on {} were made as part of CP4CDS project see cp4cds_update_info".format(
                                     mod_date), file, noHistory=True)
+
 
     def qc_fix_wrapper(self, filepath, error_message):
         """
@@ -175,7 +176,7 @@ class QCerror_fixer(object):
         :return: [string]
         """
         variable = file.split('_')[0]
-        cellMethod = self._get_cell_methods_contents(file)
+        cellMethod = self.get_cell_methods_contents(file)
 
         interval_before_within = re.compile("\(interval.*?within")
         if re.search(interval_before_within, cellMethod):
@@ -196,7 +197,7 @@ class QCerror_fixer(object):
         """
 
         variable = file.split('_')[0]
-        cellMethod = self._get_cell_methods_contents(file)
+        cellMethod = self.get_cell_methods_contents(file)
         corrected_cellMethod = cellMethod.replace('mintues', 'minutes')
         error_info = "{} - a cell_methods typo".format(error_message)
         self.ncatt._run_ncatted('cell_methods', variable, 'o', 'c', corrected_cellMethod, file)
