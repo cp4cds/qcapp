@@ -1,7 +1,7 @@
 #!/bin/bash
 # This is the starter program and calls the batchup_cp4cds_movefiles.py
 
-odir=/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/lotus-logs/qc-fix-2018-12-07-A/
+odir=/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/lotus-logs/qc-fix-2018-12-13/
 
 mkdir -p $odir
 

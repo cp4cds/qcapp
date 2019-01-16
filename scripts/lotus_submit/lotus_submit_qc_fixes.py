@@ -3,8 +3,8 @@ from setup_django import *
 from settings import *
 from subprocess import call
 
-command_line_args = "--get_new_latest_cache"
-run = "run_is_latest"
+# command_line_args = "--get_new_latest_cache"
+run = "ingest-fixed"
 lotus_log_dir = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/lotus-logs/{}".format(run)
 # variable = 'sos'
 # frequency = 'mon'
@@ -25,6 +25,9 @@ with open(vars_file) as reader:
             # models = list(datasets.values_list('model', flat=True).distinct())
             # for model in models:
 
-        lotus_cmd = ['./submit-lotus.sh', variable, frequency, table, lotus_log_dir]
+        if variable == 'sim':
+            lotus_cmd = ['./submit-lotus.sh', variable, lotus_log_dir]
+
+            # lotus_cmd = ['./submit-lotus.sh', variable, frequency, table, lotus_log_dir]
             # lotus_cmd = ['./submit-lotus.sh', variable, frequency, table, experiment, model, lotus_log_dir, command_line_args]
-        res = call(lotus_cmd)
+            res = call(lotus_cmd)

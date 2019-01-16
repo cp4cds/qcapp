@@ -1,6 +1,5 @@
 #!/usr/bin/python2.7
 
-from setup_django import *
 import os
 from sys import argv
 from subprocess import call
@@ -23,7 +22,7 @@ with open(FAILED_DATAFILES, 'r') as fr:
     data = fr.readlines()
 
 for df in data[srt_idx: end_idx]:
-    run_cmd = ["python", "file_error_fixer.py", df.strip()]
+    run_cmd = ["python", "/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/scripts/file_error_fixer.py", df.strip()]
     run = call(run_cmd)
     if run != 0:
         print "ERROR RUNNING %s" % run_cmd
