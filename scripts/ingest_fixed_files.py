@@ -64,29 +64,30 @@ def check_dataset_is_complete(fixed_ds):
     orig_ds = Dataset.objects.filter(dataset_id__startswith=base_ds_id).exclude(version=version).first()
 
     if not orig_ds:
-        return False
+        return False, []
 
     orig_files = orig_ds.datafile_set.all()
     fixed_files = fixed_ds.datafile_set.all()
 
     if len(orig_files) == len(fixed_files):
-        return True
+        return True, []
 
     else:
-        missing_fixed = check_missing_files_ok(fixed_files, orig_files, fixed_ds)
-        if missing_fixed:
-            return True
+        missing_files = set()
+        orig_files = set(orig_files)
+        fixed_files = set(fixed_files)
+        missing_files = orig_files - fixed_files
+
+        missing_ok = check_missing_files_ok(missing_files, fixed_ds)
+        if missing_ok:
+            return True, missing_files
         else:
-            return False
+            return False, []
 
 
-def check_missing_files_ok(fixed_files, orig_files, fixed_ds):
+def check_missing_files_ok(missing_files, fixed_ds):
 
-    missing_files = set()
-    orig_files = set(orig_files)
-    fixed_files = set(fixed_files)
-    missing_files = orig_files - fixed_files
-
+    print missing_files
     if len(list(missing_files)) == 0:
         return True
 
@@ -101,23 +102,27 @@ def check_missing_files_ok(fixed_files, orig_files, fixed_ds):
 
         errors_list = list(errors)
         if len(errors_list) == 1:
-            if errors_list[0].startswith('ERROR (4): Axis attribute'):
-                copy_ok = copy_file_to_v2018_dir(df)
-                if not copy_ok:
-                    write_error_log(fixed_ds, 'FAILED TO COPY TO NEW VERSION')
-                    return False
-                missing_files.remove(df)
-            else:
+
+            if not errors_list[0].startswith('ERROR (4): Axis attribute'):
                 write_error_log(fixed_ds, 'FILE NOT FIXED')
                 return False
 
-        nds = get_or_create_new_dataset_record(fixed_ds, '20181201')
-        df = get_or_create_new_datafile_record(df, nds, '20181201')
+            # if errors_list[0].startswith('ERROR (4): Axis attribute'):
+            #     copy_ok = copy_file_to_v2018_dir(df)
+            #     if not copy_ok:
+            #         write_error_log(fixed_ds, 'FAILED TO COPY TO NEW VERSION')
+            #         return False
+            #     missing_files.remove(df)
+            # else:
+            #     write_error_log(fixed_ds, 'FILE NOT FIXED')
+            #     return False
 
-    if len(list(missing_files)) == 0:
-        return True
-    else:
-        return False
+        else:
+            write_error_log(fixed_ds, 'FILE NOT FIXED')
+            return False
+
+        # nds = get_or_create_new_dataset_record(fixed_ds, '20181201')
+        # df = get_or_create_new_datafile_record(df, nds, '20181201')
 
 
 def copy_file_to_v2018_dir(df):
@@ -146,15 +151,9 @@ def move_completed_dataset(ds):
     if os.path.exists(qc_dir):
         return False
 
-    shutil.copytree(rawdir, qc_dir)
-
-    if not len(os.listdir(qc_dir)) == len(os.listdir(rawdir)):
-        write_error_log(ds, 'FAILED TO MOVE DATASET TO QC')
-        return False
-
-    make_new_latest_dir(basepath.replace(QC_FAILED_BASE, QC_PASSED_BASE))
-    df_records_updated = update_datafile_records(ds)
-
+    make_new_latest_dir(basepath)
+    shutil.move(basepath, basepath.replace(QC_FAILED_BASE, QC_PASSED_BASE))
+    print basepath.replace(QC_FAILED_BASE, QC_PASSED_BASE)
     return True
 
 
@@ -178,10 +177,30 @@ def make_new_latest_dir(basepath):
 
 def update_datafile_records(ds):
 
-    datafiles = ds.datafile_set.all()
+    ds_id_base = '.'.join(ds.dataset_id.split('.')[:-1])
+    datasets = Dataset.objects.filter(dataset_id__icontains=ds_id_base)
+    new_dsid = ds_id_base + ".v20181201"
 
+    for d in datasets:
+        if new_dsid in d.dataset_id:
+            new_ds = d
+        else:
+            old_ds = d
+
+    new_ds.qc_passed = True
+    new_ds.supersedes = old_ds
+    new_ds.save()
+
+    if not len(old_ds.datafile_set.all()) == len(new_ds.datafile_set.all()):
+        write_error_log(ds, "FATAL NUMBER OF DATAFILES DOES NOT MATCH")
+        return False
+
+
+    datafiles = new_ds.datafile_set.all()
     for df in datafiles:
+
         new_path = df.gws_path.replace(QC_FAILED_BASE, QC_PASSED_BASE)
+
         if not os.path.exists(new_path):
             write_error_log(ds, "FATAL NO NEW PATH")
             return False
@@ -204,49 +223,71 @@ def ingest_fixed_dataset(datasetID):
 
     ds = Dataset.objects.filter(dataset_id=datasetID).first()
 
-    dataset_is_complete = check_dataset_is_complete(ds)
+    dataset_is_complete, files_not_in_new_version = check_dataset_is_complete(ds)
     if not dataset_is_complete:
         write_error_log(ds.dataset_id, "DATASET NOT COMPLETE")
         return
+    if dataset_is_complete:
+        print files_not_in_new_version
+        print len(files_not_in_new_version)
+    stopa
+    print "dataset_is_complete", dataset_is_complete
+
 
     moved = move_completed_dataset(ds)
     if not moved:
         write_error_log(ds.dataset_id, "MOVE FILES FAILED")
         return
 
-    write_dataset_id_for_publication(ds)
+    print "moved", moved
+
+    df_records_updated = update_datafile_records(ds)
+    if not df_records_updated:
+        write_error_log(ds.dataset_id, "DATABASE RECORDS NOT UPDATED")
+        return
+
+    print "df_records_updated", df_records_updated
+
+    # write_dataset_id_for_publication(ds)
 
 
 if __name__ == "__main__":
+    skip = [
+        'CMIP5.output1.ICHEC.EC-EARTH.rcp45.mon.atmos.Amon.r6i1p1.uas.v20181201',
+        # MISSING FILES FROM ARCHIVE - restructure.py
+        # 'CMIP5.output1.CMCC.CMCC-CMS.piControl.mon.seaIce.OImon.r1i1p1.sim.v20181201',
+        # Dataset not complete
+        # ERROR IN THE DATASET RECORD 2018 ok but time errors linked to original record
+    ]
 
-    var = sys.argv[1]
-    # datasetID = sys.argv[1]
-    # print datasetID
+    # var = sys.argv[1]
+    # # datasetID = sys.argv[1]
+    # # print datasetID
+    #
+    # dfs = DataFile.objects.filter(gws_path__startswith='/group_workspaces/jasmin2/cp4cds1/data/cmip5_raw/',
+    #                               dataset__version='v20181201', variable=var)
+    # datasets = set()
+    #
+    # for df in dfs:
+    #     datasets.add(df.dataset.dataset_id)
 
-    dfs = DataFile.objects.filter(gws_path__startswith='/group_workspaces/jasmin2/cp4cds1/data/cmip5_raw/',
-                                  dataset__version='v20181201', variable=var)
-    datasets = set()
 
-    for df in dfs:
-        datasets.add(df.dataset.dataset_id)
-
-    for datasetID in list(datasets):
+    for datasetID in ['CMIP5.output1.CMCC.CMCC-CMS.piControl.mon.seaIce.OImon.r1i1p1.sim.v20181201',]:
+    # for datasetID in list(datasets):
         if datasetID in skip:
             continue
         ingest_fixed_dataset(datasetID)
 
+    # DONE DELETE AFTER NEXT COMMIT
+    # dataset_records_to_fix = [
+    #     'CMIP5.output1.CSIRO-BOM.ACCESS1-3.rcp85.mon.seaIce.OImon.r1i1p1.sim.v20181201',
+    #     # New file fixed but not set as latest on file system, supersedes not correctly set, qc_passed not set
+    #     'CMIP5.output1.CSIRO-BOM.ACCESS1-3.rcp45.mon.seaIce.OImon.r1i1p1.sim.v20181201',
+    #     # New file fixed but not set as latest on file system,supersedes not correctly set, qc_passed not set
+    #     'CMIP5.output1.CSIRO-BOM.ACCESS1-3.historical.mon.seaIce.OImon.r3i1p1.sim.v20181201',
+    #     # New file fixed but not set as latest on file system, supersedes not correctly set, qc_passed not set
+    #     'CMIP5.output1.CSIRO-BOM.ACCESS1-3.historical.mon.seaIce.OImon.r2i1p1.sim.v20181201',
+    #     # New file fixed but not set as latest on file system, supersedes not correctly set, qc_passed not set
+    # ]
 
-skip = [
-        'CMIP5.output1.ICHEC.EC-EARTH.rcp45.mon.atmos.Amon.r6i1p1.uas.v20181201', # MISSING FILES FROM ARCHIVE - restructure.py
-       ]
 
-dataset_records_to_fix = ['CMIP5.output1.MOHC.HadGEM2-CC.historical.mon.seaIce.OImon.r3i1p1.sim.v20181201', # ERROR IN THE DATASET RECORD
-                          'CMIP5.output1.MOHC.HadGEM2-ES.rcp85.mon.seaIce.OImon.r1i1p1.sim.v20181201', # ERROR IN THE DATASET RECORD
-                          'CMIP5.output1.MOHC.HadGEM2-CC.rcp85.mon.seaIce.OImon.r1i1p1.sim.v20181201', # ERROR IN THE DATASET RECORD
-                          'CMIP5.output1.CMCC.CMCC-CMS.piControl.mon.seaIce.OImon.r1i1p1.sim.v20181201', # ERROR IN THE DATASET RECORD
-                          'CMIP5.output1.CMCC.CMCC-CM.piControl.mon.seaIce.OImon.r1i1p1.sim.v20181201', # ERROR IN THE DATASET RECORD
-                          'CMIP5.output1.CSIRO-BOM.ACCESS1-3.rcp85.mon.seaIce.OImon.r1i1p1.sim.v20181201', # NOT SURE
-                          'CMIP5.output1.CSIRO-BOM.ACCESS1-3.rcp45.mon.seaIce.OImon.r1i1p1.sim.v20181201', # NOT SURE
-                          'CMIP5.output1.CSIRO-BOM.ACCESS1-3.historical.mon.seaIce.OImon.r3i1p1.sim.v20181201', # NOT SURE
-                          'CMIP5.output1.CSIRO-BOM.ACCESS1-3.historical.mon.seaIce.OImon.r2i1p1.sim.v20181201', # NOT SURE
-                          ]
