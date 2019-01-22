@@ -59,6 +59,7 @@ class Dataset(models.Model):
     up_to_date_note = models.CharField(default=None, max_length=1000, blank=True, null=True)
     qc_passed = models.NullBooleanField(default=None, blank=True, null=True)
     is_timeseries = models.NullBooleanField(default=None, blank=True, null=True)
+    published = models.NullBooleanField(default=False, blank=True, null=True)
     # TO DO WHEN QC IS COMPLETE
     #    dataset_qc = models.ForeignKey('DatasetQC', null=True)
 
@@ -109,6 +110,7 @@ class DataFile(models.Model):
 
     # Datafile QC information
     qc_passed = models.NullBooleanField(default=False, blank=True, null=True)
+    qc_fixed = models.NullBooleanField(default=False, blank=True, null=True)
     cf_compliance_score = models.PositiveSmallIntegerField(default=0, blank=True)
     ceda_cc_score = models.PositiveSmallIntegerField(default=0, blank=True)
     file_qc_score = models.PositiveSmallIntegerField(default=0, blank=True)

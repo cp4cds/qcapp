@@ -1,4 +1,4 @@
-scripts/test.nc
+scripts/*.nc
 .cache/
 ancil_files/tst.nc
 test/files
