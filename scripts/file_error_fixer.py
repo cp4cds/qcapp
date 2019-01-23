@@ -26,7 +26,8 @@ def make_new_version_file(df, new_version_no):
         os.makedirs(new_dir)
 
     if not os.path.exists(new_file):
-        shutil.copy(df.gws_path.replace('latest', orig_version), new_file)
+        src = df.gws_path.replace('latest', 'files/' + orig_version.strip('v'))
+        shutil.copy(src, new_file)
 
     return new_file
 
@@ -50,9 +51,8 @@ def fix_file(file):
     errors_to_fix = set()
 
     for e in errs:
-        if e.error_msg.startswith('ERROR (4): Axis attribute '):
-            continue
-        errors_to_fix.add(e.error_msg)
+        if not e.error_msg.startswith('ERROR (4): Axis attribute '):
+            errors_to_fix.add(e.error_msg)
 
     try:
         for error in list(errors_to_fix):
