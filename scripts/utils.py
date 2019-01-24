@@ -93,6 +93,7 @@ class QCerror_fixer(object):
         "ERROR (7.3): Invalid unit mintues) in cell_methods comment": ('fix_cf_73a', ['filepath', 'error_message']),
         "ERROR (3.1): Invalid units:  psu": ('fix_cf_31', ['filepath', 'error_message']),
         "ERROR (7.3) Invalid syntax for cell_methods attribute": ('fix_cf_73b', ['filepath', 'error_message']),
+        'C4.002.005: [variable_ncattribute_mipvalues]: FAILED:: Variable [prsn] has incorrect attributes: long_name="Solid Precipitation" [correct: "Snowfall Flux"]': ('fix_c4_002_005_prsn', ['filepath', 'error_message']),
         'C4.002.005: [variable_ncattribute_mipvalues]: FAILED:: '
         'Variable [tos] has incorrect attributes: standard_name="surface_temperature" '
         '[correct: "sea_surface_temperature"]': ('fix_c4_002_005_tos', ['filepath', 'error_message']),
@@ -220,6 +221,19 @@ class QCerror_fixer(object):
             dt_string)
         self.ncatt._run_ncatted('history', 'sos', 'a', 'c', methods_history_update_comment, file, noHistory=True)
         return error_info
+
+    def fix_c4_002_005_prsn(self, file, error_message):
+        """
+        Fix to CEDA-CC error C4.002.005 where tos has wrong standard name
+
+        :param file:
+        :param error_message:
+        :return:
+        """
+        error_info = "Corrected error where {}".format(error_message.split('::')[-1].strip())
+        self.ncatt._run_ncatted('long_name', 'prsn', 'o', 'c', 'Snowfall Flux', file)
+        return error_info
+
 
     def fix_c4_002_005_tos(self, file, error_message):
         """

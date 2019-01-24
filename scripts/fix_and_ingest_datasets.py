@@ -5,6 +5,7 @@ import re
 import shutil
 import json
 import subprocess
+import netCDF4 as nc
 import file_error_fixer as filefixer
 from settings import *
 from utils import *
@@ -12,9 +13,11 @@ from utils import *
 
 QC_PASSED_BASE = '/group_workspaces/jasmin2/cp4cds1/data/alpha/c3scmip5'
 QC_FAILED_BASE = '/group_workspaces/jasmin2/cp4cds1/data/cmip5_raw'
-PUBLISH_LOG = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/ancil_files/publish_to_esgf.log'
-ERROR_LOG = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/ancil_files/ingest_fixed_files_error_log.log'
-
+PUBLISH_LOG = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/ancil_files/to_publish_to_esgf_2019-01-24.log'
+ERROR_LOG = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/logfiles/fix_and_ingest_fixed_files_error_log.log'
+DIRS_TO_FIX = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/ancil_files/datasets_to_fix_2019-01-24.log'
+NEW_VERSION_NO = '20181201'
+NEW_VERSION = 'v20181201'
 
 def write_error_log(dataset_id, error_msg):
     print error_msg
@@ -395,6 +398,139 @@ def get_dataset_versions(datasetID):
     return orig_ds, new_ds
 
 
+def check_datafile_fixed(datafile):
+
+    ncfile = nc.Dataset(datafile)
+    try:
+        cp4cds_glb_att = getattr(ncfile, 'cp4cds_update_info')
+    except(AttributeError):
+        write_error_log(orig_ds, "ERROR Datafile has not been corrected {}".format(df))
+        return "Not fixed"
+
+    if "  \n" in cp4cds_glb_att:
+        write_error_log(orig_ds, "ERROR Datafile has been corrected with no errors {}".format(df))
+        return "Wrong fix"
+
+    return "ok"
+
+def check_dataset_files_are_fixed(orig_ds):
+
+    """
+
+    :param orig_ds:
+    :return: BOOLEAN - fixed dataset
+    """
+
+    datafiles = orig_ds.datafile_set.all()
+    for df in datafiles:
+        print df
+        files_dir = os.path.dirname(df.gws_path).replace('latest', 'files/{}'.format(NEW_VERSION_NO))
+        datafile = os.path.join(files_dir, os.path.basename(df.gws_path))
+        if os.path.isfile(datafile):
+            qcerrors = df.qcerror_set.all().exclude(error_msg__startswith='ERROR (4): Axis attribute')
+            print qcerrors
+
+            if qcerrors:
+                errors_to_fix = set()
+                for e in qcerrors:
+                    if e.check_type in ['QCPlot', 'LATEST', 'TIME-SERIES', 'TEMPORAL']:
+                        return False
+                    else:
+                        errors_to_fix.add(e.error_msg)
+
+
+                fix_status = check_datafile_fixed(datafile)
+
+                if fix_status == "Not fixed":
+                    if not errors_to_fix:
+                        symlinked = replace_file_with_symlink(orig_ds, datafile)
+                        if not symlinked:
+                            return False
+                    else:
+                        fixed_file = fix_datafile(orig_ds, datafile, list(errors_to_fix))
+                        if fixed_file:
+                            new_fix_status = check_datafile_fixed(datafile)
+
+                            if not new_fix_status == 'ok':
+                                write_error_log(orig_ds, 'FAILED to fix file {}'.format(datafile))
+                                return False
+
+                if fix_status == "Wrong fix":
+                    symlinked = replace_file_with_symlink(orig_ds, datafile)
+                    if not symlinked:
+                        return False
+
+        else:
+            write_error_log(orig_ds, "No datafile to fix {}".format(datafile))
+            return False
+
+    return True
+
+
+def replace_file_with_symlink(orig_ds, datafile):
+
+    orig_version = orig_ds.version.strip('v')
+    orig_file = datafile.replace(NEW_VERSION_NO, orig_version)
+    if not os.path.isfile(orig_file):
+        write_error_log(orig_ds, "original datafile missing {}".format(orig_file))
+        return False
+    print "sym linking {} {}".format(orig_file, datafile)
+    os.symlink(orig_file, datafile)
+    return True
+
+def fix_datafile(datafile, errors_to_fix):
+    qcFixer = utils.QCerror_fixer()
+    try:
+        for error in errors_to_fix:
+            qcFixer.qc_fix_wrapper(new_file, error)
+
+        qcFixer.ncatted_common_updates(new_file, errors_to_fix)
+
+    except:
+        write_error_log(orig_ds, "FAILED TO FIX file: {}".format(datafile))
+        return False
+
+    return True
+
+
+def make_new_version_dir(orig_ds):
+
+    orig_version = orig_ds.version
+    datafiles = orig_ds.datafile_set.all()
+    for df in datafiles:
+        files_dir = os.path.dirname(df.gws_path).replace('latest', 'files/{}'.format(NEW_VERSION_NO))
+
+        if not os.path.exists(files_dir):
+            os.makedirs(files_dir)
+
+        dst_file = os.path.join(files_dir, os.path.basename(df.gws_path))
+        src_file = dst_file.replace(NEW_VERSION_NO, orig_version.strip('v'))
+
+        qcerrors = df.qcerror_set.all().exclude(error_msg__startswith='ERROR (4): Axis attribute')
+
+        if qcerrors:
+            if not os.path.isfile(dst_file):
+                print "COPYING {} {}".format(src_file, dst_file)
+                # shutil.copyfile(src_file, dst_file)
+
+        else:
+            if os.path.isfile(dst_file):
+                print "remove file {}".format(dst_file)
+                # Delete any datafile record also
+                # os.remove(dst_file)
+            if not os.path.islink(dst_file):
+                print "SYMLINKING {} {}".format(src_file, dst_file)
+                # os.symlink(src_file, dst_file)
+
+    orig_files = os.listdir(os.path.dirname(src_file))
+    new_files = os.listdir(os.path.dirname(src_file))
+
+    if not len(orig_files) == len(new_files):
+        write_error_log(orig_ds, "Mismatch in number of files in dataset")
+        return False
+
+    return True
+
 if __name__ == "__main__":
     skip = [
         'CMIP5.output1.ICHEC.EC-EARTH.rcp45.mon.atmos.Amon.r6i1p1.uas',
@@ -403,6 +539,45 @@ if __name__ == "__main__":
         # Dataset not complete
         # ERROR IN THE DATASET RECORD 2018 ok but time errors linked to original record
     ]
+
+    # with open(DIRS_TO_FIX) as r:
+    #     dirs = r.readlines()
+    #
+    # for d in dirs[:1]:
+    for d in ['/group_workspaces/jasmin2/cp4cds1/data/cmip5_raw/output1/CSIRO-QCCCE/CSIRO-Mk3-6-0/rcp45/mon/atmos/Amon/r1i1p1/rsut/latest',
+                #'/group_workspaces/jasmin2/cp4cds1/data/cmip5_raw/output1/CNRM-CERFACS/CNRM-CM5/rcp85/mon/atmos/Amon/r6i1p1/tasmin/latest',
+                #'/group_workspaces/jasmin2/cp4cds1/data/cmip5_raw/output1/MOHC/HadCM3/historical/mon/ocean/Omon/r7i1p1/sos/latest',
+                #'/group_workspaces/jasmin2/cp4cds1/data/cmip5_raw/output1/MOHC/HadGEM2-CC/rcp85/day/atmos/day/r1i1p1/prsn/latest',
+              ]:
+
+        dir = d.strip()
+        id = '.'.join(dir.split('/')[7:-1])+'.'
+        ds = Dataset.objects.filter(dataset_id__icontains=id)
+        print ds
+        if len(ds) == 0:
+            write_error_log(id, 'No datasets found')
+            continue
+        if len(ds) == 1:
+            if ds.first().version == NEW_VERSION:
+                write_error_log(ds.first(), 'No original dataset record')
+                continue
+            else:
+                orig_ds = ds.first()
+                continue
+        if len(ds) == 2:
+            orig_ds = ds.exclude(version=NEW_VERSION).first()
+
+        all_files_in_new_files_dir = make_new_version_dir(orig_ds)
+        print "all_files_in_new_files_dir",all_files_in_new_files_dir
+        dataset_files_are_fixed = check_dataset_files_are_fixed(orig_ds)
+        print "dataset_files_are_fixed",dataset_files_are_fixed
+        # Update the datafile and dataset records at appropriate place
+        # add in new version symlink
+        # move directory to qcd dir
+        # write ds id to publish
+
+
+
 
     # var = sys.argv[1]
     # # datasetID = sys.argv[1]
@@ -415,47 +590,47 @@ if __name__ == "__main__":
     # for df in dfs:
     #     datasets.add(df.dataset.dataset_id)
 
-    ingest_dataset_list = "../ancil_files/files2018_dirs_to_ingest_2019-01-23.log"
-    with open(ingest_dataset_list, 'r') as r:
-        ingest_list = r.readlines()
+    # ingest_dataset_list = "../ancil_files/files2018_dirs_to_ingest_2019-01-23.log"
+    # with open(ingest_dataset_list, 'r') as r:
+    #     ingest_list = r.readlines()
 
-    print ingest_list[:1]
-    for dir in ingest_list:
+    # print ingest_list[:1]
+    # for /dir in ingest_list:
         # for dir in [#'/group_workspaces/jasmin2/cp4cds1/data/cmip5_raw/output1/CSIRO-QCCCE/CSIRO-Mk3-6-0/rcp45/mon/atmos/Amon/r1i1p1/rsut/files/20181201',
         #             #'/group_workspaces/jasmin2/cp4cds1/data/cmip5_raw/output1/CNRM-CERFACS/CNRM-CM5/rcp85/mon/atmos/Amon/r6i1p1/tasmin/files/20181201',
         #             #'/group_workspaces/jasmin2/cp4cds1/data/cmip5_raw/output1/MOHC/HadCM3/historical/mon/ocean/Omon/r7i1p1/sos/files/20181201',
         #             '/group_workspaces/jasmin2/cp4cds1/data/cmip5_raw/output1/MOHC/HadGEM2-CC/rcp85/day/atmos/day/r1i1p1/prsn/files/20181201',]:
 
-        dir = dir.strip()
-
-        datasetID = convert_path_to_dataset_id(dir)
-        if datasetID in skip:
-            continue
-
-        orig_ds, qcd_ds = get_dataset_versions(datasetID)
-
-        if not orig_ds:
-            print("MISSING : original dataset record {} {}".format(dir, datasetID))
-            continue
-        if not qcd_ds:
-            print("MISSING : qcd dataset record {} {}".format(dir, datasetID))
-            with open('missing_qcd_dataset_record.log', 'a+') as w:
-                w.writelines(["{} {}\n".format(datasetID, dir)])
-            # errors = set()
-            # dfs = orig_ds.datafile_set.all()
-            # for df in dfs:
-            #     qcerrs = df.qcerror_set.all()
-            #
-            #     for e in qcerrs:
-            #         if not e.check_type in ['CEDA-CC', 'CF']:
-            #             print "FAIL"
-            #         errors.add(e.error_msg)
-            # print errors
-            # continue
-
-
-        # ingest_fixed_dataset(orig_ds, qcd_ds)
-
-
+        # dir = dir.strip()
+        #
+        # datasetID = convert_path_to_dataset_id(dir)
+        # if datasetID in skip:
+        #     continue
+        #
+        # orig_ds, qcd_ds = get_dataset_versions(datasetID)
+        #
+        # if not orig_ds:
+        #     print("MISSING : original dataset record {} {}".format(dir, datasetID))
+        #     continue
+        # if not qcd_ds:
+        #     print("MISSING : qcd dataset record {} {}".format(dir, datasetID))
+        #     with open('missing_qcd_dataset_record.log', 'a+') as w:
+        #         w.writelines(["{} {}\n".format(datasetID, dir)])
+        #     # errors = set()
+        #     # dfs = orig_ds.datafile_set.all()
+        #     # for df in dfs:
+        #     #     qcerrs = df.qcerror_set.all()
+        #     #
+        #     #     for e in qcerrs:
+        #     #         if not e.check_type in ['CEDA-CC', 'CF']:
+        #     #             print "FAIL"
+        #     #         errors.add(e.error_msg)
+        #     # print errors
+        #     # continue
+        #
+        #
+        # # ingest_fixed_dataset(orig_ds, qcd_ds)
+        #
+        #
 
 

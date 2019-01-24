@@ -6,7 +6,7 @@ import utils
 import sys
 import shutil
 
-FIX_FAIL_LOG = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/logfiles/failed_to_fix.log'
+FIX_FAIL_LOG = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/logfiles/failed_to_fix_2019-01-24.log'
 
 
 def write_fix_fail_log(file, msg):
