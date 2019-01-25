@@ -42,6 +42,7 @@ def get_or_create_new_dataset_record(ds, new_version_no):
         return nds_query.first()
 
 
+
 def get_or_create_new_datafile_record(df, nds, new_version_no):
 
     d = DataFile.objects.filter(gws_path=df.gws_path)
@@ -398,6 +399,50 @@ def get_dataset_versions(datasetID):
     return orig_ds, new_ds
 
 
+
+def move_directory_to_qcd_dir(ods):
+
+    src = os.path.dirname(ods.datafile_set.first().gws_path).replace('latest', '')
+    dst = src.replace(QC_FAILED_BASE, QC_PASSED_BASE)
+
+    print "MOVING {} {}".format(src, dst)
+
+
+def create_new_version(ods):
+
+    dsdir = os.path.dirname(ods.datafile_set.first().gws_path).replace('latest', '')
+    print dsdir
+    oversion = ods.version.strip('v')
+    nversion = NEW_VERSION_NO
+    ofilesdir = os.path.join(dsdir, 'files', oversion)
+    nfilesdir = os.path.join(dsdir, 'files', nversion)
+
+    if not len(os.listdir(ofilesdir)) == len(os.listdir(nfilesdir)):
+        write_error_log(ods, 'FAIL number of files on system do not match')
+        return False
+
+    # os.chdir(dsdir)
+    print "remove latest", os.path.join(dsdir, 'latest')
+    #os.remove('latest')
+    new_version_dir = os.path.join(dsdir, nversion)
+    print "make dir ", new_version_dir
+    #os.makedirs(nversion)
+    print "symlink latest"
+    # os.symlink(new_version_dir, 'latest')
+
+    newFiles = os.listdir(nfilesdir)
+    for file in newFiles:
+        #os.chdir(new_version_dir)
+        src = os.path.join('..', 'files', nversion, file)
+        if os.path.islink(src):
+            src = src.replace(nversion, oversion)
+        dst = file
+
+        print "Linking {} {}".format(src, dst)
+
+
+
+
 def check_datafile_fixed(datafile):
 
     ncfile = nc.Dataset(datafile)
@@ -412,6 +457,70 @@ def check_datafile_fixed(datafile):
         return "Wrong fix"
 
     return "ok"
+
+def create_new_dataset_record(ods):
+
+    new_ds = ods
+    new_ds.pk = None
+    new_ds.version = NEW_VERSION
+    # new_ds.save()
+
+    return new_ds
+
+
+def create_new_datafile_record(odf):
+
+    new_df = odf
+    new_df.pk = None
+    # new_df.save()
+
+    return new_df
+
+
+def update_database_records(ods):
+
+    print ods
+    nds = Dataset.objects.filter(dataset_id__icontains='.'.join(ods.dataset_id.split('.')[:-1]), version='v20181201')
+
+    if not nds:
+        print "will create new dataset record"
+        nds = create_new_dataset_record(ods)
+    elif len(nds) != 1:
+        write_error_log(ods, "More than two dataset records match query")
+        return False
+    else:
+        nds = nds.first()
+
+    print nds.supersedes
+    nds.qc_passed = True
+    nds.supersedes = ods
+    print nds.supersedes
+    #nds.save()
+
+    odfs = ods.datafile_set.all()
+    ndfs = nds.datafile_set.all()
+    print "ORIGNAL DFS"
+    for odf in odfs:
+        print odf
+        for ndf in ndfs:
+            if not ndf.gws_path == odf.gws_path:
+                ndf = create_new_datafile_record(odf)
+                print "NEW ", ndf
+                ndf.dataset = nds
+
+            ndf.supersedes = odf
+            ndf.qc_passed = True
+
+    print "NEW DFS"
+    for df in nds.datafile_set.all():
+        print df, df.dataset.version
+
+
+    if not len(nds.datafile_set.all()) == len(ods.datafile_set.all()):
+        return False
+
+    return True
+
 
 def check_dataset_files_are_fixed(orig_ds):
 
@@ -531,9 +640,24 @@ def make_new_version_dir(orig_ds):
 
     return True
 
+
+def write_ds_id_to_publish(orig_ds):
+
+    id = orig_ds.dataset_id
+    new_id = Dataset.objects.filter(dataset_id__icontains='.'.join(id.split('.')[:-1]), version=NEW_VERSION).first()
+    print new_id
+    if not new_id:
+        write_error_log(orig_ds, "no new dataset id")
+        return False
+
+    with open(PUBLISH_LOG, 'a+') as w:
+        w.writelines(["{}\n".format(new_id)])
+
+    return True
 if __name__ == "__main__":
     skip = [
-        'CMIP5.output1.ICHEC.EC-EARTH.rcp45.mon.atmos.Amon.r6i1p1.uas',
+        # 'CMIP5.output1.ICHEC.EC-EARTH.rcp45.mon.atmos.Amon.r6i1p1.uas',
+        '/group_workspaces/jasmin2/cp4cds1/data/cmip5_raw/output1/ICHEC/EC-EARTH/rcp45/mon/atmos/Amon/r6i1p1/uas/latest',
         # MISSING FILES FROM ARCHIVE - restructure.py
         # 'CMIP5.output1.CMCC.CMCC-CMS.piControl.mon.seaIce.OImon.r1i1p1.sim.v20181201',
         # Dataset not complete
@@ -544,8 +668,8 @@ if __name__ == "__main__":
     #     dirs = r.readlines()
     #
     # for d in dirs[:1]:
-    for d in ['/group_workspaces/jasmin2/cp4cds1/data/cmip5_raw/output1/CSIRO-QCCCE/CSIRO-Mk3-6-0/rcp45/mon/atmos/Amon/r1i1p1/rsut/latest',
-                #'/group_workspaces/jasmin2/cp4cds1/data/cmip5_raw/output1/CNRM-CERFACS/CNRM-CM5/rcp85/mon/atmos/Amon/r6i1p1/tasmin/latest',
+    for d in [#'/group_workspaces/jasmin2/cp4cds1/data/cmip5_raw/output1/CSIRO-QCCCE/CSIRO-Mk3-6-0/rcp45/mon/atmos/Amon/r1i1p1/rsut/latest',
+                '/group_workspaces/jasmin2/cp4cds1/data/cmip5_raw/output1/CNRM-CERFACS/CNRM-CM5/rcp85/mon/atmos/Amon/r6i1p1/tasmin/latest',
                 #'/group_workspaces/jasmin2/cp4cds1/data/cmip5_raw/output1/MOHC/HadCM3/historical/mon/ocean/Omon/r7i1p1/sos/latest',
                 #'/group_workspaces/jasmin2/cp4cds1/data/cmip5_raw/output1/MOHC/HadGEM2-CC/rcp85/day/atmos/day/r1i1p1/prsn/latest',
               ]:
@@ -567,15 +691,35 @@ if __name__ == "__main__":
         if len(ds) == 2:
             orig_ds = ds.exclude(version=NEW_VERSION).first()
 
-        all_files_in_new_files_dir = make_new_version_dir(orig_ds)
-        print "all_files_in_new_files_dir",all_files_in_new_files_dir
-        dataset_files_are_fixed = check_dataset_files_are_fixed(orig_ds)
-        print "dataset_files_are_fixed",dataset_files_are_fixed
-        # Update the datafile and dataset records at appropriate place
-        # add in new version symlink
-        # move directory to qcd dir
-        # write ds id to publish
+        # all_files_in_new_files_dir = make_new_version_dir(orig_ds)
+        # if not all_files_in_new_files_dir:
+        #     write_error_log(orig_ds, "FAIL : not all files in new version directory")
+        #     continue
+        # print "all_files_in_new_files_dir",all_files_in_new_files_dir
+        # dataset_files_are_fixed = check_dataset_files_are_fixed(orig_ds)
+        # if not dataset_files_are_fixed:
+        #     write_error_log(orig_ds, "FAIL, datasets is not qc'd")
+        #     continue
+        # print "dataset_files_are_fixed",dataset_files_are_fixed
+        #
+        # database_records_ok = update_database_records(orig_ds)
+        # if not database_records_ok:
+        #     write_error_log(orig_ds, "FAIL database records not updated ok")
+        #     continue
 
+        # new_version_dir_created = create_new_version(orig_ds)
+        # if not new_version_dir_created:
+        #     write_error_log(orig_ds, "FAILED TO CREATE NEW VERSION DIR")
+
+
+        # dataset_in_qc_dir = move_directory_to_qcd_dir(orig_ds)
+        # if not dataset_in_qc_dir:
+        #     write_error_log(orig_ds, "failed to move dataset")
+        #     continue
+
+        publish_log = write_ds_id_to_publish(orig_ds)
+        if not publish_log:
+            write_error_log(orig_ds, "Failed to write publish log")
 
 
 
