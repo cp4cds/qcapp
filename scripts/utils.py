@@ -155,7 +155,6 @@ class QCerror_fixer(object):
         :param error_message: error message as recorded by CF, CEDA-CC
         :return: [string] error info
         """
-
         fix_method, args = self.qc_mapping[error_message]
         fix = getattr(self, fix_method)
         os.chdir(os.path.dirname(filepath))

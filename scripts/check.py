@@ -3,45 +3,70 @@ from setup_django import *
 import os
 import shutil
 
-
-published_log = '../ancil_files/c3s-cmip5_datasets_in_psql.log'
-dirsinqc = '../ancil_files/dirs_passed_qc.log'
-
-def convert_path_to_id(path):
-
-    version = os.readlink(path)
+dirsfile = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/ancil_files/datasets_to_fix_2019-01-24.log'
+to_do_dir = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/status_logs/fix_2019-01-29/to_fix'
+with open(dirsfile) as r:
+    dirs = r.readlines()
 
 
-with open(published_log) as r:
-    tmp = r.readlines()
+for d in dirs[6:]:
 
-published_ds = set()
-for line in tmp:
-  published_ds.add(line.strip())
+    dir = d.strip()
+    version = os.readlink(dir).strip('/')
+    id = '.'.join(d.split('/')[7:-1]) + '.' + version
+    ds = Dataset.objects.filter(dataset_id__icontains=id).first()
+    if not ds:
+        print dir
+        continue
+    else:
+        to_do_file = os.path.join(to_do_dir, ds.dataset_id)
+        print to_do_file
+        open(to_do_file, 'a').close()
 
-print len(list(published_ds))
 
-with open(dirsinqc) as r:
-    t = r.readlines()
 
-all_ds_to_publish = set()
-for dir in t:
-    dir = dir.strip()
-    ins, model, exp, frq, realm, table, ens, var = dir.split('/')[8:-1]
-    id = '.'.join(['c3s-cmip5', 'output1', ins, model, exp, frq, realm, table, ens, var])
-    all_ds_to_publish.add(id)
 
-print len(list(all_ds_to_publish))
-system_ds_not_published = all_ds_to_publish - published_ds
 
-print len(list(system_ds_not_published))
 
-print list(system_ds_not_published)[0]
 
-for ds in list(system_ds_not_published):
-    if not "fx" in system_ds_not_published:
-        with open('../ancil_files/to_publish_16_jan_2019/qc_passed_jan_24_2019.log', 'a+') as w:
-            w.writelines(["{}\n".format(ds.replace('c3s-cmip5', 'CMIP5'))])
+# published_log = '../ancil_files/c3s-cmip5_datasets_in_psql.log'
+# dirsinqc = '../ancil_files/dirs_passed_qc.log'
+#
+# def convert_path_to_id(path):
+#
+#     version = os.readlink(path)
+#
+#
+# with open(published_log) as r:
+#     tmp = r.readlines()
+#
+# published_ds = set()
+# for line in tmp:
+#   published_ds.add(line.strip())
+#
+# print len(list(published_ds))
+#
+# with open(dirsinqc) as r:
+#     t = r.readlines()
+#
+# all_ds_to_publish = set()
+# for dir in t:
+#     dir = dir.strip()
+#     ins, model, exp, frq, realm, table, ens, var = dir.split('/')[8:-1]
+#     id = '.'.join(['c3s-cmip5', 'output1', ins, model, exp, frq, realm, table, ens, var])
+#     all_ds_to_publish.add(id)
+#
+# print len(list(all_ds_to_publish))
+# system_ds_not_published = all_ds_to_publish - published_ds
+#
+# print len(list(system_ds_not_published))
+#
+# print list(system_ds_not_published)[0]
+#
+# for ds in list(system_ds_not_published):
+#     if not "fx" in system_ds_not_published:
+#         with open('../ancil_files/to_publish_16_jan_2019/qc_passed_jan_24_2019.log', 'a+') as w:
+#             w.writelines(["{}\n".format(ds.replace('c3s-cmip5', 'CMIP5'))])
 
 
 # with open('failed_datasets.log') as r:
