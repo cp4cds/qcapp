@@ -30,360 +30,6 @@ def write_error_log(dataset_id, error_msg):
         w.writelines(["{} : {}\n".format(error_msg, dataset_id)])
 
 
-# def get_or_create_new_dataset_record(ds, new_version_no):
-#
-#     new_drs_version = '.'.join(ds.dataset_id.split('.')[:-1]) + '.v' + new_version_no
-#     nds_query = Dataset.objects.filter(dataset_id=new_drs_version)
-#
-#     if len(nds_query) == 0:
-#         new_ds = ds
-#         new_ds.pk = None
-#         new_ds.version = 'v{}'.format(new_version_no)
-#         new_ds.save()
-#         new_ds.supersedes = ds
-#         new_ds.save()
-#         return new_ds
-#     else:
-#         return nds_query.first()
-
-
-#
-# def check_new_dataset_is_complete(ods, nds):
-#
-#     orig_files = ods.datafile_set.all()
-#     orig_files_dir = os.path.dirname(orig_files.first().gws_path)
-#     orig_files_dir = os.path.join(orig_files_dir.rstrip('latest'), 'files', ods.version.strip('v'))
-#     n_orig_files = len(os.listdir(orig_files_dir))
-#     fixed_files = nds.datafile_set.all()
-#     fixed_files_dir = os.path.dirname(fixed_files.first().gws_path)
-#     fixed_files_dir = os.path.join(fixed_files_dir.rstrip('latest'), 'files', nds.version.strip('v'))
-#     n_fixed_files = len(os.listdir(fixed_files_dir))
-#
-#     if not n_orig_files == len(orig_files):
-#         print("ERROR: Original dataset record and number of files on system are inconsistent {} {}".format(ods, orig_files_dir))
-#
-#     if not n_fixed_files == len(fixed_files):
-#         print("ERROR: Fixed dataset record and number of files on system are inconsistent {} {}".format(nds, fixed_files_dir))
-#
-#     for ofile in orig_files:
-#         new_file_version = os.path.join(fixed_files_dir, os.path.basename(ofile.gws_path))
-#         exists_new_file_version = os.path.exists(new_file_version)
-#
-#         if exists_new_file_version:
-#             pass
-#             # print "exists {}".format(ofile)
-#             # ndf = DataFile.objects.filter(gws_path__icontains=new_file_version.replace('files/20181201', 'latest'), dataset__version='v20181201')
-#             # ndf = ndf.first()
-#             # print ndf
-#             # print ndf.qc_passed
-#             # print ndf.qc_fixed
-#             # print ndf.dataset.version
-#
-#             # if not ofile.qc_passed:
-#             #     print("ERROR: New file does not pass QC")
-#
-#         else:
-#             errors = ofile.qcerror_set.all()
-#             if not errors:
-#                 print("File has no errors make file a symlink in new version dir {}".format(new_file_version))
-#                 ofile.qc_passed = True
-#                 continue
-#
-#             fixable_errors = []
-#             for e in errors:
-#                 if e.check_type in ['QCPlot', 'LATEST', 'TIME-SERIES', 'TEMPORAL']:
-#                     fixable_errors.append('No')
-#                 else:
-#                     fixable_errors.append('Yes')
-#
-#             if 'No' in fixable_errors:
-#                 print("DataFile not fixable {}".format(ofile))
-#                 ofile.qc_passed = False
-#                 ofile.dataset.qc_passed = False
-#                 continue
-#
-#             else:
-#                 if e.error_msg.startswith('ERROR (4): Axis attribute'):
-#                     print("Make file a symlink in new version {}".format(new_file_version))
-#
-#
-#                 else:
-#                     print ofile.qc_fixed
-#                     print("I WILL TRY TO FIX {}".format(ofile.gws_path))
-#                     # filefixer.fix_file(ofile.gws_path)
-#                     # check file fixed records and exists on filesystem
-#                     fixed_df = DataFile.objects.filter(gws_path__icontains=new_file_version.replace('files/20181201', 'latest'), dataset__version='v20181201')
-#                     print fixed_df
-#
-#         # Amend dataset records
-#
-#         # fixed_df.qc_fixed = True
-#         # fixed_df.qc_passed = True
-#         # fixed_ds.dataset = nds
-#         # fixed_df.save()
-#
-#         # nds.supersedes = ods
-#         # nds.qc_passed = True
-#         # nds.save()
-#
-#
-#     if not len(os.listdir(fixed_files_dir)) == len(fixed_files):
-#         print("ERROR: Fixed dataset record and number of files on system are inconsistent {} {}".format(nds, fixed_files_dir))
-#
-#     if not len(orig_files) == len(fixed_files):
-#         print("NOT ALL FILES IN FIXED DS {}".format(nds))
-#
-#
-#
-#     else:
-#         for file in orig_files:
-#             for error in file.qcerror_set.all():
-#                 if not error:
-#                     print("NEW FILE SHOULD BE SYMLINK {}".format(file))
-#
-#
-#     # version = fixed_ds.version
-#     # base_ds_id = '.'.join(fixed_ds.dataset_id.split('.')[:-1])
-#     # orig_ds = Dataset.objects.filter(dataset_id__startswith=base_ds_id).exclude(version=version).first()
-#     #
-#     # if not orig_ds:
-#     #     return False, []
-#     #
-#     # orig_files = orig_ds.datafile_set.all()
-#     # fixed_files = fixed_ds.datafile_set.all()
-#     #
-#     # if len(orig_files) == len(fixed_files):
-#     #     return True, []
-#     #
-#     # else:
-#     #     missing_files = set()
-#     #     orig_files = set(orig_files)
-#     #     fixed_files = set(fixed_files)
-#     #     missing_files = orig_files - fixed_files
-#     #
-#     #     missing_ok = check_missing_files_ok(missing_files, fixed_ds)
-#     #     if missing_ok:
-#     #         return True, missing_files
-#     #     else:
-#     #         return False, []
-#
-#
-# def check_missing_files_ok(missing_files, fixed_ds):
-#
-#     print missing_files
-#     if len(list(missing_files)) == 0:
-#         return True
-#
-#     for f in list(missing_files):
-#
-#         nc = os.path.basename(str(f))
-#         df = DataFile.objects.filter(ncfile=nc).exclude(dataset__version='v20181201').first()
-#         errs = df.qcerror_set.all()
-#         errors = set()
-#         for e in errs:
-#             errors.add(e.error_msg)
-#
-#         errors_list = list(errors)
-#         if len(errors_list) == 1:
-#
-#             if not errors_list[0].startswith('ERROR (4): Axis attribute'):
-#                 write_error_log(fixed_ds, 'FILE NOT FIXED')
-#                 return False
-#
-#             # if errors_list[0].startswith('ERROR (4): Axis attribute'):
-#             #     copy_ok = copy_file_to_v2018_dir(df)
-#             #     if not copy_ok:
-#             #         write_error_log(fixed_ds, 'FAILED TO COPY TO NEW VERSION')
-#             #         return False
-#             #     missing_files.remove(df)
-#             # else:
-#             #     write_error_log(fixed_ds, 'FILE NOT FIXED')
-#             #     return False
-#
-#         else:
-#             write_error_log(fixed_ds, 'FILE NOT FIXED')
-#             return False
-#
-#         # nds = get_or_create_new_dataset_record(fixed_ds, '20181201')
-#         # df = get_or_create_new_datafile_record(df, nds, '20181201')
-#
-#
-# def copy_file_to_v2018_dir(df):
-#
-#     basepath = '/'.join(df.gws_path.split('/')[:-2])
-#     orig_version = os.readlink(os.path.join(basepath, 'latest')).strip('v')
-#     orig_path = os.path.join(basepath, 'files', orig_version)
-#     new_path = os.path.join(basepath, 'files', "20181201")
-#     if not os.path.exists(new_path):
-#         os.makedirs(new_path)
-#     print "MOVING {} {}".format(orig_path, new_path)
-#
-#     shutil.copy(orig_path, new_path)
-#
-#     if os.path.exists(new_path):
-#         return True
-#     else:
-#         return False
-#
-#
-# def move_completed_dataset(ds):
-#
-#     basepath = '/'.join(ds.datafile_set.first().gws_path.split('/')[:-2])
-#     rawdir = os.path.join(basepath, 'files', "20181201")
-#     qc_dir = os.path.join(basepath.replace(QC_FAILED_BASE, QC_PASSED_BASE), 'files', "20181201")
-#     if os.path.exists(qc_dir):
-#         return False
-#
-#     make_new_latest_dir(basepath)
-#     shutil.move(basepath, basepath.replace(QC_FAILED_BASE, QC_PASSED_BASE))
-#     print basepath.replace(QC_FAILED_BASE, QC_PASSED_BASE)
-#     return True
-
-#
-# def make_new_latest_dir(basepath):
-#
-#     os.chdir(basepath)
-#     if 'latest' in os.listdir('.'):
-#         os.remove('latest')
-#     os.makedirs('v20181201')
-#     files2018dir = os.path.join('files', '20181201')
-#     files = os.listdir(files2018dir)
-#
-#     os.chdir('v20181201')
-#
-#     for file in files:
-#         os.symlink(os.path.join('..', 'files', '20181201', file), file)
-#
-#     os.chdir('../')
-#     os.symlink('v20181201', 'latest')
-#
-#
-# def update_datafile_records(ds):
-#
-#     ds_id_base = '.'.join(ds.dataset_id.split('.')[:-1])
-#     datasets = Dataset.objects.filter(dataset_id__icontains=ds_id_base)
-#     new_dsid = ds_id_base + ".v20181201"
-#
-#     for d in datasets:
-#         if new_dsid in d.dataset_id:
-#             new_ds = d
-#         else:
-#             old_ds = d
-#
-#     new_ds.qc_passed = True
-#     new_ds.supersedes = old_ds
-#     new_ds.save()
-#
-#     if not len(old_ds.datafile_set.all()) == len(new_ds.datafile_set.all()):
-#         write_error_log(ds, "FATAL NUMBER OF DATAFILES DOES NOT MATCH")
-#         return False
-#
-#
-#     datafiles = new_ds.datafile_set.all()
-#     for df in datafiles:
-#
-#         new_path = df.gws_path.replace(QC_FAILED_BASE, QC_PASSED_BASE)
-#
-#         if not os.path.exists(new_path):
-#             write_error_log(ds, "FATAL NO NEW PATH")
-#             return False
-#
-#         df.gws_path = new_path
-#         df.save()
-#
-#     return True
-#
-
-# def write_dataset_id_for_publication(ds):
-#
-#     # print "WRITING DSID {}".format(ds.dataset_id)
-#
-#     with open(PUBLISH_LOG, 'a+') as w:
-#         w.writelines(["{}\n".format(ds.dataset_id)])
-
-
-# def check_datafile_errors(ods):
-#
-#     datafiles = ods.datafile_set.all()
-#
-#     for df in datafiles:
-#         qcerrors = df.qcerror_set.all()
-#
-#         for error in qcerrors:
-#             if error.check_type not in ["CEDA-CC", "CF"]:
-#                 return False
-#
-#     return True
-
-
-# def ingest_fixed_dataset(ods, nds):
-#
-#     print("Dataset {}".format(nds))
-#     # only ingest where errors from CEDA-CC and CF were attempted to be fixed
-#     print("Checking valid errors")
-#     valid_errors = check_datafile_errors(ods)
-#     if not valid_errors:
-#         print("NOT INGESTING AS INVALID ERRORS {}".format(ods))
-#         return
-#
-#     print("Checking dataset is complete")
-#
-#     dataset_is_complete = check_new_dataset_is_complete(ods, nds)
-#
-#     # ds = Dataset.objects.filter(dataset_id=datasetID).first()
-#     #
-#     # dataset_is_complete, files_not_in_new_version = check_dataset_is_complete(ds)
-#     # if not dataset_is_complete:
-#     #     write_error_log(ds.dataset_id, "DATASET NOT COMPLETE")
-#     #     return
-#     # if dataset_is_complete:
-#     #     print files_not_in_new_version
-#     #     print len(files_not_in_new_version)
-#     # stopa
-#     # print "dataset_is_complete", dataset_is_complete
-#     #
-#     #
-#     # moved = move_completed_dataset(ds)
-#     # if not moved:
-#     #     write_error_log(ds.dataset_id, "MOVE FILES FAILED")
-#     #     return
-#     #
-#     # print "moved", moved
-#     #
-#     # df_records_updated = update_datafile_records(ds)
-#     # if not df_records_updated:
-#     #     write_error_log(ds.dataset_id, "DATABASE RECORDS NOT UPDATED")
-#     #     return
-#     #
-#     # print "df_records_updated", df_records_updated
-#
-#     # write_dataset_id_for_publication(ds)
-
-
-
-#
-# def convert_path_to_dataset_id(dir):
-#
-#     inst, model, exp, frq, realm, table, ensemble, var = dir.split('/')[7:-2]
-#     id = '.'.join([inst, model, exp, frq, realm, table, ensemble, var])
-#     return id
-#
-#
-# def get_dataset_versions(datasetID):
-#
-#     datasets = Dataset.objects.filter(dataset_id__icontains=datasetID)
-#     orig_ds = None
-#     new_ds = None
-#
-#     for ds in datasets:
-#         if ds.version == 'v20181201':
-#             new_ds = ds
-#         else:
-#             orig_ds = ds
-#
-#     return orig_ds, new_ds
-#
-
 
 def move_directory_to_qcd_dir(ods):
 
@@ -509,6 +155,18 @@ def update_database_records(ods):
     return True
 
 
+def check_can_fix(orig_ds):
+
+    datafiles = orig_ds.datafile_set.all()
+    for df in datafiles:
+        qcerrors = df.qcerror_set.all().exclude(error_msg__startswith='ERROR (4): Axis attribute')
+        for e in qcerrors:
+            if e.check_type in ['QCPlot', 'LATEST', 'TIME-SERIES', 'TEMPORAL']:
+                open(os.path.join(DATASETS_WONT_FIX_DIR, orig_ds.dataset_id), 'a').close()
+                return False
+
+    return True
+
 def check_dataset_files_are_fixed(orig_ds):
 
     """
@@ -530,6 +188,7 @@ def check_dataset_files_are_fixed(orig_ds):
                 errors_to_fix = set()
                 for e in qcerrors:
                     if e.check_type in ['QCPlot', 'LATEST', 'TIME-SERIES', 'TEMPORAL']:
+                        open(os.path.join(DATASETS_WONT_FIX_DIR, orig_ds.dataset_id), 'a').close()
                         return False
                     else:
                         errors_to_fix.add(e.error_msg)
@@ -663,10 +322,10 @@ def write_ds_id_to_publish(orig_ds):
 
 
 
-def main_fix_ingest(dir):
+def main_fix_ingest(id):
 
     # Generate dataset id from path
-    id = '.'.join(dir.split('/')[7:-1]) + '.'
+
     ds = Dataset.objects.filter(dataset_id__icontains=id)
 
     if len(ds) == 0:
@@ -684,76 +343,76 @@ def main_fix_ingest(dir):
 
     else:
         return False, ds, 'Too many dataset records found'
-
     print orig_ds
+
+    print "can_fix"
+    can_fix = check_can_fix(orig_ds)
+    if not can_fix:
+        return False, orig_ds, "Dataset has outstanding QC errors, currently not fixable"
+    print can_fix
+
+    print "all_files_in_new_files_dir"
     all_files_in_new_files_dir = make_new_version_dir(orig_ds)
     if not all_files_in_new_files_dir:
         return False, orig_ds, "FAIL : not all files in new version directory"
-    print "all_files_in_new_files_dir", all_files_in_new_files_dir
+    print all_files_in_new_files_dir
 
+    print "dataset_files_are_fixed"
     dataset_files_are_fixed = check_dataset_files_are_fixed(orig_ds)
     if not dataset_files_are_fixed:
         return False, orig_ds, "FAIL, datasets is not qc'd"
-    print "dataset_files_are_fixed",dataset_files_are_fixed
+    print dataset_files_are_fixed
 
+    print "database_records_ok"
     database_records_ok = update_database_records(orig_ds)
     if not database_records_ok:
         return False, orig_ds, "FAIL database records not updated ok"
-    print "database_records_ok", database_records_ok
+    print database_records_ok
 
+    print 'new_version_dir_created'
     new_version_dir_created = create_new_version(orig_ds)
     if not new_version_dir_created:
         return False, orig_ds, "FAILED TO CREATE NEW VERSION DIR"
-    print 'new_version_dir_created', new_version_dir_created
+    print new_version_dir_created
 
+    print 'dataset_in_qc_dir'
     dataset_in_qc_dir = move_directory_to_qcd_dir(orig_ds)
     if not dataset_in_qc_dir:
         return False, orig_ds, "failed to move dataset"
+    print dataset_in_qc_dir
 
+    print 'write_ds_id_to_publish'
     publish_log = write_ds_id_to_publish(orig_ds)
     if not publish_log:
         return False, orig_ds, "Failed to write publish log"
+    print publish_log
 
-    return True, None, None
+    return True, orig_ds, None
 
 if __name__ == "__main__":
 
-    skip = [
-        # 'CMIP5.output1.ICHEC.EC-EARTH.rcp45.mon.atmos.Amon.r6i1p1.uas',
-        '/group_workspaces/jasmin2/cp4cds1/data/cmip5_raw/output1/ICHEC/EC-EARTH/rcp45/mon/atmos/Amon/r6i1p1/uas/latest',
-        # NOT IN LIST DEAL WITH LATER
-        # MISSING FILES FROM ARCHIVE - restructure.py
-    ]
-
     dataset_ids = os.listdir(DATASETS_TO_FIX_DIR)
+
     for dsid in dataset_ids[:1]:
-        open(os.path.join(DATASETS_IN_PROGRESS_DIR, dsid), 'a').close()
-        os.remove(os.path.join(DATASETS_TO_FIX_DIR, dsid))
 
-        status_ok, dsid, error_msg = main_fix_ingest(dir)
+        to_fix_file = os.path.join(DATASETS_TO_FIX_DIR, dsid)
+        in_progress_file = os.path.join(DATASETS_IN_PROGRESS_DIR, dsid)
+
+        shutil.move(to_fix_file, in_progress_file)
+
+        status_ok, ds, error_msg = main_fix_ingest(dsid)
+        dsid = ds.dataset_id
+
         if not status_ok:
-            open(os.path.join(DATASETS_FAILED_TO_COMPLETE_DIR, dsid), 'a').close()
-            write_error_log(dsid, error_msg)
-            continue
+            wont_fix = os.listdir(DATASETS_WONT_FIX_DIR)
+            if dsid in wont_fix:
+                os.remove(in_progress_file)
+                continue
+            else:
+                shutil.move(in_progress_file, os.path.join(DATASETS_FAILED_TO_COMPLETE_DIR, dsid))
+                write_error_log(dsid, error_msg)
+
         else:
-            open(os.path.join(DATASETS_DONE_PUBLISH_DIR, dsid), 'a').close()
+            shutil.move(in_progress_file, os.path.join(DATASETS_DONE_PUBLISH_DIR, dsid))
 
-
-
-
-        # for i, d in enumerate(dirs[:n]):
-    #     # for d in [#'/group_workspaces/jasmin2/cp4cds1/data/cmip5_raw/output1/CSIRO-QCCCE/CSIRO-Mk3-6-0/rcp45/mon/atmos/Amon/r1i1p1/rsut/latest',
-    #     #             '/group_workspaces/jasmin2/cp4cds1/data/cmip5_raw/output1/CNRM-CERFACS/CNRM-CM5/rcp85/mon/atmos/Amon/r6i1p1/tasmin/latest',
-    #     #             #'/group_workspaces/jasmin2/cp4cds1/data/cmip5_raw/output1/MOHC/HadCM3/historical/mon/ocean/Omon/r7i1p1/sos/latest',
-    #     #             #'/group_workspaces/jasmin2/cp4cds1/data/cmip5_raw/output1/MOHC/HadGEM2-CC/rcp85/day/atmos/day/r1i1p1/prsn/latest',
-    #     #           ]:
-    #
-    #     if i < n-1:
-    #         continue
-    #
-    #     if d.strip() in skip:
-    #         print "skipping ", d.strip()
-    #         continue
-
-        # dir = d.strip()
 
