@@ -4,10 +4,12 @@ import os
 from sys import argv
 from subprocess import call
 
-FAILED_DATAFILES = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/logfiles/fixable_datafiles.log'
+# FAILED_DATAFILES = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/logfiles/fixable_datafiles.log'
+# DATASETS_TO_FIX_DIR = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/status_logs/fix_2019-01-29/to_fix'
 
+DATASET_IDS_TO_FIX = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/status_logs/fix_2019-01-29/dataset_ids_to_fix_2019-01-29.log'
 start = int(argv[1])
-PER_BATCH = 200
+PER_BATCH = 50
 srt_idx = start * PER_BATCH
 end_idx = srt_idx + PER_BATCH
 
@@ -18,11 +20,12 @@ end_idx = srt_idx + PER_BATCH
 # filelist = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/failed_datasets.log"
 # filelist = "/group_workspaces/jasmin2/cp4cds1/qc/qc-app2/qcapp/ingested_to_archive.log"
 
-with open(FAILED_DATAFILES, 'r') as fr:
-    data = fr.readlines()
+with open(DATASET_IDS_TO_FIX, 'r') as fr:
+    datasets = fr.readlines()
 
-for df in data[srt_idx: end_idx]:
-    run_cmd = ["python", "/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/scripts/file_error_fixer.py", df.strip()]
+for ds in datasets[srt_idx: end_idx]:
+
+    run_cmd = ["python", "/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/scripts/fix_and_ingest_datasets.py", ds.strip()]
     run = call(run_cmd)
     if run != 0:
         print "ERROR RUNNING %s" % run_cmd

@@ -1,3 +1,4 @@
+status_logs/
 scripts/*.nc
 .cache/
 ancil_files/tst.nc

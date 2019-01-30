@@ -234,8 +234,6 @@ def fix_datafile(orig_ds, datafile, errors_to_fix):
 
     qcFixer = QCerror_fixer()
 
-    print qcFixer
-
     try:
         for error in errors_to_fix:
             qcFixer.qc_fix_wrapper(datafile, error)
@@ -391,28 +389,29 @@ def main_fix_ingest(id):
 
 if __name__ == "__main__":
 
-    dataset_ids = os.listdir(DATASETS_TO_FIX_DIR)
+    # dataset_ids = os.listdir(DATASETS_TO_FIX_DIR)
+    # for dsid in dataset_ids[:1]:
 
-    for dsid in dataset_ids[:1]:
+    dsid = sys.argv[1]
 
-        to_fix_file = os.path.join(DATASETS_TO_FIX_DIR, dsid)
-        in_progress_file = os.path.join(DATASETS_IN_PROGRESS_DIR, dsid)
+    to_fix_file = os.path.join(DATASETS_TO_FIX_DIR, dsid)
+    in_progress_file = os.path.join(DATASETS_IN_PROGRESS_DIR, dsid)
 
-        shutil.move(to_fix_file, in_progress_file)
+    shutil.move(to_fix_file, in_progress_file)
 
-        status_ok, ds, error_msg = main_fix_ingest(dsid)
-        dsid = ds.dataset_id
+    status_ok, ds, error_msg = main_fix_ingest(dsid)
+    dsid = ds.dataset_id
 
-        if not status_ok:
-            wont_fix = os.listdir(DATASETS_WONT_FIX_DIR)
-            if dsid in wont_fix:
-                os.remove(in_progress_file)
-                continue
-            else:
-                shutil.move(in_progress_file, os.path.join(DATASETS_FAILED_TO_COMPLETE_DIR, dsid))
-                write_error_log(dsid, error_msg)
+    if not status_ok:
+        wont_fix = os.listdir(DATASETS_WONT_FIX_DIR)
+        if dsid in wont_fix:
+            os.remove(in_progress_file)
 
         else:
-            shutil.move(in_progress_file, os.path.join(DATASETS_DONE_PUBLISH_DIR, dsid))
+            shutil.move(in_progress_file, os.path.join(DATASETS_FAILED_TO_COMPLETE_DIR, dsid))
+            write_error_log(dsid, error_msg)
+
+    else:
+        shutil.move(in_progress_file, os.path.join(DATASETS_DONE_PUBLISH_DIR, dsid))
 
 
