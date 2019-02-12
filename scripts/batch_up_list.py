@@ -7,9 +7,9 @@ from subprocess import call
 # FAILED_DATAFILES = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/logfiles/fixable_datafiles.log'
 # DATASETS_TO_FIX_DIR = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/status_logs/fix_2019-01-29/to_fix'
 
-DATASET_IDS_TO_FIX = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/status_logs/fix_2019-01-29/dataset_ids_to_fix_2019-01-29.log'
+DATASET_IDS_TO_FIX = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/status_logs/fix_2019-01-29/dataset_ids_to_fix_2019-02-01_r2.log'
 start = int(argv[1])
-PER_BATCH = 50
+PER_BATCH = 25
 srt_idx = start * PER_BATCH
 end_idx = srt_idx + PER_BATCH
 

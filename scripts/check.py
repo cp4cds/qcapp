@@ -3,25 +3,48 @@ from setup_django import *
 import os
 import shutil
 
-dirsfile = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/ancil_files/datasets_to_fix_2019-01-24.log'
-to_do_dir = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/status_logs/fix_2019-01-29/to_fix'
-with open(dirsfile) as r:
-    dirs = r.readlines()
+
+DONEDIR = '../status_logs/fix_2019-01-29/done_publish/'
+
+datasets = os.listdir(DONEDIR)
+
+for dsid in datasets:
+    id = '.'.join(dsid.split('.')[:-1]) + '.'
+    ds = Dataset.objects.filter(dataset_id__icontains=id, version='v20181201')
+    if not len(ds) == 1:
+        print "ERROR", id
+    ds = ds.first()
+
+    datafiles = ds.datafile_set.all()
+
+    for df in datafiles:
+        print df.gws_path
+        # new_path = df.gws_path.replace('cmip5_raw', 'alpha/c3scmip5')
+        # if not os.path.exists(new_path):
+        #     print "ERROR", new_path
+        # df.gws_path = new_path
+        # df.save()
 
 
-for d in dirs[6:]:
-
-    dir = d.strip()
-    version = os.readlink(dir).strip('/')
-    id = '.'.join(d.split('/')[7:-1]) + '.' + version
-    ds = Dataset.objects.filter(dataset_id__icontains=id).first()
-    if not ds:
-        print dir
-        continue
-    else:
-        to_do_file = os.path.join(to_do_dir, ds.dataset_id)
-        print to_do_file
-        open(to_do_file, 'a').close()
+# dirsfile = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/ancil_files/datasets_to_fix_2019-01-24.log'
+# to_do_dir = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/status_logs/fix_2019-01-29/to_fix'
+# with open(dirsfile) as r:
+#     dirs = r.readlines()
+#
+#
+# for d in dirs[6:]:
+#
+#     dir = d.strip()
+#     version = os.readlink(dir).strip('/')
+#     id = '.'.join(d.split('/')[7:-1]) + '.' + version
+#     ds = Dataset.objects.filter(dataset_id__icontains=id).first()
+#     if not ds:
+#         print dir
+#         continue
+#     else:
+#         to_do_file = os.path.join(to_do_dir, ds.dataset_id)
+#         print to_do_file
+#         open(to_do_file, 'a').close()
 
 
 

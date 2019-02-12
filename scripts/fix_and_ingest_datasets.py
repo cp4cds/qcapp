@@ -124,7 +124,7 @@ def get_or_create_new_datafile_record(odf):
 
 def update_database_records(ods):
 
-    nds = Dataset.objects.filter(dataset_id__icontains='.'.join(ods.dataset_id.split('.')[:-1]), version='v20181201')
+    nds = Dataset.objects.filter(dataset_id__icontains='.'.join(ods.dataset_id.split('.')[:-1]) + '.', version='v20181201')
 
     if not nds:
         nds = create_new_dataset_record(ods)
@@ -144,6 +144,7 @@ def update_database_records(ods):
     for odf in odfs:
         ndf = get_or_create_new_datafile_record(odf)
         if not ndf: return False
+        ndf.gws_path = ndf.gws_path.replace('cmip5_raw', 'alpha/c3scmip5')
         ndf.dataset = nds
         ndf.supersedes = odf
         ndf.qc_passed = True
@@ -392,12 +393,22 @@ if __name__ == "__main__":
     # dataset_ids = os.listdir(DATASETS_TO_FIX_DIR)
     # for dsid in dataset_ids[:1]:
 
-    dsid = sys.argv[1]
+    # DATASET_IDS_TO_FIX = '/group_workspaces/jasmin2/cp4cds1/qc/qc-app-dev/qcapp/status_logs/fix_2019-01-29/dataset_ids_to_fix_2019-01-31_r3.log'
+
+    # dsid = sys.argv[1]
+    # with open(DATASET_IDS_TO_FIX, 'r') as fr:
+    #     datasets = fr.readlines()
+    #
+    # for ds in datasets:
+    #     dsid = ds.strip()
+
+    dsid = 'CMIP5.output1.INM.inmcm4.historical.mon.atmos.Amon.r1i1p1.vas.v20130207'
+
 
     to_fix_file = os.path.join(DATASETS_TO_FIX_DIR, dsid)
     in_progress_file = os.path.join(DATASETS_IN_PROGRESS_DIR, dsid)
 
-    shutil.move(to_fix_file, in_progress_file)
+    # shutil.move(to_fix_file, in_progress_file)
 
     status_ok, ds, error_msg = main_fix_ingest(dsid)
     dsid = ds.dataset_id
