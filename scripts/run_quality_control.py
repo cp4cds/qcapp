@@ -161,6 +161,44 @@ def run_time_series_check(files, qcdir):
     if not os.path.exists(tsc_log_file):
         multi_file_time_checks(files, tsc_log_file)
 
+
+# def parse_singlefile_timechecks(df_obj):
+# def pst(df_obj):
+#
+#     checkType = "TEMPORAL"
+#     checkType = "TIME-SERIES"
+#
+#     ds = df_obj.dataset
+#     variable, realm, experiment, ensemble, version = ds.variable, ds.cmor_table, ds.experiment, ds.ensemble, ds.version
+#     logdir = os.path.join(QCLOGS, variable, realm, experiment, ensemble, version)
+#     # logfile = os.path.join(logdir, df_obj.ncfile.replace('.nc', '__file_timecheck.log'))
+#     logfile = os.path.join(logdir, "pr_day_IPSL-CM5A-LR_amip_r2i1p1__multifile_timecheck.log")
+#     print os.path.exists(logfile), logfile
+#
+#     if not os.path.exists(logfile):
+#         print("No single file time check performed ", df_obj)
+#     else:
+#
+#         file_temporal_fatal = re.compile('.*FATAL.*|.*File does not end with.*')
+#         file_temporal_fail = re.compile('.*FAIL.*')
+#         file_regexlist = [(file_temporal_fatal, "fatal"),
+#                           (file_temporal_fail, "fail")]
+#
+#         with open(logfile, 'r') as fr:
+#             file_timecheck_data = [line.strip() for line in fr]
+#
+#         df_errors = list(df_obj.qcerror_set.filter(check_type=checkType))
+#         print df_errors
+#         for line in file_timecheck_data:
+#             print line
+#             for regex, errType in file_regexlist:
+#                 if regex.match(line):
+#                     if not checkType in df_errors:
+#                         print "Will make a qc error record ",df_obj, checkType, errType, line, logfile
+#                         # make_qc_err_record(df_obj, checkType, errType, line, logfile)
+#
+                                
+
 # TODO CONVERT + ADD error LEVELS....
 
 # def parse_singlefile_timechecks(df_obj, log_dir):
