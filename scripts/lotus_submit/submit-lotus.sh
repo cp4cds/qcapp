@@ -11,6 +11,7 @@ mkdir -p $logdir
 #bsub -o $logdir/%J.out -W 24:00 ./setup_environment_lotus.sh $var $freq $table $expt $model $args
 #bsub -o $logdir/%J.out -W 24:00 ./setup_environment_lotus.sh $var $freq $table
 
-bsub -o $logdir/%J.out -W 24:00 ./setup_environment_lotus.sh $var 
+#bsub -o $logdir/%J.out -W 24:00 ./setup_environment_lotus.sh $var
+bsub -o $logdir/%J.out -W 2:00 ./setup_environment_lotus.sh $var $freq $table $expt
 
 #source ./run_qc_lotus.sh $var $table $freq $cmd_line_args

@@ -61,7 +61,13 @@ def esgf_file_search(file, institute):
                    "&institute={institute}&distrib={distrib}&format=application%2Fsolr%2Bjson&limit=100".format(
                     node=CEDA_INDEX_NODE, ncfile=file, institute=institute, distrib=distrib, latest=latest)
 
-    return URL_TEMPLATE
+# def esgf_file_search(file):
+#
+#     URL_TEMPLATE = "https://{node}/esg-search/search?type=File&project=CMIP5&title={ncfile}" \
+#                    "&distrib={distrib}&format=application%2Fsolr%2Bjson&limit=100".format(
+#                     node=CEDA_INDEX_NODE, ncfile=file, distrib=distrib, latest=latest)
+#
+#     return URL_TEMPLATE
 
 
 def get_or_make_cache_dir(dfobj):
@@ -351,6 +357,67 @@ def check_datafile_is_latest(variable, frequency, table, experiment):
                 else:
                     df.up_to_date = True
                     df.save()
+def check_datafile_is_latest(variable, frequency, table, experiment):
+
+    for df in DataFile.objects.filter(variable=variable, dataset__cmor_table=table, dataset__frequency=frequency,
+                                      dataset__experiment=experiment).exclude(dataset__supersedes__isnull=True):
+
+        print("FILE : {}".format(df.ncfile))
+
+        json_cache_dir = make_cache_dir(df)
+        json_log_file = os.path.join(json_cache_dir, df.ncfile.replace('.nc', '.json'))
+        json_resp = read_json_cache_file(df, json_log_file)
+
+        if not json_resp:
+            print("ERROR NO JSON FILE")
+
+        else:
+            file_info = {}
+            for result in json_resp:
+                node = result['data_node']
+
+                file_info[node] = {
+                                   'latest': result['latest'],
+                                   'replica': result['replica'],
+                                   'version': result['dataset_id'].split('|')[0].split('.')[-1],
+                                   'checksum_type': result['checksum_type'],
+                                   'checksum': result['checksum'],
+                                   'tracking_id': result['tracking_id']
+                                   }
+
+            if CEDA_DATA_NODE not in file_info.keys():
+                print "ERROR NO CEDA RECORD"
+
+            else:
+
+                latest_nodes = []
+                for k, v in file_info.iteritems():
+                    if v['latest']:
+                        latest_nodes.append(k)
+
+                latest_versions = set()
+                for node in latest_nodes:
+                    latest_versions.add(file_info[node]['version'])
+
+                if len(latest_versions) == 1:
+                    latest_version = latest_versions[0]
+                else:
+                    break
+
+                if CEDA_DATA_NODE not in latest_nodes:
+
+                    if file_info[CEDA_DATA_NODE]['checksum_type'] == file_info[latest_node]['checksum_type']:
+                        if file_info[CEDA_DATA_NODE]['checksum'] == file_info[latest_node]['checksum']:
+                            print("SAME FILE ALL OK")
+                    elif file_info[la]:
+                        pass
+
+
+
+                else:
+                    print("CEDA HAS LATEST FILE BUT IN DIFFERENT CMIP5 DATASET VERSION")
+
+
 
 
 if __name__ == "__main__":
