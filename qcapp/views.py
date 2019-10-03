@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.http import HttpResponse
 from django.conf import settings
+from django.views.generic import TemplateView
 
 import datetime
 
@@ -14,24 +15,26 @@ GWSDIR = "qcapp/cp4cds_gws_qc/"
 FACETS_LIST = ['model', 'experiment']
 
 
-def home(request):
-    title = "CP4CDS Quality Control"
-    return render(request,'qcapp/home.html', {'page_title': title, 'version': settings.VERSION})
+class HomeView(TemplateView):
+    template_name = 'qcapp/home.html'
+    extra_context = {
+        'page_title': 'CP4CDS Quality Control',
+        'version': settings.VERSION
+    }
 
 
-def help(request):
-    context={}
-    title = "Help Page"
-    context["page_title"] = title
-    context["version"] = settings.VERSION
-    return render(request,'qcapp/help.html', context)
+class HelpView(TemplateView):
+    template_name = 'qcapp/help.html'
+    extra_context = {
+        'page_title': 'Help Page',
+        'version': settings.VERSION
+    }
 
 
 def model_details(request):
     context = {}
 
     context["page_title"] = "Model Details"
-
 
     if request.POST:
 

@@ -16,20 +16,20 @@ Including another URLconf
 from django.conf.urls import url
 from django.contrib import admin
 
-import qcapp.views
+from qcapp.views import *
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
-    url(r'^$', qcapp.views.home, name="home"),
-    url(r'^model-details/', qcapp.views.model_details, name="model-details"),
-    url(r'^variable-details/', qcapp.views.variable_details, name="variable-details"),
-    url(r'^data-availability/', qcapp.views.data_availability_matrix, name="data-availability-matrix"),
-    url(r'^help/', qcapp.views.help, name="help"),
+    url(r'^$', HomeView.as_view(), name="home"),
+    url(r'^model-details/', model_details, name="model-details"),
+    url(r'^variable-details/', variable_details, name="variable-details"),
+    url(r'^data-availability/', data_availability_matrix, name="data-availability-matrix"),
+    url(r'^help/', HelpView.as_view(), name="help"),
 
 
     # Ajax endpoints
     url(r'^facet-filter/(?P<model>\S+)/(?P<experiment>\S+)',
-        qcapp.views.facet_filter, name="facet-filter"),
-    url(r'^get_variable_details/(?P<variable>\S+)/(?P<table>\S+)/(?P<freq>\S+)', qcapp.views.get_variable_details, name="get_varaible_details"),
+        facet_filter, name="facet-filter"),
+    url(r'^get_variable_details/(?P<variable>\S+)/(?P<table>\S+)/(?P<freq>\S+)', get_variable_details, name="get_varaible_details"),
 
 ]
