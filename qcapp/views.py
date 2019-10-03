@@ -7,7 +7,7 @@ import datetime
 from qcapp.models import *
 from .models import *
 import collections, json
-import view_functions as vf
+import qcapp.utils as apputils
 
 
 GWSDIR = "qcapp/cp4cds_gws_qc/"
@@ -140,7 +140,7 @@ def data_availability_matrix(request):
         for v,t,f in zip(variables, tables, freqs):
             output.append(list(datasets.filter(variable=v,cmor_table=t,frequency=f).distinct('model').values_list('model', flat=True)))
             if len(output) > 1:
-                output = vf.list_intersect(output)
+                output = apputils.list_intersect(output)
 
         models = output[0]
 
