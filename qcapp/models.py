@@ -54,7 +54,7 @@ class Dataset(models.Model):
     variable = models.CharField(max_length=20)
     esgf_drs = models.CharField(max_length=200, blank=True)
     esgf_node = models.CharField(max_length=80, blank=True)
-    supersedes = models.ForeignKey('self', default=None, blank=True, null=True, related_name='superseded_by')
+    supersedes = models.ForeignKey('self', default=None, blank=True, null=True, related_name='superseded_by', on_delete=models.CASCADE)
     up_to_date = models.NullBooleanField(default=None, blank=True, null=True)
     up_to_date_note = models.CharField(default=None, max_length=1000, blank=True, null=True)
     qc_passed = models.NullBooleanField(default=None, blank=True, null=True)
@@ -83,7 +83,7 @@ class DataFile(models.Model):
     """
     Dataset file
     """
-    dataset = models.ForeignKey(Dataset)
+    dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE)
     gws_path = models.CharField(max_length=500, default=None, blank=True, null=True)
     archive_path = models.CharField(max_length=500)
     ncfile = models.CharField(blank=True, max_length=300)
@@ -106,7 +106,7 @@ class DataFile(models.Model):
     # duplicate_of = models.ForeignKey('self', default=None, blank=True, null=True)
     new_dataset_version = models.NullBooleanField(default=False, blank=True, null=True)
 
-    supersedes = models.ForeignKey('self', default=None, blank=True, null=True, related_name='superseded_by')
+    supersedes = models.ForeignKey('self', default=None, blank=True, null=True, related_name='superseded_by', on_delete=models.CASCADE)
 
     # Datafile QC information
     qc_passed = models.NullBooleanField(default=False, blank=True, null=True)
@@ -120,8 +120,8 @@ class DataFile(models.Model):
 
 class QCerror(models.Model):
 
-    file = models.ForeignKey(DataFile, null=True)
-    set = models.ForeignKey(Dataset, null=True)
+    file = models.ForeignKey(DataFile, null=True, on_delete=models.CASCADE)
+    set = models.ForeignKey(Dataset, null=True, on_delete=models.CASCADE)
     check_type = models.CharField(max_length=20, null=True, blank=True)
     error_type = models.CharField(max_length=100, null=True, blank=True)
     error_msg = models.CharField(max_length=2000, null=True, blank=True)
