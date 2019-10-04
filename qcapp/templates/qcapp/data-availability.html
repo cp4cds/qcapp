@@ -40,7 +40,7 @@
                     <select id="variable-select" data-placeholder="Click and start typing or select variable... ">
                             <option value=""></option>
                         {% for variable in variables %}
-                            <option value="{{ variable }}">{{ variable }}</option>
+                            <option value="{{ variable.short_name }}">{{ variable.long_name }}</option>
                         {% endfor %}
                     </select>
                     <button class="btn copernicus" id="addVariable" type="button">Add variable <span class="glyphicon glyphicon-plus"></span></button>

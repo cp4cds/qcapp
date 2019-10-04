@@ -9,3 +9,4 @@ __license__ = 'BSD - see LICENSE file in top-level package directory'
 __contact__ = 'richard.d.smith@stfc.ac.uk'
 
 from .list_intersect import list_intersect
+from .variable_long_name import VariableLongName

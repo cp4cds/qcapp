@@ -73,7 +73,7 @@ class ModelDetailView(TemplateView):
             data = {
                 'experiments': expr_list,
                 'var_name': var,
-                'var_long_name': DataFile.objects.filter(variable=var).first().variable_long_name
+                'var_long_name': apputils.VariableLongName.get_longname(var)
             }
 
             vars.append(data)
@@ -137,7 +137,11 @@ class VariableDetailView(TemplateView):
 
         datasets = Dataset.objects.all()
 
-        context['variables'] = datasets.values_list("variable", flat=True).distinct().order_by('variable')
+        variables = apputils.VariableLongName.short_to_long(
+            datasets.values_list("variable", flat=True).distinct().order_by('variable')
+        )
+
+        context['variables'] = variables
         context['cmor_tables'] = datasets.values_list("cmor_table", flat=True).distinct()
         context['frequencies'] = datasets.values_list("frequency", flat=True).distinct()
 
@@ -231,8 +235,12 @@ class DataAvilabilityMatrix(TemplateView):
 
         datasets = Dataset.objects.all()
 
+        variables = apputils.VariableLongName.short_to_long(
+            datasets.values_list("variable", flat=True).distinct().order_by('variable')
+        )
+
         context["range"] = range(1, 16)
-        context["variables"] = datasets.values_list('variable', flat=True).distinct().order_by('variable')
+        context["variables"] = variables
         context["experiments"] = datasets.values_list('experiment', flat=True).distinct()
 
         return context
