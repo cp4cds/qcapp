@@ -1,5 +1,4 @@
-from django.shortcuts import render
-from django.http import HttpResponse
+from django.http import JsonResponse, HttpResponseBadRequest
 from django.conf import settings
 from django.views.generic import TemplateView
 
@@ -7,15 +6,14 @@ import datetime
 
 from qcapp.models import *
 from .models import *
-import collections, json
+import collections
 import qcapp.utils as apputils
 
-
-GWSDIR = "qcapp/cp4cds_gws_qc/"
 FACETS_LIST = ['model', 'experiment']
 
 
 class HomeView(TemplateView):
+
     template_name = 'qcapp/home.html'
     extra_context = {
         'page_title': 'CP4CDS Quality Control',
@@ -24,6 +22,7 @@ class HomeView(TemplateView):
 
 
 class HelpView(TemplateView):
+
     template_name = 'qcapp/help.html'
     extra_context = {
         'page_title': 'Help Page',
@@ -31,14 +30,20 @@ class HelpView(TemplateView):
     }
 
 
-def model_details(request):
-    context = {}
+class ModelDetailView(TemplateView):
 
-    context["page_title"] = "Model Details"
+    template_name = 'qcapp/model_details.html'
+    extra_context = {
+        'page_title': 'Model Details',
+        'version': settings.VERSION
+    }
 
-    if request.POST:
-
-        context["selected"] = {"model":request.POST["model"], "experiment": request.POST["experiment"]}
+    def post(self, request, *args, **kwargs):
+        context = self.get_context_data(**kwargs)
+        context["selected"] = {
+            "model": request.POST["model"],
+            "experiment": request.POST["experiment"]
+        }
 
         datasets = Dataset.objects.all()
 
@@ -52,38 +57,50 @@ def model_details(request):
 
         vars = []
         for var in variables:
-            data = {}
             expr_list = []
             experiments = datasets.filter(variable=var).values_list('experiment', flat=True).distinct()
+
             for expr in experiments:
-                experiment_data = {}
+                ensembles = list(
+                    datasets.filter(experiment=expr).values_list('ensemble', flat=True).distinct().order_by('ensemble'))
 
-                ensembles = list(datasets.filter(experiment=expr).values_list('ensemble', flat=True).distinct().order_by('ensemble'))
-
-                experiment_data["experiment"] = expr
-                experiment_data["ensembles"] = ensembles
+                experiment_data = {
+                    'experiment': expr,
+                    'ensembles': ensembles
+                }
                 expr_list.append(experiment_data)
 
-            data['experiments'] = expr_list
-            data['var_name'] = var
-            data['var_long_name'] = DataFile.objects.filter(variable=var).first().variable_long_name
+            data = {
+                'experiments': expr_list,
+                'var_name': var,
+                'var_long_name': DataFile.objects.filter(variable=var).first().variable_long_name
+            }
+
             vars.append(data)
 
         context["variables"] = vars
 
-    context["models"] = Dataset.objects.values_list("model", flat=True).distinct().order_by('model')
-    context["experiments"] = Dataset.objects.values_list("experiment", flat=True).distinct().order_by('experiment')
-    context["version"] = settings.VERSION
+        return self.render_to_response(context)
 
-    return render(request, 'qcapp/model_details.html', context)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        datasets = Dataset.objects.all()
+
+        context["models"] = datasets.values_list("model", flat=True).distinct().order_by('model')
+        context["experiments"] = datasets.values_list("experiment", flat=True).distinct().order_by('experiment')
+        return context
 
 
-def variable_details(request):
-    context = {}
+class VariableDetailView(TemplateView):
 
-    context["page_title"] = "Variable Details"
+    template_name = 'qcapp/variable_details.html'
+    extra_context = {
+        'page_title': 'Variable Details',
+        'version': settings.VERSION
+    }
 
-    if request.POST:
+    def post(self, request, *args, **kwargs):
+        context = self.get_context_data(**kwargs)
 
         datasets = Dataset.objects.all()
 
@@ -107,22 +124,41 @@ def variable_details(request):
             model_data.append(data)
 
         context["models"] = model_data
-        context["selected"] = {"variable":request.POST["variable"],"table":request.POST["table"],"frequency":request.POST["frequency"]}
+        context["selected"] = {
+            "variable": request.POST["variable"],
+            "table": request.POST["table"],
+            "frequency": request.POST["frequency"]
+        }
 
-    context["variables"] = Dataset.objects.values_list("variable", flat=True).distinct().order_by('variable')
-    context["cmor_tables"] = Dataset.objects.values_list("cmor_table", flat=True).distinct()
-    context["frequencies"] = Dataset.objects.values_list("frequency", flat=True).distinct()
-    context["version"] = settings.VERSION
+        return self.render_to_response(context)
 
-    return render(request, 'qcapp/variable_details.html', context)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        datasets = Dataset.objects.all()
+
+        context['variables'] = datasets.values_list("variable", flat=True).distinct().order_by('variable')
+        context['cmor_tables'] = datasets.values_list("cmor_table", flat=True).distinct()
+        context['frequencies'] = datasets.values_list("frequency", flat=True).distinct()
+
+        return context
 
 
-def data_availability_matrix(request):
-    context = {}
-    context["page_title"] = "Data Availability Matrix"
+class DataAvilabilityMatrix(TemplateView):
+    template_name = 'qcapp/data-availability.html'
+    extra_context = {
+        'page_title': 'Data Availability Matrix',
+        'version': settings.VERSION
+    }
 
-    if request.POST and request.is_ajax():
+    def post(self, request, *args, **kwargs):
+        if not request.is_ajax:
+            context = self.get_context_data(**kwargs)
+            return self.render_to_response(context)
+
+        # AJAX Response
         data = dict(request.POST.lists())
+
         # Remove csrf token before sending query back in JSON.
         data.pop('csrfmiddlewaretoken', None)
         try:
@@ -134,14 +170,16 @@ def data_availability_matrix(request):
 
         except KeyError:
             # User has not made a selection for one of the filters. Return bad request code.
-            return HttpResponse(status=400)
+            return HttpResponseBadRequest()
 
         # Get datasets that have one or other of the experiments
         datasets = Dataset.objects.filter(experiment__in=experiments)
 
         output = []
-        for v,t,f in zip(variables, tables, freqs):
-            output.append(list(datasets.filter(variable=v,cmor_table=t,frequency=f).distinct('model').values_list('model', flat=True)))
+        for v, t, f in zip(variables, tables, freqs):
+            output.append(
+                list(datasets.filter(variable=v, cmor_table=t, frequency=f).values_list('model', flat=True).distinct()))
+
             if len(output) > 1:
                 output = apputils.list_intersect(output)
 
@@ -152,46 +190,57 @@ def data_availability_matrix(request):
             model_specific_datasets = datasets.filter(model=model)
             institute = model_specific_datasets.values_list('institute', flat=True).distinct().first()
             expts = model_specific_datasets.values_list('experiment', flat=True).distinct()
+
             for experiment in expts:
-                model_data = {}
-                ensembles = list(model_specific_datasets.filter(experiment=experiment).values_list('ensemble',flat=True).distinct().order_by('ensemble'))
+                ensembles = list(
+                    model_specific_datasets.filter(experiment=experiment).values_list(
+                        'ensemble', flat=True).distinct().order_by(
+                        'ensemble')
+                )
+
                 if len(ensembles) < min_size:
                     continue
-                model_data["institute"] = institute
-                model_data["model"] = model
-                model_data["experiment"] = experiment
-                model_data["ensembles"] = ensembles
+
+                model_data = {
+                    'institute': institute,
+                    'model': model,
+                    'experiment': experiment,
+                    'ensembles': ensembles
+                }
 
                 return_data_list.append(model_data)
 
         # Generate Meta data
+        provenance = {
+            'source': 'This data has been provided by the ECMWF C3S Copernicus project Climate Predicitions '
+                      'for the Copernicus Climate Data Store (CP4CDS) provided by CEDA-STFC (c) ECWMF C3S',
+            'access_date': datetime.datetime.today().strftime('%Y-%M-%d %H:%M:%S'),
+            'version': f"CP4CDS QA database version: {settings.VERSION}"
+        }
 
-        provenance = {}
-        provenance["source"] = "This data has been provided by the ECMWF C3S Copernicus project Climate Predicitions for the Copernicus Climate Data Store (CP4CDS) provided by CEDA-STFC (c) ECWMF C3S"
-        provenance["access_date"] = datetime.datetime.today().strftime('%Y-%M-%d %H:%M:%S')
-        provenance["version"] = "CP4CDS QA database version: {}".format(settings.VERSION)
+        data_availability = {
+            'provenance': provenance,
+            'query': data,
+            'results': return_data_list
+        }
 
-        data_availability = {}
-        data_availability["provenance"] = provenance
-        data_availability["query"] = data
-        data_availability["results"] = return_data_list
+        return JsonResponse(data_availability)
 
-        return HttpResponse(json.dumps(data_availability), content_type='application/json')
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
 
-    datasets = Dataset.objects.all()
+        datasets = Dataset.objects.all()
 
-    context["range"] = range(1,16)
-    context["variables"] = datasets.values_list('variable', flat=True).distinct().order_by('variable')
-    context["experiments"] = datasets.values_list('experiment', flat=True).distinct()
-    context["version"] = settings.VERSION
+        context["range"] = range(1, 16)
+        context["variables"] = datasets.values_list('variable', flat=True).distinct().order_by('variable')
+        context["experiments"] = datasets.values_list('experiment', flat=True).distinct()
 
-    return render(request, 'qcapp/data-availability.html', context)
+        return context
 
 
 ################################################## AJAX VIEWS #########################################################
 
 def facet_filter(request, model, experiment):
-
     if request.is_ajax():
         facets = collections.OrderedDict()
 
@@ -204,8 +253,7 @@ def facet_filter(request, model, experiment):
         for f in FACETS_LIST:
             facets[f] = [str(x[0]).strip() for x in all_facets.values_list(f).distinct()]
 
-        filtered_data = json.dumps(facets)
-        return HttpResponse(filtered_data, content_type='application/json')
+        return JsonResponse(facets)
 
 
 def get_variable_details(request, variable, table=None, freq=None):
@@ -215,13 +263,15 @@ def get_variable_details(request, variable, table=None, freq=None):
         datasets = Dataset.objects.all()
         if variable != 'All':
             datasets = datasets.filter(variable=variable)
+
         if table != 'All':
             datasets = datasets.filter(cmor_table=table)
+
         if freq != 'All':
             datasets = datasets.filter(frequency=freq)
 
         # Make sure only valid pairs are returned
-        pairs = list(datasets.values_list('cmor_table','frequency').distinct())
+        pairs = list(datasets.values_list('cmor_table', 'frequency').distinct())
         tables, freqs = [], []
         for table, freq in pairs:
             tables.append(table)
@@ -231,6 +281,6 @@ def get_variable_details(request, variable, table=None, freq=None):
         data['tables'] = tables
         data['frequencies'] = freqs
 
-    return HttpResponse(json.dumps(data), content_type='application/json')
+    return JsonResponse(data)
 
 ################################################## AJAX VIEWS #########################################################

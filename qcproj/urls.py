@@ -21,9 +21,9 @@ from qcapp.views import *
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', HomeView.as_view(), name="home"),
-    path('model-details/', model_details, name="model-details"),
-    path('variable-details/', variable_details, name="variable-details"),
-    path('data-availability/', data_availability_matrix, name="data-availability-matrix"),
+    path('model-details/', ModelDetailView.as_view(), name="model-details"),
+    path('variable-details/', VariableDetailView.as_view(), name="variable-details"),
+    path('data-availability/', DataAvilabilityMatrix.as_view(), name="data-availability-matrix"),
     path('help/', HelpView.as_view(), name="help"),
 
     # Ajax endpoints
