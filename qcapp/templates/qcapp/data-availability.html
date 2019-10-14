@@ -40,7 +40,7 @@
                     <select id="variable-select" data-placeholder="Click and start typing or select variable... ">
                             <option value=""></option>
                         {% for variable in variables %}
-                            <option value="{{ variable }}">{{ variable }}</option>
+                            <option value="{{ variable.short_name }}">{{ variable.long_name }}</option>
                         {% endfor %}
                     </select>
                     <button class="btn copernicus" id="addVariable" type="button">Add variable <span class="glyphicon glyphicon-plus"></span></button>
@@ -83,7 +83,6 @@
         </table>
 
 
-        {#    <input value="Get results" type="submit" class="btn btn-success" id="get_results">#}
         <button type="button" class="btn copernicus" id="get_results" typeof="submit">Get results</button>
         <button type="button" class="btn copernicus" id="clear_filters" typeof="button"> Reset all filters</button>
     </form>
