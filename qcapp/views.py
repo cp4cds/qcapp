@@ -10,6 +10,24 @@ import collections
 import qcapp.utils as apputils
 
 FACETS_LIST = ['model', 'experiment']
+VARIABLE_EXCLUSION_LIST = ['msftmyz','od550aer']
+CMOR_TABLE_EXCLUSION_LIST = ['3hr', 'cf3hr']
+FREQUENCY_EXCLUSION_LIST = []
+
+
+def get_datasets():
+    """
+    Apply exclusions to the dataset model
+    :return: QuerySet of valid datasets
+    """
+
+    datasets = Dataset.objects.all()
+
+    datasets = datasets.exclude(variable__in=VARIABLE_EXCLUSION_LIST)
+    datasets = datasets.exclude(frequency__in=CMOR_TABLE_EXCLUSION_LIST)
+    datasets = datasets.exclude(frequency__in=FREQUENCY_EXCLUSION_LIST)
+
+    return datasets
 
 
 class HomeView(TemplateView):
@@ -45,7 +63,7 @@ class ModelDetailView(TemplateView):
             "experiment": request.POST["experiment"]
         }
 
-        datasets = Dataset.objects.all()
+        datasets = get_datasets()
 
         if request.POST['model'] != "All":
             datasets = datasets.filter(model=request.POST['model'])
@@ -84,7 +102,7 @@ class ModelDetailView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        datasets = Dataset.objects.all()
+        datasets = get_datasets()
 
         context["models"] = datasets.values_list("model", flat=True).distinct().order_by('model')
         context["experiments"] = datasets.values_list("experiment", flat=True).distinct().order_by('experiment')
@@ -102,7 +120,7 @@ class VariableDetailView(TemplateView):
     def post(self, request, *args, **kwargs):
         context = self.get_context_data(**kwargs)
 
-        datasets = Dataset.objects.all()
+        datasets = get_datasets()
 
         if request.POST["variable"] != "All":
             datasets = datasets.filter(variable=request.POST["variable"])
@@ -135,7 +153,7 @@ class VariableDetailView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        datasets = Dataset.objects.all()
+        datasets = get_datasets()
 
         variables = apputils.VariableLongName.short_to_long(
             datasets.values_list("variable", flat=True).distinct().order_by('variable')
@@ -172,12 +190,14 @@ class DataAvilabilityMatrix(TemplateView):
             experiments = data['experiments']
             min_size = int(data["ensemble_size"][0])
 
+            variables = apputils.VariableLongName.long_to_short(variables)
+
         except KeyError:
             # User has not made a selection for one of the filters. Return bad request code.
             return HttpResponseBadRequest()
 
         # Get datasets that have one or other of the experiments
-        datasets = Dataset.objects.filter(experiment__in=experiments)
+        datasets = get_datasets().filter(experiment__in=experiments)
 
         output = []
         for v, t, f in zip(variables, tables, freqs):
@@ -233,7 +253,7 @@ class DataAvilabilityMatrix(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        datasets = Dataset.objects.all()
+        datasets = get_datasets()
 
         variables = apputils.VariableLongName.short_to_long(
             datasets.values_list("variable", flat=True).distinct().order_by('variable')
@@ -252,7 +272,7 @@ def facet_filter(request, model, experiment):
     if request.is_ajax():
         facets = collections.OrderedDict()
 
-        all_facets = Dataset.objects.all()
+        all_facets = get_datasets()
         if model != 'All':
             all_facets = all_facets.filter(model=model)
         if experiment != 'All':
@@ -268,7 +288,7 @@ def get_variable_details(request, variable, table=None, freq=None):
     data = {}
     if request.is_ajax():
 
-        datasets = Dataset.objects.all()
+        datasets = get_datasets()
         if variable != 'All':
             datasets = datasets.filter(variable=variable)
 
@@ -285,7 +305,13 @@ def get_variable_details(request, variable, table=None, freq=None):
             tables.append(table)
             freqs.append(freq)
 
-        data['variable'] = list(datasets.values_list('variable', flat=True).distinct().order_by('variable'))
+        variables = apputils.VariableLongName.short_to_long(
+            datasets.values_list("variable", flat=True).distinct().order_by('variable')
+        )
+
+        variables = [x.long_name for x in variables]
+
+        data['variable'] = variables
         data['tables'] = tables
         data['frequencies'] = freqs
 

@@ -75,3 +75,18 @@ class VariableLongName:
             variables.append(Variable(var, cls.get_longname(var)))
 
         return variables
+
+    @classmethod
+    def get_short_name(cls, var):
+        for short_name, long_name in cls.mapping.items():
+            if var == long_name:
+                return short_name
+
+    @classmethod
+    def long_to_short(cls, input_list):
+
+        variables = []
+        for var in input_list:
+            variables.append(cls.get_short_name(var))
+
+        return variables
