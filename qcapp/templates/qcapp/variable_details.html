@@ -28,7 +28,7 @@
                     <!--NEED TO ONLY DISPLAY BELOW IF NO SELECTION HAS BEEN MADE-->
                     <option value="All">All</option>
                     {% for variable in variables %}
-                        <option value="{{ variable }}">{{ variable }}</option>
+                        <option value="{{ variable.short_name }}">{{ variable.long_name }}</option>
                     {% endfor %}
 
                 </select>

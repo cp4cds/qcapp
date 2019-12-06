@@ -13,33 +13,22 @@ Including another URLconf
     1. Import the include() function: from django.conf.urls import url, include
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
-from django.conf.urls import url
+from django.urls import path
 from django.contrib import admin
 
-import qcapp.views
+from qcapp.views import *
 
 urlpatterns = [
-    url(r'^admin/', admin.site.urls),
-    url(r'^$', qcapp.views.home, name="home"),
-    url(r'^documentation/', qcapp.views.documentation),
-    url(r'^qcerrors/', qcapp.views.qcerrors),
-    url(r'^ceda-cc-errors/', qcapp.views.ceda_cc_errors, name="ceda-cc-errors"),
-    url(r'^cf-errors/', qcapp.views.cf_errors, name="cf-errors"),
-    url(r'^variable-qc/(?P<ncfile>\S+)', qcapp.views.variable_qc, name="variable-qc"),
-    url(r'^variable-file-qc/(?P<ncfile>\S+)', qcapp.views.variable_file_qc, name="variable-file-qc"),
-    url(r'^variable-timeseries-qc/(?P<ncfile>\S+)', qcapp.views.variable_timeseries_qc, name="variable-timeseries-qc"),
-    url(r'^variable-dataset-qc/(?P<variable>\S+)', qcapp.views.variable_dataset_qc, name="variable-dataset-qc"),
-    url(r'^variable-summary-qc/', qcapp.views.variable_summary_qc, name="variable-summary-qc"),
-    url(r'^data-spec/', qcapp.views.data_spec, name="data-spec"),
-    url(r'^model-details/', qcapp.views.model_details, name="model-details"),
-    url(r'^variable-details/', qcapp.views.variable_details, name="variable-details"),
-    url(r'^data-availability/', qcapp.views.data_availability_matrix, name="data-availability-matrix"),
-    url(r'^help/', qcapp.views.help, name="help"),
-
+    path('admin/', admin.site.urls),
+    path('', HomeView.as_view(), name="home"),
+    path('model-details/', ModelDetailView.as_view(), name="model-details"),
+    path('variable-details/', VariableDetailView.as_view(), name="variable-details"),
+    path('data-availability/', DataAvilabilityMatrix.as_view(), name="data-availability-matrix"),
+    path('help/', HelpView.as_view(), name="help"),
 
     # Ajax endpoints
-    url(r'^facet-filter/(?P<model>\S+)/(?P<experiment>\S+)',
-        qcapp.views.facet_filter, name="facet-filter"),
-    url(r'^get_variable_details/(?P<variable>\S+)/(?P<table>\S+)/(?P<freq>\S+)', qcapp.views.get_variable_details, name="get_varaible_details"),
+    path('facet-filter/<str:model>/<str:experiment>', facet_filter, name="facet-filter"),
+    path('get_variable_details/<str:variable>/<str:table>/<str:freq>', get_variable_details,
+         name="get_varaible_details"),
 
 ]
