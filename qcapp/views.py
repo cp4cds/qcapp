@@ -34,7 +34,7 @@ class HomeView(TemplateView):
 
     template_name = 'qcapp/home.html'
     extra_context = {
-        'page_title': 'CP4CDS Quality Control',
+        'page_title': 'Data availability of global climate projections in the Copernicus Climate Data Store',
         'version': settings.VERSION
     }
 
