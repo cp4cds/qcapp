@@ -315,8 +315,10 @@ def check_log_exists(file, qcdir, ext):
 
 
 
-def get_and_make_logdir(datafile, force_version):
-    inst, model, expt, freq, realm, table, ensemble, var, ver, ncfile = datafile.gws_path.split('/')[8:]
+def get_and_make_logdir(datafile, force_version=None):
+    print(datafile.gws_path)
+    adaf
+    inst, model, expt, freq, realm, table, ensemble, var, ver, ncfile = datafile.gws_path.split('/')[7:]
     if force_version:
         v_version = 'v{}'.format(force_version)
     else:
