@@ -296,7 +296,7 @@ def run_qc(variable, frequency, table):
 
     for experiment in ALLEXPTS:
 
-        datasets = Dataset.objects.filter(variable=variable, frequency=frequency, cmor_table=table, experiment=experiment)
+        datasets = Dataset.objects.filter(variable=variable, frequency=frequency, cmor_table=table, experiment=experiment, model='HadCM3')
         
         for ds in datasets:
             datafiles = ds.datafile_set.all()

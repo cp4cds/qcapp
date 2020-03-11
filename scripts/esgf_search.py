@@ -25,7 +25,7 @@ def find_all_local_datafiles(variable, frequency, table, experiment):
 
     url = datafile_search_template.format(cedaindex, project, variable, frequency, table, experiment, distrib, latest)
     
-    json_logdir, json_file = _define_local_json_cache_names(variable, frequency, table, experiment)
+    json_logdir, json_file = define_local_json_cache_names(variable, frequency, table, experiment)
   
     if not os.path.exists(json_file):
         resp = requests.get(url, verify=False)
